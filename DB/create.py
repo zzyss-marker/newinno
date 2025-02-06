@@ -1,9 +1,10 @@
 import mysql.connector
-from sqlalchemy import create_engine, Column, Integer, String, Date, DateTime, Enum, JSON, ForeignKey, Text
+from sqlalchemy import create_engine, Column, Integer, String, Date, DateTime, Enum, JSON, ForeignKey, Text, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 import enum
 import bcrypt
+from app.utils.auth import get_password_hash
 
 # 首先创建数据库
 def create_database():
@@ -52,6 +53,7 @@ class VenueReservation(Base):
     purpose = Column(String(255))
     devices_needed = Column(JSON)
     status = Column(String(50), default="pending")
+    created_at = Column(DateTime, server_default=func.now())
 
 # 创建 Users 表
 class User(Base):
@@ -76,6 +78,7 @@ class DeviceReservation(Base):
     actual_return_time = Column(DateTime)
     reason = Column(Text)
     status = Column(String(50), default="pending")
+    created_at = Column(DateTime, server_default=func.now())
 
 # 创建 3D Printer Reservations 表
 class PrinterReservation(Base):
@@ -87,6 +90,7 @@ class PrinterReservation(Base):
     reservation_date = Column(Date, nullable=False)
     print_time = Column(DateTime, nullable=False)
     status = Column(String(50), default="pending")
+    created_at = Column(DateTime, server_default=func.now())
 
 # 创建 Admin 管理表
 class Management(Base):
@@ -115,6 +119,9 @@ class MaintenanceRecord(Base):
     next_maintenance_date = Column(Date)
 
 def init_db():
+    # 删除所有表
+    Base.metadata.drop_all(bind=engine)
+    
     # 创建表
     Base.metadata.create_all(bind=engine)
     
@@ -123,22 +130,33 @@ def init_db():
     try:
         # 插入管理员账号
         password = "123456"
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        hashed_password = get_password_hash(password)
         admin_user = User(
             username="A001",
             name="管理员",
-            password=hashed_password.decode('utf-8'),
+            password=hashed_password,
             role="admin",
             department="管理部门"
         )
         session.add(admin_user)
+        
+        # 插入测试用学生账号
+        student_password = get_password_hash("123456")
+        student_user = User(
+            username="S001",
+            name="测试学生",
+            password=student_password,
+            role="student",
+            department="计算机学院"
+        )
+        session.add(student_user)
         
         # 插入初始设备数据
         initial_data = [
             Management(
                 device_or_venue_name="电动螺丝刀",
                 category="device",
-                quantity=10,  # 增加数量
+                quantity=10,
                 available_quantity=10,
                 status="available",
                 description="电动螺丝刀工具",

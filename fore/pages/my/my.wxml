@@ -1,0 +1,56 @@
+<!--pages/my/my.wxml-->
+<view class="container">
+  <!-- 未登录状态 -->
+  <view class="login-section" wx:if="{{!isLoggedIn}}">
+    <image class="login-icon" src="https://img.icons8.com/windows/96/user-lock.png"/>
+    <form bindsubmit="handleLogin">
+      <view class="form-group">
+        <image src="https://img.icons8.com/windows/32/user.png"/>
+        <input name="username" placeholder="学号/工号" type="text"/>
+      </view>
+      <view class="form-group">
+        <image src="https://img.icons8.com/windows/32/password.png"/>
+        <input name="password" placeholder="密码" password="true"/>
+      </view>
+      <button class="login-btn" form-type="submit" type="primary">登录</button>
+    </form>
+  </view>
+
+  <!-- 已登录状态 -->
+  <view class="user-section" wx:else>
+    <view class="user-info">
+      <image class="avatar" src="https://img.icons8.com/windows/96/user-male-circle.png"/>
+      <view class="info">
+        <text class="name">{{userInfo.name}}</text>
+        <text class="role">{{userInfo.department}} | {{userInfo.role === 'admin' ? '管理员' : (userInfo.role === 'teacher' ? '教师' : '学生')}}</text>
+      </view>
+    </view>
+
+    <!-- 功能菜单 -->
+    <view class="menu-list">
+      <view class="menu-item" bindtap="goToRecords">
+        <view class="menu-left">
+          <image src="https://img.icons8.com/windows/32/order-history.png"/>
+          <text>预约记录</text>
+        </view>
+        <image class="arrow" src="https://img.icons8.com/windows/32/forward.png"/>
+      </view>
+
+      <!-- 管理员入口 -->
+      <view class="menu-item" bindtap="goToAdmin" wx:if="{{userInfo.role === 'admin'}}">
+        <view class="menu-left">
+          <image src="https://img.icons8.com/windows/32/administrative-tools.png"/>
+          <text>管理后台</text>
+        </view>
+        <image class="arrow" src="https://img.icons8.com/windows/32/forward.png"/>
+      </view>
+
+      <view class="menu-item" bindtap="handleLogout">
+        <view class="menu-left">
+          <image src="https://img.icons8.com/windows/32/exit.png"/>
+          <text>退出登录</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -12,55 +12,180 @@ from fastapi.responses import StreamingResponse
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-@router.get("/reservations/pending", response_model=dict)
+@router.get("/reservations/pending", response_model=schemas.PendingReservations)
 async def get_pending_reservations(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
 ):
+    # 获取待审批的预约
     venue_reservations = db.query(models.VenueReservation).filter(
-        models.VenueReservation.status == "pending"
-    ).all()
+        models.VenueReservation.status == 'pending'
+    ).join(models.User).all()
     
     device_reservations = db.query(models.DeviceReservation).filter(
-        models.DeviceReservation.status == "pending"
-    ).all()
+        models.DeviceReservation.status == 'pending'
+    ).join(models.User).all()
     
     printer_reservations = db.query(models.PrinterReservation).filter(
-        models.PrinterReservation.status == "pending"
-    ).all()
-    
+        models.PrinterReservation.status == 'pending'
+    ).join(models.User).all()
+
+    # 转换为响应模型
     return {
-        "venue_reservations": venue_reservations,
-        "device_reservations": device_reservations,
-        "printer_reservations": printer_reservations
+        "venue_reservations": [{
+            "id": r.reservation_id,
+            "user_id": r.user_id,
+            "user_name": r.user.name,
+            "user_department": r.user.department,
+            "status": r.status,
+            "created_at": r.created_at,
+            "venue_type": r.venue_type,
+            "reservation_date": r.reservation_date,
+            "business_time": r.business_time,
+            "purpose": r.purpose,
+            "devices_needed": r.devices_needed
+        } for r in venue_reservations],
+        "device_reservations": [{
+            "id": r.reservation_id,
+            "user_id": r.user_id,
+            "user_name": r.user.name,
+            "user_department": r.user.department,
+            "status": r.status,
+            "created_at": r.created_at,
+            "device_name": r.device_name,
+            "borrow_time": r.borrow_time,
+            "return_time": r.return_time,
+            "reason": r.reason
+        } for r in device_reservations],
+        "printer_reservations": [{
+            "id": r.reservation_id,
+            "user_id": r.user_id,
+            "user_name": r.user.name,
+            "user_department": r.user.department,
+            "status": r.status,
+            "created_at": r.created_at,
+            "printer_name": r.printer_name,
+            "reservation_date": r.reservation_date,
+            "print_time": r.print_time
+        } for r in printer_reservations]
     }
 
-@router.put("/reservations/{reservation_type}/{reservation_id}/approve")
+@router.get("/reservations/approved", response_model=schemas.ApprovedReservations)
+async def get_approved_reservations(
+    current_user: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    # 获取已审批的预约
+    venue_reservations = db.query(models.VenueReservation).filter(
+        models.VenueReservation.status.in_(['approved', 'rejected'])
+    ).join(models.User).all()
+    
+    device_reservations = db.query(models.DeviceReservation).filter(
+        models.DeviceReservation.status.in_(['approved', 'rejected'])
+    ).join(models.User).all()
+    
+    printer_reservations = db.query(models.PrinterReservation).filter(
+        models.PrinterReservation.status.in_(['approved', 'rejected'])
+    ).join(models.User).all()
+
+    return {
+        "venue_reservations": [{
+            "id": r.reservation_id,
+            "user_id": r.user_id,
+            "user_name": r.user.name,
+            "user_department": r.user.department,
+            "status": r.status,
+            "created_at": r.created_at,
+            "venue_type": r.venue_type,
+            "reservation_date": r.reservation_date,
+            "business_time": r.business_time,
+            "purpose": r.purpose,
+            "devices_needed": r.devices_needed
+        } for r in venue_reservations],
+        "device_reservations": [{
+            "id": r.reservation_id,
+            "user_id": r.user_id,
+            "user_name": r.user.name,
+            "user_department": r.user.department,
+            "status": r.status,
+            "created_at": r.created_at,
+            "device_name": r.device_name,
+            "borrow_time": r.borrow_time,
+            "return_time": r.return_time,
+            "reason": r.reason
+        } for r in device_reservations],
+        "printer_reservations": [{
+            "id": r.reservation_id,
+            "user_id": r.user_id,
+            "user_name": r.user.name,
+            "user_department": r.user.department,
+            "status": r.status,
+            "created_at": r.created_at,
+            "printer_name": r.printer_name,
+            "reservation_date": r.reservation_date,
+            "print_time": r.print_time
+        } for r in printer_reservations]
+    }
+
+@router.post("/reservations/approve")
 async def approve_reservation(
-    reservation_type: str,
-    reservation_id: int,
+    data: schemas.ReservationStatusUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_admin)
 ):
-    model_map = {
-        "venue": models.VenueReservation,
-        "device": models.DeviceReservation,
-        "printer": models.PrinterReservation
-    }
-    
-    if reservation_type not in model_map:
-        raise HTTPException(status_code=400, detail="Invalid reservation type")
+    try:
+        model_map = {
+            "venue": models.VenueReservation,
+            "device": models.DeviceReservation,
+            "printer": models.PrinterReservation
+        }
         
-    reservation = db.query(model_map[reservation_type]).filter(
-        model_map[reservation_type].reservation_id == reservation_id
-    ).first()
-    
-    if not reservation:
-        raise HTTPException(status_code=404, detail="Reservation not found")
+        if data.type not in model_map:
+            raise HTTPException(status_code=400, detail="Invalid reservation type")
+            
+        reservation = db.query(model_map[data.type]).filter(
+            model_map[data.type].reservation_id == data.id
+        ).first()
         
-    reservation.status = "approved"
-    db.commit()
-    return {"message": "Reservation approved"}
+        if not reservation:
+            raise HTTPException(status_code=404, detail="Reservation not found")
+            
+        reservation.status = data.status
+        db.commit()
+        return {"message": f"Reservation {data.status}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/reservations/reject")
+async def reject_reservation(
+    data: schemas.ReservationStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)
+):
+    try:
+        model_map = {
+            "venue": models.VenueReservation,
+            "device": models.DeviceReservation,
+            "printer": models.PrinterReservation
+        }
+        
+        if data.type not in model_map:
+            raise HTTPException(status_code=400, detail="Invalid reservation type")
+            
+        reservation = db.query(model_map[data.type]).filter(
+            model_map[data.type].reservation_id == data.id
+        ).first()
+        
+        if not reservation:
+            raise HTTPException(status_code=404, detail="Reservation not found")
+            
+        reservation.status = data.status
+        db.commit()
+        return {"message": f"Reservation {data.status}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.put("/device-return/{reservation_id}")
 async def confirm_device_return(

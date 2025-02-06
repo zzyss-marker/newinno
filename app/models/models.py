@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime, Enum, JSON, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from ..database import Base
 import enum
 from pydantic import BaseModel
@@ -51,7 +52,7 @@ class User(Base):
     username = Column(String(255), unique=True, index=True)
     name = Column(String(255))
     password = Column(String(255))
-    role = Column(Enum(UserRole))
+    role = Column(String(50))  # 'admin', 'teacher', 'student'
     department = Column(String(255))
 
 class VenueReservation(Base):
@@ -65,6 +66,7 @@ class VenueReservation(Base):
     purpose = Column(String(255))
     devices_needed = Column(JSON)
     status = Column(String(50), default="pending")
+    created_at = Column(DateTime, default=func.now())
     
     user = relationship("User")
 
@@ -73,12 +75,13 @@ class DeviceReservation(Base):
 
     reservation_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
-    device_name = Column(Enum(DeviceType))
-    borrow_time = Column(DateTime)
-    return_time = Column(DateTime)
+    device_name = Column(String(50), nullable=False)  # 改为 String 类型
+    borrow_time = Column(DateTime, nullable=False)
+    return_time = Column(DateTime, nullable=False)
     actual_return_time = Column(DateTime, nullable=True)
-    reason = Column(String(255))
+    reason = Column(Text)
     status = Column(String(50), default="pending")  # pending, approved, rejected, returned
+    created_at = Column(DateTime, server_default=func.now())
     
     user = relationship("User")
 
@@ -91,6 +94,7 @@ class PrinterReservation(Base):
     reservation_date = Column(Date)
     print_time = Column(DateTime)
     status = Column(String(50), default="pending")  # pending, approved, rejected
+    created_at = Column(DateTime, default=func.now())
     
     user = relationship("User")
 

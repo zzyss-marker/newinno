@@ -16,11 +16,12 @@ async def create_venue_reservation(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 检查是否提前三天预约
-    if (reservation.reservation_date - datetime.now().date()).days < 3:
+    # 检查预约日期是否至少提前3天
+    min_date = datetime.now().date() + timedelta(days=3)
+    if reservation.reservation_date < min_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Venue must be reserved at least 3 days in advance"
+            detail="场地预约需要至少提前3天"
         )
     
     # 检查是否有冲突
@@ -39,9 +40,9 @@ async def create_venue_reservation(
     try:
         db_reservation = models.VenueReservation(
             user_id=current_user.user_id,
-            venue_type=reservation.venue_type,  # 直接使用中文值
+            venue_type=reservation.venue_type,
             reservation_date=reservation.reservation_date,
-            business_time=reservation.business_time,  # 直接使用中文值
+            business_time=reservation.business_time,
             purpose=reservation.purpose,
             devices_needed=reservation.devices_needed.dict(),
             status="pending"
@@ -65,7 +66,8 @@ async def create_device_reservation(
 ):
     db_reservation = models.DeviceReservation(
         **reservation.dict(),
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        status="pending"
     )
     db.add(db_reservation)
     db.commit()
@@ -78,27 +80,47 @@ async def create_printer_reservation(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 检查是否提前一天预约
-    if (reservation.reservation_date - datetime.now().date()).days < 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Printer must be reserved at least 1 day in advance"
-        )
+    # 检查打印机是否可用
+    printer = db.query(models.Management).filter(
+        models.Management.device_or_venue_name == reservation.printer_name,
+        models.Management.category == "printer",
+        models.Management.available_quantity > 0
+    ).first()
+    
+    if not printer:
+        raise HTTPException(status_code=400, detail="Printer not available")
+    
+    # 检查时间段是否已被预约
+    existing_reservation = db.query(models.PrinterReservation).filter(
+        models.PrinterReservation.printer_name == reservation.printer_name,
+        models.PrinterReservation.reservation_date == reservation.reservation_date,
+        models.PrinterReservation.print_time == reservation.print_time,
+        models.PrinterReservation.status.in_(["pending", "approved"])
+    ).first()
+    
+    if existing_reservation:
+        raise HTTPException(status_code=400, detail="Time slot already reserved")
     
     db_reservation = models.PrinterReservation(
-        **reservation.dict(),
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        **reservation.dict()
     )
-    db.add(db_reservation)
-    db.commit()
-    db.refresh(db_reservation)
-    return db_reservation
+    
+    try:
+        db.add(db_reservation)
+        db.commit()
+        db.refresh(db_reservation)
+        return db_reservation
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/my-reservations", response_model=dict)
+@router.get("/my-reservations", response_model=Dict[str, List])
 async def get_my_reservations(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
+    """获取当前用户的所有预约记录"""
     venue_reservations = db.query(models.VenueReservation).filter(
         models.VenueReservation.user_id == current_user.user_id
     ).all()

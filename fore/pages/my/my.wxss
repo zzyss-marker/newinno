@@ -1,0 +1,113 @@
+/* pages/my/my.wxss */
+.container {
+  min-height: 100vh;
+  background: #f8f8f8;
+  padding: 30rpx;
+}
+
+.login-section {
+  background: #fff;
+  padding: 40rpx;
+  border-radius: 12rpx;
+  text-align: center;
+}
+
+.login-icon {
+  width: 128rpx;
+  height: 128rpx;
+  margin-bottom: 40rpx;
+}
+
+.form-group {
+  display: flex;
+  align-items: center;
+  background: #f8f8f8;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+  border-radius: 8rpx;
+}
+
+.form-group image {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 20rpx;
+}
+
+.form-group input {
+  flex: 1;
+  font-size: 28rpx;
+}
+
+.login-btn {
+  margin-top: 40rpx;
+}
+
+.user-section {
+  background: #fff;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.user-info {
+  padding: 40rpx;
+  display: flex;
+  align-items: center;
+  background: #1AAD19;
+}
+
+.avatar {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  margin-right: 30rpx;
+}
+
+.info {
+  color: #fff;
+}
+
+.name {
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+  display: block;
+}
+
+.role {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.menu-list {
+  padding: 0 20rpx;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 20rpx;
+  border-bottom: 2rpx solid #f5f5f5;
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+}
+
+.menu-left image {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 20rpx;
+}
+
+.menu-left text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.arrow {
+  width: 32rpx;
+  height: 32rpx;
+  opacity: 0.3;
+}

@@ -1,49 +1,131 @@
-// index.js
-const defaultAvatarUrl = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
+import { get } from '../../utils/request'
 
 Page({
   data: {
-    motto: 'Hello World',
-    userInfo: {
-      avatarUrl: defaultAvatarUrl,
-      nickName: '',
-    },
-    hasUserInfo: false,
-    canIUseGetUserProfile: wx.canIUse('getUserProfile'),
-    canIUseNicknameComp: wx.canIUse('input.type.nickname'),
+    isLoggedIn: false,
+    userInfo: null,
+    isAdmin: false
   },
-  bindViewTap() {
-    wx.navigateTo({
-      url: '../logs/logs'
-    })
+
+  onLoad() {
+    this.checkLoginStatus()
   },
-  onChooseAvatar(e) {
-    const { avatarUrl } = e.detail
-    const { nickName } = this.data.userInfo
-    this.setData({
-      "userInfo.avatarUrl": avatarUrl,
-      hasUserInfo: nickName && avatarUrl && avatarUrl !== defaultAvatarUrl,
-    })
+
+  onShow() {
+    this.checkLoginStatus()
   },
-  onInputChange(e) {
-    const nickName = e.detail.value
-    const { avatarUrl } = this.data.userInfo
-    this.setData({
-      "userInfo.nickName": nickName,
-      hasUserInfo: nickName && avatarUrl && avatarUrl !== defaultAvatarUrl,
-    })
-  },
-  getUserProfile(e) {
-    // 推荐使用wx.getUserProfile获取用户信息，开发者每次通过该接口获取用户个人信息均需用户确认，开发者妥善保管用户快速填写的头像昵称，避免重复弹窗
-    wx.getUserProfile({
-      desc: '展示用户信息', // 声明获取用户个人信息后的用途，后续会展示在弹窗中，请谨慎填写
-      success: (res) => {
-        console.log(res)
-        this.setData({
-          userInfo: res.userInfo,
-          hasUserInfo: true
+
+  async checkLoginStatus() {
+    const token = wx.getStorageSync('token')
+    if (token) {
+      try {
+        const userInfo = await get('/users/me')
+        this.setData({ 
+          isLoggedIn: true,
+          userInfo: userInfo,
+          isAdmin: userInfo.role === 'admin'
+        })
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+        this.setData({ 
+          isLoggedIn: false,
+          userInfo: null,
+          isAdmin: false
         })
       }
+    } else {
+      this.setData({ 
+        isLoggedIn: false,
+        userInfo: null,
+        isAdmin: false
+      })
+    }
+  },
+
+  async getUserInfo() {
+    try {
+      const userInfo = await get('/users/me')
+      this.setData({ userInfo })
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+    }
+  },
+
+  async goToVenue(e) {
+    const { type } = e.currentTarget.dataset
+    const token = wx.getStorageSync('token')
+    
+    if (!token) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/pages/my/my'
+        })
+      }, 1500)
+      return
+    }
+    
+    wx.navigateTo({
+      url: `/pages/venue/venue?type=${type}`
     })
   },
-})
+
+  async goToDevice(e) {
+    const { device } = e.currentTarget.dataset
+    const token = wx.getStorageSync('token')
+    
+    if (!token) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/pages/my/my'
+        })
+      }, 1500)
+      return
+    }
+    
+    wx.navigateTo({
+      url: `/pages/device/device?device=${device}`
+    })
+  },
+
+  async goToPrinter() {
+    const token = wx.getStorageSync('token')
+    
+    if (!token) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/pages/my/my'
+        })
+      }, 1500)
+      return
+    }
+    
+    wx.navigateTo({
+      url: '/pages/printer/printer'
+    })
+  },
+
+  goToApproval() {
+    if (!this.data.isAdmin) {
+      wx.showToast({
+        title: '无权限访问',
+        icon: 'none'
+      })
+      return
+    }
+    wx.navigateTo({
+      url: '/pages/approval/approval'
+    })
+  }
+}) 

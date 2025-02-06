@@ -1,0 +1,114 @@
+<view class="container">
+  <!-- 顶部标签栏 -->
+  <view class="tabs">
+    <view 
+      wx:for="{{tabs}}" 
+      wx:key="key"
+      class="tab-item {{currentTab === item.key ? 'active' : ''}} {{isLoading ? 'disabled' : ''}}"
+      bindtap="switchTab"
+      data-tab="{{item.key}}"
+    >
+      <view class="tab-text">{{item.name}}</view>
+      <view class="tab-line" wx:if="{{currentTab === item.key}}"></view>
+    </view>
+  </view>
+
+  <!-- 预约列表 -->
+  <view class="records-list">
+    <view wx:if="{{isLoading}}" class="loading">
+      <view class="loading-icon"></view>
+      <text>加载中...</text>
+    </view>
+    
+    <view wx:elif="{{pendingList.length === 0}}" class="empty-tip">
+      暂无记录
+    </view>
+    
+    <view wx:for="{{pendingList}}" wx:key="id" class="record-item {{item.status}}">
+      <view class="record-header">
+        <view class="header-left">
+          <text class="type-tag">{{item.type === 'venue' ? '场地预约' : (item.type === 'device' ? '设备预约' : '打印机预约')}}</text>
+          <text class="status-tag {{item.status}}">{{currentTab === 'approved' ? '已通过' : (currentTab === 'rejected' ? '已拒绝' : '待审批')}}</text>
+        </view>
+        <text class="time">{{item.created_at}}</text>
+      </view>
+
+      <view class="record-content">
+        <!-- 场地预约信息 -->
+        <block wx:if="{{item.type === 'venue'}}">
+          <view class="info-row">
+            <text class="label">场地类型：</text>
+            <text>{{item.venue_type === 'lecture' ? '讲座' : (item.venue_type === 'seminar' ? '研讨室' : '会议室')}}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">预约日期：</text>
+            <text>{{item.reservation_date}}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">时间段：</text>
+            <text>{{item.business_time === 'morning' ? '上午' : (item.business_time === 'afternoon' ? '下午' : '晚上')}}</text>
+          </view>
+        </block>
+
+        <!-- 设备预约信息 -->
+        <block wx:elif="{{item.type === 'device'}}">
+          <view class="info-row">
+            <text class="label">设备名称：</text>
+            <text>{{item.device_name === 'electric_screwdriver' ? '电动螺丝刀' : '万用表'}}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">借用时间：</text>
+            <text>{{item.borrow_time}}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">归还时间：</text>
+            <text>{{item.return_time}}</text>
+          </view>
+        </block>
+
+        <!-- 打印机预约信息 -->
+        <block wx:else>
+          <view class="info-row">
+            <text class="label">打印机：</text>
+            <text>{{item.printer_name}}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">打印时间：</text>
+            <text>{{item.print_time}}</text>
+          </view>
+        </block>
+
+        <view class="info-row">
+          <text class="label">申请人：</text>
+          <text>{{item.user_name}} ({{item.user_department}})</text>
+        </view>
+        <view class="info-row">
+          <text class="label">用途说明：</text>
+          <text>{{item.purpose}}</text>
+        </view>
+      </view>
+
+      <view class="record-footer">
+        <!-- 只在待审批状态显示按钮 -->
+        <block wx:if="{{currentTab === 'pending'}}">
+          <button 
+            class="btn approve" 
+            size="mini" 
+            bindtap="handleApprove" 
+            data-id="{{item.id}}"
+            data-type="{{item.type}}"
+            disabled="{{isLoading}}"
+          >通过</button>
+          <button 
+            class="btn reject" 
+            size="mini" 
+            bindtap="handleReject" 
+            data-id="{{item.id}}"
+            data-type="{{item.type}}"
+            disabled="{{isLoading}}"
+          >拒绝</button>
+        </block>
+      </view>
+    </view>
+  </view>
+</view> 

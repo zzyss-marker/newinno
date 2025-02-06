@@ -1,0 +1,103 @@
+<view class="container">
+  <view class="detail-card">
+    <!-- 预约类型标题 -->
+    <view class="card-header">
+      <image src="{{typeIcons[detail.type]}}" />
+      <text class="title">{{typeNames[detail.type]}}预约详情</text>
+    </view>
+
+    <!-- 申请人信息 -->
+    <view class="section">
+      <view class="section-title">申请人信息</view>
+      <view class="info-row">
+        <text class="label">姓名：</text>
+        <text>{{detail.userName}}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">学院：</text>
+        <text>{{detail.userDepartment}}</text>
+      </view>
+    </view>
+
+    <!-- 预约信息 -->
+    <view class="section">
+      <view class="section-title">预约信息</view>
+      <!-- 场地预约特有信息 -->
+      <block wx:if="{{detail.type === 'venue'}}">
+        <view class="info-row">
+          <text class="label">场地类型：</text>
+          <text>{{detail.venue_type}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">预约日期：</text>
+          <text>{{detail.reservation_date}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">时间段：</text>
+          <text>{{detail.business_time}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">用途：</text>
+          <text>{{detail.purpose}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">设备需求：</text>
+          <view class="devices-list">
+            <text wx:if="{{detail.devices_needed.screen}}">大屏</text>
+            <text wx:if="{{detail.devices_needed.laptop}}">笔记本</text>
+            <text wx:if="{{detail.devices_needed.mic_handheld}}">手持麦</text>
+            <text wx:if="{{detail.devices_needed.mic_gooseneck}}">鹅颈麦</text>
+            <text wx:if="{{detail.devices_needed.projector}}">投屏器</text>
+          </view>
+        </view>
+      </block>
+
+      <!-- 设备预约特有信息 -->
+      <block wx:if="{{detail.type === 'device'}}">
+        <view class="info-row">
+          <text class="label">设备名称：</text>
+          <text>{{detail.device_name}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">借用时间：</text>
+          <text>{{detail.borrow_time}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">预计归还：</text>
+          <text>{{detail.return_time}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">借用原因：</text>
+          <text>{{detail.reason}}</text>
+        </view>
+      </block>
+
+      <!-- 打印机预约特有信息 -->
+      <block wx:if="{{detail.type === 'printer'}}">
+        <view class="info-row">
+          <text class="label">打印机：</text>
+          <text>{{detail.printer_name}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">预约日期：</text>
+          <text>{{detail.reservation_date}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">打印时间：</text>
+          <text>{{detail.print_time}}</text>
+        </view>
+      </block>
+    </view>
+
+    <!-- 审批操作按钮 -->
+    <view class="action-buttons" wx:if="{{detail.status === 'pending'}}">
+      <button class="btn reject" bindtap="handleReject">拒绝</button>
+      <button class="btn approve" bindtap="handleApprove">同意</button>
+    </view>
+
+    <!-- 设备归还确认按钮 -->
+    <view class="action-buttons" wx:if="{{detail.type === 'device' && detail.status === 'approved' && !detail.actual_return_time}}">
+      <button class="btn return" bindtap="handleReturn">确认归还</button>
+    </view>
+  </view>
+</view> 

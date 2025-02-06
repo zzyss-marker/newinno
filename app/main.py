@@ -9,10 +9,10 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="预约系统API")
 
-# 配置CORS
+# 添加CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 在生产环境中应该设置具体的域名
+    allow_origins=["*"],  # 允许所有来源
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

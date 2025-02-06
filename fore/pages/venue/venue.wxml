@@ -1,0 +1,43 @@
+<view class="container">
+  <form bindsubmit="handleSubmit">
+    <view class="form-group">
+      <view class="label">场地类型</view>
+      <view class="value">{{venueType}}</view>
+    </view>
+
+    <view class="form-group">
+      <view class="label">预约日期</view>
+      <picker mode="date" value="{{date}}" start="{{minDate}}" bindchange="onDateChange">
+        <view class="picker {{date ? '' : 'placeholder'}}">
+          {{date || '请选择日期'}}
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-group">
+      <view class="label">时间段</view>
+      <radio-group bindchange="onTimeChange">
+        <label class="radio" wx:for="{{businessTimes}}" wx:key="id">
+          <radio value="{{index}}" />{{item.name}}
+        </label>
+      </radio-group>
+    </view>
+
+    <view class="form-group">
+      <view class="label">用途说明</view>
+      <textarea name="purpose" placeholder="请输入用途说明" />
+    </view>
+
+    <view class="form-group">
+      <view class="label">设备需求</view>
+      <checkbox-group bindchange="onDevicesChange">
+        <label class="checkbox" wx:for="{{deviceOptions}}" wx:key="id">
+          <checkbox value="{{item.id}}" checked="{{item.checked}}" disabled="{{item.disabled}}" />
+          {{item.name}}
+        </label>
+      </checkbox-group>
+    </view>
+
+    <button class="submit-btn" form-type="submit" type="primary">提交预约</button>
+  </form>
+</view> 

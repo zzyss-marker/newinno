@@ -1,0 +1,55 @@
+<!--pages/records/records.wxml-->
+<view class="container">
+  <!-- 顶部标签栏 -->
+  <view class="tabs">
+    <view 
+      wx:for="{{tabs}}" 
+      wx:key="key"
+      class="tab {{currentTab === item.key ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="{{item.key}}"
+    >
+      {{item.name}}
+    </view>
+  </view>
+
+  <!-- 记录列表 -->
+  <view class="records-list">
+    <view wx:if="{{records.length === 0}}" class="empty-tip">
+      暂无记录
+    </view>
+    
+    <view 
+      wx:for="{{records}}" 
+      wx:key="id" 
+      class="record-item"
+      bindtap="viewDetail"
+      data-id="{{item.id}}"
+      data-type="{{item.type}}"
+    >
+      <view class="record-header">
+        <text class="type-tag">{{item.typeText}}</text>
+        <text class="status {{item.status}}">{{item.status === 'pending' ? '待审批' : (item.status === 'approved' ? '已通过' : '已拒绝')}}</text>
+      </view>
+
+      <view class="record-content">
+        <view class="info-row">
+          <text class="label">预约项目：</text>
+          <text>{{item.resourceName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">预约时间：</text>
+          <text>{{item.timeText}}</text>
+        </view>
+        <view class="info-row" wx:if="{{item.purpose}}">
+          <text class="label">用途说明：</text>
+          <text>{{item.purpose}}</text>
+        </view>
+      </view>
+
+      <view class="record-footer">
+        <text class="time">申请时间：{{item.created_at}}</text>
+      </view>
+    </view>
+  </view>
+</view>

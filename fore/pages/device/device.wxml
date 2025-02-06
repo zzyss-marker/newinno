@@ -1,0 +1,34 @@
+<!--pages/device/device.wxml-->
+<view class="container">
+  <form bindsubmit="handleSubmit">
+    <view class="form-group">
+      <view class="label">设备名称</view>
+      <view class="value">{{deviceName}}</view>
+    </view>
+
+    <view class="form-group">
+      <view class="label">借用时间</view>
+      <picker mode="multiSelector" value="{{dateTimeIndex}}" range="{{dateTimeArray}}" bindchange="onDateTimeChange" bindcolumnchange="onColumnChange">
+        <view class="picker {{borrowTime ? '' : 'placeholder'}}">
+          {{borrowTime || '请选择借用时间'}}
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-group">
+      <view class="label">预计归还时间</view>
+      <picker mode="multiSelector" value="{{returnDateTimeIndex}}" range="{{dateTimeArray}}" bindchange="onReturnDateTimeChange" bindcolumnchange="onReturnColumnChange">
+        <view class="picker {{returnTime ? '' : 'placeholder'}}">
+          {{returnTime || '请选择归还时间'}}
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-group">
+      <view class="label">借用原因</view>
+      <textarea name="reason" placeholder="请输入借用原因" />
+    </view>
+
+    <button class="submit-btn" form-type="submit" type="primary">提交预约</button>
+  </form>
+</view>

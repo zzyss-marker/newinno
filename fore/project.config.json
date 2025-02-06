@@ -1,6 +1,8 @@
 {
+  "appid": "wxfa0f9a8cfefc01a2",
+  "projectname": "fore",
   "compileType": "miniprogram",
-  "libVersion": "trial",
+  "libVersion": "3.7.3",
   "packOptions": {
     "ignore": [],
     "include": []
@@ -13,6 +15,7 @@
     "enhance": true,
     "showShadowRootInWxmlPanel": true,
     "packNpmRelationList": [],
+    "compileHotReLoad": true,
     "babelSetting": {
       "ignore": [],
       "disablePlugins": [],
@@ -23,7 +26,5 @@
   "editorSetting": {
     "tabIndent": "auto",
     "tabSize": 2
-  },
-  "appid": "wxfa0f9a8cfefc01a2",
-  "isGameTourist": false
+  }
 }

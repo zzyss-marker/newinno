@@ -26,6 +26,13 @@ class User(UserBase):
     class Config:
         orm_mode = True
 
+class DevicesNeeded(BaseModel):
+    screen: bool = False        # 大屏
+    laptop: bool = False        # 笔记本
+    mic_handheld: bool = False  # 手持麦
+    mic_gooseneck: bool = False # 鹅颈麦
+    projector: bool = False     # 投屏器
+
 class VenueReservationCreate(BaseModel):
     venue_type: str
     reservation_date: date
@@ -35,22 +42,22 @@ class VenueReservationCreate(BaseModel):
 
     @validator('venue_type')
     def validate_venue_type(cls, v):
-        valid_types = [e.value for e in VenueType]
+        valid_types = ['lecture', 'seminar', 'meeting_room']
         if v not in valid_types:
             raise ValueError(f"Invalid venue type. Must be one of: {valid_types}")
         return v
 
     @validator('business_time')
     def validate_business_time(cls, v):
-        valid_times = [e.value for e in BusinessTime]
+        valid_times = ['morning', 'afternoon', 'evening']
         if v not in valid_times:
             raise ValueError(f"Invalid business time. Must be one of: {valid_times}")
         return v
 
     @validator('devices_needed')
     def validate_devices(cls, v):
-        if v.laptop and not v.projector:
-            v.projector = True
+        if isinstance(v, dict):
+            return DevicesNeeded(**v)
         return v
 
     class Config:
@@ -153,4 +160,99 @@ class AvailableQuantityUpdate(BaseModel):
     def validate_available_quantity(cls, v):
         if v < 0:
             raise ValueError("Available quantity cannot be negative")
-        return v 
+        return v
+
+class UserInfo(BaseModel):
+    id: int
+    username: str
+    name: str
+    role: str
+    department: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# 基础预约信息
+class ReservationBase(BaseModel):
+    id: int
+    user_id: int
+    user_name: str
+    user_department: str
+    status: str
+    created_at: datetime
+
+# 场地预约
+class VenueReservationInfo(ReservationBase):
+    venue_type: str
+    reservation_date: date
+    business_time: str
+    purpose: str
+    devices_needed: Dict[str, bool]
+    type: str = 'venue'
+
+# 设备预约
+class DeviceReservationInfo(ReservationBase):
+    device_name: str
+    borrow_time: datetime
+    return_time: datetime
+    reason: Optional[str]
+    type: str = 'device'
+
+# 打印机预约
+class PrinterReservationInfo(ReservationBase):
+    printer_name: str
+    reservation_date: date
+    print_time: datetime
+    type: str = 'printer'
+
+# 待审批预约列表
+class PendingReservations(BaseModel):
+    venue_reservations: List[VenueReservationInfo]
+    device_reservations: List[DeviceReservationInfo]
+    printer_reservations: List[PrinterReservationInfo]
+
+# 已审批预约列表
+class ApprovedReservations(BaseModel):
+    venue_reservations: List[VenueReservationInfo]
+    device_reservations: List[DeviceReservationInfo]
+    printer_reservations: List[PrinterReservationInfo]
+
+# Token响应
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+# Token数据
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+# 预约状态更新
+class ReservationStatusUpdate(BaseModel):
+    id: int
+    type: str
+    status: str
+
+    @validator('type')
+    def validate_type(cls, v):
+        valid_types = ['venue', 'device', 'printer']
+        if v not in valid_types:
+            raise ValueError(f'Invalid type. Must be one of: {valid_types}')
+        return v
+
+    @validator('status')
+    def validate_status(cls, v):
+        valid_statuses = ['approved', 'rejected']
+        if v not in valid_statuses:
+            raise ValueError(f'Invalid status. Must be one of: {valid_statuses}')
+        return v
+
+# 批量审批请求
+class BatchApproveRequest(BaseModel):
+    reservation_ids: List[int]
+    reservation_type: str
+    action: str
+
+# 设备归还确认
+class DeviceReturnConfirm(BaseModel):
+    reservation_id: int
+    actual_return_time: datetime 
