@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 from ..database import Base
 import enum
 from pydantic import BaseModel
+from datetime import datetime
 
 class UserRole(str, enum.Enum):
     student = "student"
@@ -55,48 +56,56 @@ class User(Base):
     role = Column(String(50))  # 'admin', 'teacher', 'student'
     department = Column(String(255))
 
+    # 添加关系定义
+    venue_reservations = relationship("VenueReservation", back_populates="user")
+    device_reservations = relationship("DeviceReservation", back_populates="user")
+    printer_reservations = relationship("PrinterReservation", back_populates="user")
+
 class VenueReservation(Base):
     __tablename__ = "venue_reservations"
 
     reservation_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
-    venue_type = Column(String(50))  # 改为 String 类型
+    venue_type = Column(String)
     reservation_date = Column(Date)
-    business_time = Column(String(50))  # 改为 String 类型
-    purpose = Column(String(255))
+    business_time = Column(String)
+    purpose = Column(String)
     devices_needed = Column(JSON)
-    status = Column(String(50), default="pending")
-    created_at = Column(DateTime, default=func.now())
+    status = Column(String, default="pending")
+    created_at = Column(DateTime, default=datetime.now)
     
-    user = relationship("User")
+    user = relationship("User", back_populates="venue_reservations")
 
 class DeviceReservation(Base):
     __tablename__ = "device_reservations"
 
     reservation_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
-    device_name = Column(String(50), nullable=False)  # 改为 String 类型
+    device_name = Column(String(50), nullable=False)
     borrow_time = Column(DateTime, nullable=False)
     return_time = Column(DateTime, nullable=False)
     actual_return_time = Column(DateTime, nullable=True)
     reason = Column(Text)
-    status = Column(String(50), default="pending")  # pending, approved, rejected, returned
+    status = Column(String(50), default="pending")
     created_at = Column(DateTime, server_default=func.now())
     
-    user = relationship("User")
+    user = relationship("User", back_populates="device_reservations")
 
 class PrinterReservation(Base):
     __tablename__ = "printer_reservations"
 
     reservation_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
-    printer_name = Column(Enum(PrinterName))
-    reservation_date = Column(Date)
-    print_time = Column(DateTime)
-    status = Column(String(50), default="pending")  # pending, approved, rejected
+    printer_name = Column(String(50), nullable=False)
+    reservation_date = Column(Date, nullable=False)
+    print_time = Column(DateTime, nullable=False)
+    status = Column(String(50), default="pending")
     created_at = Column(DateTime, default=func.now())
-    
-    user = relationship("User")
+
+    user = relationship("User", back_populates="printer_reservations")
+
+    def __repr__(self):
+        return f"<PrinterReservation(id={self.reservation_id}, printer={self.printer_name}, date={self.reservation_date}, time={self.print_time})>"
 
 class Management(Base):
     __tablename__ = "management"
@@ -124,4 +133,19 @@ class MaintenanceRecord(Base):
     maintenance_type = Column(String(50))  # routine, repair, inspection
     description = Column(Text)
     maintained_by = Column(String(255))
-    next_maintenance_date = Column(Date) 
+    next_maintenance_date = Column(Date)
+
+class DeviceNames(str, enum.Enum):
+    screen = "大屏"
+    laptop = "笔记本"
+    mic_handheld = "手持麦"
+    mic_gooseneck = "鹅颈麦"
+    projector = "投屏器"
+
+    @classmethod
+    def from_str(cls, value: str) -> str:
+        # 支持中文值和枚举名称
+        for member in cls:
+            if value == member.value or value == member.name:
+                return member.value
+        return value  # 如果找不到对应的值，返回原值 

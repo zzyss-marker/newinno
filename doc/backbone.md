@@ -1,203 +1,215 @@
-好的，我来详细介绍系统的功能和使用方法。
+# 预约系统 API 文档
 
-# 1. 用户认证系统
+![1738851493044](image/backbone/1738851493044.png)
 
-## 1.1 用户登录
+## 基础信息
+
+- 基础URL: `http://localhost:8001/api`
+- 认证方式: Bearer Token
+- 所有需要认证的接口都需要在请求头中添加: `Authorization: Bearer {token}`
+
+## 1. 认证相关接口
+
+### 1.1 用户登录
 
 ```
-POST /api/token
-```
+POST /token
+Content-Type: application/x-www-form-urlencoded
 
-- 用途：获取访问令牌
-- 请求格式（form-data）:
+请求参数:
+- username: 用户名/学号
+- password: 密码
+- grant_type: "password"
 
-```json
+返回:
 {
-    "username": "学号/工号",
-    "password": "密码"
-}
-```
-
-- 响应示例:
-
-```json
-{
-    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+    "access_token": "string",
     "token_type": "bearer",
-    "role": "student"  // 或 "teacher" 或 "admin"
+    "role": "student|teacher|admin"
 }
 ```
 
-# 2. 预约功能（需要登录）
-
-## 2.1 场地预约
+### 1.2 获取当前用户信息
 
 ```
-POST /api/reservations/venue
-```
+GET /users/me
 
-- 必须提前3天预约
-- 请求示例:
-
-```json
+返回:
 {
-    "venue_type": "lecture",  // 可选: lecture(讲座), seminar(研讨室), meeting_room(会议室)
-    "reservation_date": "2024-03-20",
-    "business_time": "afternoon",  // 可选: afternoon(下午), evening(晚上)
-    "purpose": "举办学术讲座",
+    "username": "string",
+    "name": "string",
+    "department": "string",
+    "role": "student|teacher|admin"
+}
+```
+
+## 2. 预约管理接口
+
+### 2.1 场地预约
+
+```
+POST /reservations/venue
+
+请求体:
+{
+    "venue_type": "lecture|seminar|meeting_room",
+    "reservation_date": "YYYY-MM-DD",
+    "business_time": "morning|afternoon|evening",
+    "purpose": "string",
     "devices_needed": {
-        "screen": true,
-        "laptop": true,
-        "microphone_handheld": true,
-        "microphone_headset": false,
-        "projector": true
+        "screen": boolean,
+        "laptop": boolean,
+        "mic_handheld": boolean,
+        "mic_gooseneck": boolean,
+        "projector": boolean
     }
 }
 ```
 
-## 2.2 设备预约
+### 2.2 设备预约
 
 ```
-POST /api/reservations/device
-```
+POST /reservations/device
 
-- 可以随时预约
-- 请求示例:
-
-```json
+请求体:
 {
-    "device_name": "electric_screwdriver",  // 可选: electric_screwdriver(电动螺丝刀), multimeter(万用表)
-    "borrow_time": "2024-03-18T14:00:00",
-    "return_time": "2024-03-18T17:00:00",
-    "reason": "实验室项目需要"
+    "device_name": "electric_screwdriver|multimeter",
+    "borrow_time": "YYYY-MM-DDTHH:mm:ss",
+    "return_time": "YYYY-MM-DDTHH:mm:ss",
+    "reason": "string"
 }
 ```
 
-## 2.3 3D打印机预约
+### 2.3 3D打印机预约
 
 ```
-POST /api/reservations/printer
-```
+POST /reservations/printer
 
-- 必须提前1天预约
-- 请求示例:
-
-```json
+请求体:
 {
-    "printer_name": "printer_1",  // 可选: printer_1, printer_2, printer_3
-    "reservation_date": "2024-03-19",
-    "print_time": "2024-03-19T10:00:00"
+    "printer_name": "printer_1|printer_2|printer_3",
+    "reservation_date": "YYYY-MM-DD",
+    "print_time": "YYYY-MM-DDTHH:mm:ss"
 }
 ```
 
-## 2.4 查看个人预约记录
+### 2.4 查看个人预约记录
 
 ```
-GET /api/reservations/my-reservations
+GET /reservations/my-reservations
+
+返回:
+{
+    "venue_reservations": [...],
+    "device_reservations": [...],
+    "printer_reservations": [...]
+}
 ```
 
-- 返回所有类型的预约记录
+## 3. 管理员接口
 
-# 3. 管理员功能
-
-## 3.1 查看待审批预约
+### 3.1 查看待审批预约
 
 ```
-GET /api/admin/reservations/pending
+GET /admin/reservations/pending
+
+返回:
+{
+    "venue_reservations": [...],
+    "device_reservations": [...],
+    "printer_reservations": [...]
+}
 ```
 
-- 返回所有待审批的预约记录
-
-## 3.2 审批预约
+### 3.2 批量审批预约
 
 ```
-PUT /api/admin/reservations/{reservation_type}/{reservation_id}/approve
+POST /admin/reservations/batch-approve
+
+请求体:
+{
+    "reservation_ids": [number],
+    "reservation_type": "venue|device|printer",
+    "action": "approve|reject"
+}
 ```
 
-- `reservation_type`: venue/device/printer
-- `reservation_id`: 预约ID
-
-## 3.3 确认设备归还
+### 3.3 确认设备归还
 
 ```
-PUT /api/admin/device-return/{reservation_id}
+PUT /admin/device-return/{reservation_id}
 ```
 
-- 用于确认设备已归还
-
-## 3.4 导入用户数据
+### 3.4 导入用户数据
 
 ```
-POST /api/admin/users/import-excel
+POST /admin/users/import-excel
+Content-Type: multipart/form-data
+
+参数:
+- file: Excel文件（包含列：学号/工号、姓名、学院、身份证号后6位）
 ```
 
-- 上传Excel文件（.xlsx）
-- Excel格式要求：
-  - 列名：学号/工号、学院、身份证号后6位
-  - 系统自动判断角色（学号长度>6为学生，否则为教师）
-
-## 3.5 导出预约记录
+### 3.5 导出预约记录
 
 ```
-GET /api/admin/export-reservations
+GET /admin/export-reservations
+
+返回: Excel文件
 ```
 
-- 导出Excel文件，包含所有预约记录
-- 分三个sheet：场地预约、设备预约、3D打印机预约
+### 3.6 获取设备状态
 
-# 4. 使用示例
+```
+GET /management/devices/status
 
-1. 首先登录获取token：
+查询参数:
+- category: "device|venue|printer"
 
-```bash
-curl -X POST "http://127.0.0.1:8001/api/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=your_username&password=your_password"
+返回:
+{
+    "devices": [
+        {
+            "id": "string",
+            "name": "string",
+            "status": "available|maintenance"
+        }
+    ]
+}
 ```
 
-2. 使用token进行预约：
+## 4. 数据模型
 
-```bash
-curl -X POST "http://127.0.0.1:8001/api/reservations/venue" \
-  -H "Authorization: Bearer your_token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "venue_type": "lecture",
-    "reservation_date": "2024-03-20",
-    "business_time": "afternoon",
-    "purpose": "学术讲座",
-    "devices_needed": {
-        "screen": true,
-        "laptop": true
-    }
-}'
-```
+### 4.1 用户角色
 
-# 5. 状态说明
+- student: 学生
+- teacher: 教师
+- admin: 管理员
 
-预约状态包括：
+### 4.2 预约状态
 
 - pending: 待审批
-- approved: 已批准
+- approved: 已通过
 - rejected: 已拒绝
 - returned: 已归还（仅设备预约）
 
-# 6. 注意事项
+### 4.3 场地类型
 
-1. 所有需要认证的接口都需要在请求头中加入：
+- lecture: 讲座
+- seminar: 研讨室
+- meeting_room: 会议室
 
-```
-Authorization: Bearer your_token
-```
+### 4.4 时间段
 
-2. 时间限制：
+- morning: 上午
+- afternoon: 下午
+- evening: 晚上
 
-   - 场地预约需提前3天
-   - 3D打印机需提前1天
-   - 设备可随时预约
-3. 管理员功能只能由管理员账号访问
-4. 密码在导入时会自动加密存储
+## 5. 注意事项
 
-你可以访问 `http://127.0.0.1:8001/docs` 查看交互式API文档，直接在网页上测试这些功能。
-
-需要我详细解释某个具体功能吗？或者需要测试示例？
+1. 场地预约需提前3天
+2. 3D打印机需提前1天
+3. 设备可随时预约
+4. 管理员功能需要管理员权限
+5. 所有时间格式均使用 ISO 格式 (YYYY-MM-DDTHH:mm:ss)
+6. 文件上传使用 multipart/form-data 格式

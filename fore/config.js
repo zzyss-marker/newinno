@@ -26,6 +26,15 @@ const config = {
     { id: 'printer_1', name: '3D打印机1号' },
     { id: 'printer_2', name: '3D打印机2号' },
     { id: 'printer_3', name: '3D打印机3号' }
+  ],
+
+  // 设备需求选项
+  deviceOptions: [
+    { id: 'screen', name: '大屏' },
+    { id: 'laptop', name: '笔记本' },
+    { id: 'mic_handheld', name: '手持麦' },
+    { id: 'mic_gooseneck', name: '鹅颈麦' },
+    { id: 'projector', name: '投屏器' }
   ]
 }
 

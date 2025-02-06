@@ -1,10 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from ..database import get_db
 from ..models import models
-from ..schemas import schemas
+from ..schemas import (
+    Token,
+    TokenData,
+    User,
+    UserCreate,
+    UserInfo
+)
 from ..utils.auth import (
     verify_password, 
     create_access_token, 
@@ -118,7 +124,7 @@ async def import_users(
             detail=f"Error importing users: {str(e)}"
         )
 
-@router.get("/users/me", response_model=schemas.UserInfo)
+@router.get("/users/me", response_model=UserInfo)
 async def get_current_user_info(current_user: models.User = Depends(get_current_user)):
     """获取当前登录用户信息"""
     return {

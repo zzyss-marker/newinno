@@ -86,16 +86,50 @@ class DeviceReservation(DeviceReservationCreate):
     class Config:
         orm_mode = True
 
-class PrinterReservationCreate(BaseModel):
-    printer_name: PrinterName
+class PrinterReservationBase(BaseModel):
+    printer_name: str
     reservation_date: date
-    print_time: datetime
+    print_time: str  # 改为字符串类型，让后端处理时间转换
 
-class PrinterReservation(PrinterReservationCreate):
+    @validator('printer_name')
+    def validate_printer_name(cls, v):
+        if not v:
+            raise ValueError("Printer name cannot be empty")
+        return v
+
+    @validator('reservation_date')
+    def validate_date(cls, v):
+        if v < date.today():
+            raise ValueError("Reservation date cannot be in the past")
+        return v
+
+    @validator('print_time')
+    def validate_time(cls, v):
+        try:
+            # 验证时间格式
+            datetime.fromisoformat(v)
+            return v
+        except ValueError:
+            raise ValueError("Invalid time format")
+
+class PrinterReservationCreate(PrinterReservationBase):
+    pass
+
+class PrinterReservationInfo(PrinterReservationBase):
+    type: str = 'printer'
+
+    @validator('type')
+    def validate_type(cls, v):
+        if v != 'printer':
+            raise ValueError("Type must be 'printer'")
+        return v
+
+class PrinterReservation(PrinterReservationBase):
     reservation_id: int
     user_id: int
     status: str
-    
+    created_at: datetime
+
     class Config:
         orm_mode = True
 
@@ -199,10 +233,7 @@ class DeviceReservationInfo(ReservationBase):
     type: str = 'device'
 
 # 打印机预约
-class PrinterReservationInfo(ReservationBase):
-    printer_name: str
-    reservation_date: date
-    print_time: datetime
+class PrinterReservationInfo(PrinterReservationBase):
     type: str = 'printer'
 
 # 待审批预约列表

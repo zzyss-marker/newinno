@@ -48,13 +48,26 @@
             <text class="label">时间段：</text>
             <text>{{item.business_time === 'morning' ? '上午' : (item.business_time === 'afternoon' ? '下午' : '晚上')}}</text>
           </view>
+          <view class="info-row">
+            <text class="label">用途说明：</text>
+            <text>{{item.purpose}}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">所需设备：</text>
+            <view class="devices-list">
+              <block wx:if="{{item.devices_needed}}">
+                <text wx:for="{{item.devices_needed}}" wx:key="*this" wx:for-item="needed" wx:for-index="deviceName" wx:if="{{needed}}">{{deviceName === 'screen' ? '大屏' : deviceName === 'laptop' ? '笔记本' : deviceName === 'mic_handheld' ? '手持麦' : deviceName === 'mic_gooseneck' ? '鹅颈麦' : deviceName === 'projector' ? '投屏器' : deviceName}}</text>
+              </block>
+              <text wx:else>无</text>
+            </view>
+          </view>
         </block>
 
         <!-- 设备预约信息 -->
         <block wx:elif="{{item.type === 'device'}}">
           <view class="info-row">
             <text class="label">设备名称：</text>
-            <text>{{item.device_name === 'electric_screwdriver' ? '电动螺丝刀' : '万用表'}}</text>
+            <text>{{item.device_name}}</text>
           </view>
           <view class="info-row">
             <text class="label">借用时间：</text>
@@ -64,13 +77,18 @@
             <text class="label">归还时间：</text>
             <text>{{item.return_time}}</text>
           </view>
+          <view class="info-row" wx:if="{{item.reason}}">
+            <text class="label">借用原因：</text>
+            <text>{{item.reason}}</text>
+          </view>
         </block>
 
         <!-- 打印机预约信息 -->
         <block wx:else>
           <view class="info-row">
             <text class="label">打印机：</text>
-            <text>{{item.printer_name}}</text>
+            <text>{{item.printer_name === 'printer_1' ? '3D打印机1号' : 
+                   item.printer_name === 'printer_2' ? '3D打印机2号' : '3D打印机3号'}}</text>
           </view>
           <view class="info-row">
             <text class="label">打印时间：</text>
@@ -81,10 +99,6 @@
         <view class="info-row">
           <text class="label">申请人：</text>
           <text>{{item.user_name}} ({{item.user_department}})</text>
-        </view>
-        <view class="info-row">
-          <text class="label">用途说明：</text>
-          <text>{{item.purpose}}</text>
         </view>
       </view>
 

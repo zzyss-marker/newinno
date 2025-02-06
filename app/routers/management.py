@@ -1,20 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict
-from datetime import date, datetime
+from typing import List, Dict, Optional
+from datetime import datetime, date
 from ..database import get_db
 from ..models import models
-from ..schemas import schemas
-from ..utils.auth import get_current_admin
+from ..schemas import (
+    UserInfo,
+    Management,
+    ManagementCreate,
+    ManagementUpdate,
+    DeviceHistoryResponse,
+    BorrowHistoryResponse
+)
+from ..utils.auth import get_current_admin, get_current_user
 from ..utils.excel import format_reservation_status, format_device_name
 
 router = APIRouter(prefix="/management", tags=["management"])
 
-@router.post("/devices", response_model=schemas.Management)
+@router.post("/devices", response_model=Management)
 async def add_device(
-    device: schemas.ManagementCreate,
+    device: ManagementCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
     """添加新设备或场地"""
     db_device = models.Management(**device.dict())
@@ -23,12 +30,12 @@ async def add_device(
     db.refresh(db_device)
     return db_device
 
-@router.put("/devices/{device_id}", response_model=schemas.Management)
+@router.put("/devices/{device_id}", response_model=Management)
 async def update_device(
     device_id: int,
-    device: schemas.ManagementUpdate,
+    device: ManagementUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
     """更新设备或场地信息"""
     db_device = db.query(models.Management).filter(
@@ -44,22 +51,35 @@ async def update_device(
     db.refresh(db_device)
     return db_device
 
-@router.get("/devices/status", response_model=List[schemas.Management])
+@router.get("/devices/status", response_model=List[Dict])
 async def get_devices_status(
-    category: Optional[str] = None,
+    category: str = None,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
-    """获取设备使用状态"""
+    """获取设备状态，普通用户也应该有权限查看"""
     query = db.query(models.Management)
+    
     if category:
         query = query.filter(models.Management.category == category)
-    return query.all()
+    
+    devices = query.all()
+    return [
+        {
+            "id": device.management_id,
+            "name": device.device_or_venue_name,
+            "category": device.category,
+            "quantity": device.quantity,
+            "available_quantity": device.available_quantity,
+            "status": device.status
+        }
+        for device in devices
+    ]
 
-@router.get("/reservations/stats", response_model=schemas.ReservationStats)
+@router.get("/reservations/stats")
 async def get_reservation_statistics(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
     """获取预约统计信息"""
     return {
@@ -90,7 +110,7 @@ async def get_reservation_statistics(
 @router.get("/usage-stats", response_model=Dict)
 async def get_usage_statistics(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin),
+    current_user: models.User = Depends(get_current_user),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None
 ):
@@ -121,13 +141,13 @@ async def get_usage_statistics(
     # ... 类似地添加场地和打印机的统计
     return stats 
 
-@router.get("/devices/{device_name}/history", response_model=schemas.DeviceHistoryResponse)
+@router.get("/devices/{device_name}/history", response_model=DeviceHistoryResponse)
 async def get_device_history(
     device_name: str,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
     """获取设备借用历史"""
     # 修改查询逻辑，使用模糊匹配
@@ -183,11 +203,11 @@ async def get_device_history(
         "usage_stats": status_stats
     }
 
-@router.get("/users/{username}/borrow-history", response_model=schemas.BorrowHistoryResponse)
+@router.get("/users/{username}/borrow-history", response_model=BorrowHistoryResponse)
 async def get_user_borrow_history(
     username: str,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
     """获取用户借用历史"""
     user = db.query(models.User).filter(models.User.username == username).first()
@@ -223,12 +243,12 @@ async def get_user_borrow_history(
         "history": history
     }
 
-@router.put("/devices/{device_id}/quantity", response_model=schemas.Management)
+@router.put("/devices/{device_id}/quantity", response_model=Management)
 async def update_device_quantity(
     device_id: int,
     quantity: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
     """更新设备数量"""
     device = db.query(models.Management).filter(
@@ -262,12 +282,12 @@ async def update_device_quantity(
             detail=f"Error updating quantity: {str(e)}"
         )
 
-@router.put("/devices/{device_id}/available", response_model=schemas.Management)
+@router.put("/devices/{device_id}/available", response_model=Management)
 async def update_available_quantity(
     device_id: int,
     available_quantity: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_user)
 ):
     """更新可用数量"""
     device = db.query(models.Management).filter(
@@ -300,4 +320,22 @@ async def update_available_quantity(
         raise HTTPException(
             status_code=500,
             detail=f"Error updating available quantity: {str(e)}"
-        ) 
+        )
+
+@router.get("/users", response_model=List[UserInfo])
+async def get_users(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)
+):
+    """获取所有用户信息（管理员权限）"""
+    users = db.query(models.User).all()
+    return [
+        {
+            "id": user.user_id,
+            "username": user.username,
+            "name": user.name,
+            "role": user.role,
+            "department": user.department
+        }
+        for user in users
+    ] 

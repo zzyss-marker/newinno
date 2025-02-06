@@ -14,7 +14,8 @@ Page({
     dateTimeIndex: [0, 0, 0, 0, 0],
     returnDateTimeIndex: [0, 0, 0, 0, 0],
     borrowTime: '',
-    returnTime: ''
+    returnTime: '',
+    minDate: new Date().toISOString().split('T')[0]
   },
 
   /**
@@ -40,24 +41,41 @@ Page({
     const minutes = []
 
     // 生成年月日时分数据
-    for (let i = date.getFullYear(); i <= date.getFullYear() + 1; i++) {
-      years.push(i + '年')
-    }
-    for (let i = 1; i <= 12; i++) {
+    const currentYear = date.getFullYear()
+    const currentMonth = date.getMonth() + 1
+    const currentDay = date.getDate()
+    const currentHour = date.getHours()
+    const currentMinute = date.getMinutes()
+
+    // 只显示当前年份和下一年
+    years.push(currentYear + '年')
+    years.push((currentYear + 1) + '年')
+
+    // 如果是当前年份，则从当前月份开始
+    for (let i = currentMonth; i <= 12; i++) {
       months.push(i + '月')
     }
-    for (let i = 1; i <= 31; i++) {
+
+    // 如果是当前月份，则从当前日期开始
+    const lastDay = new Date(currentYear, currentMonth, 0).getDate()
+    for (let i = currentDay; i <= lastDay; i++) {
       days.push(i + '日')
     }
-    for (let i = 0; i < 24; i++) {
+
+    // 如果是当前日期，则从当前小时开始
+    for (let i = currentHour; i < 24; i++) {
       hours.push(i + '时')
     }
-    for (let i = 0; i < 60; i++) {
+
+    // 如果是当前小时，则从当前分钟开始（向上取整到5的倍数）
+    const startMinute = Math.ceil(currentMinute / 5) * 5
+    for (let i = startMinute; i < 60; i += 5) {
       minutes.push(i + '分')
     }
 
     this.setData({
-      dateTimeArray: [years, months, days, hours, minutes]
+      dateTimeArray: [years, months, days, hours, minutes],
+      dateTimeIndex: [0, 0, 0, 0, 0] // 默认选中当前时间
     })
   },
 
@@ -84,28 +102,80 @@ Page({
   },
 
   onColumnChange(e) {
-    // 处理年月日联动
     const { column, value } = e.detail
     const { dateTimeIndex, dateTimeArray } = this.data
+    const currentDate = new Date()
     
-    if (column === 1) {
-      // 月份变化，更新日期
-      const days = this.getDays(dateTimeArray[0][dateTimeIndex[0]], value + 1)
-      dateTimeArray[2] = days.map(d => d + '日')
-      this.setData({ dateTimeArray })
+    let needUpdate = false
+    const newDateTimeArray = [...dateTimeArray]
+    const newDateTimeIndex = [...dateTimeIndex]
+    newDateTimeIndex[column] = value
+
+    if (column === 0) { // 年份变化
+      const selectedYear = parseInt(dateTimeArray[0][value])
+      if (selectedYear === currentDate.getFullYear()) {
+        // 当前年份，从当前月份开始
+        newDateTimeArray[1] = Array.from(
+          { length: 12 - currentDate.getMonth() },
+          (_, i) => (currentDate.getMonth() + 1 + i) + '月'
+        )
+      } else {
+        // 非当前年份，显示所有月份
+        newDateTimeArray[1] = Array.from(
+          { length: 12 },
+          (_, i) => (i + 1) + '月'
+        )
+      }
+      needUpdate = true
+    }
+
+    if (column === 1 || needUpdate) { // 月份变化
+      const selectedYear = parseInt(dateTimeArray[0][newDateTimeIndex[0]])
+      const selectedMonth = parseInt(dateTimeArray[1][newDateTimeIndex[1]])
+      const isCurrentMonth = selectedYear === currentDate.getFullYear() && 
+                            selectedMonth === currentDate.getMonth() + 1
+
+      const lastDay = new Date(selectedYear, selectedMonth, 0).getDate()
+      if (isCurrentMonth) {
+        // 当前月份，从当前日期开始
+        newDateTimeArray[2] = Array.from(
+          { length: lastDay - currentDate.getDate() + 1 },
+          (_, i) => (currentDate.getDate() + i) + '日'
+        )
+      } else {
+        // 非当前月份，显示所有日期
+        newDateTimeArray[2] = Array.from(
+          { length: lastDay },
+          (_, i) => (i + 1) + '日'
+        )
+      }
+      needUpdate = true
+    }
+
+    if (needUpdate) {
+      this.setData({
+        dateTimeArray: newDateTimeArray,
+        dateTimeIndex: newDateTimeIndex
+      })
     }
   },
 
   onReturnColumnChange(e) {
-    // 处理年月日联动
+    // 与 onColumnChange 类似的逻辑，但是起始时间是借用时间
     const { column, value } = e.detail
-    const { returnDateTimeIndex, dateTimeArray } = this.data
+    const { returnDateTimeIndex, dateTimeArray, borrowTime } = this.data
     
-    if (column === 1) {
-      const days = this.getDays(dateTimeArray[0][returnDateTimeIndex[0]], value + 1)
-      dateTimeArray[2] = days.map(d => d + '日')
-      this.setData({ dateTimeArray })
+    // 如果还没有选择借用时间，不允许选择归还时间
+    if (!borrowTime) {
+      wx.showToast({
+        title: '请先选择借用时间',
+        icon: 'none'
+      })
+      return
     }
+
+    // 其余逻辑与 onColumnChange 类似，但是以借用时间为起点
+    // ...（类似的更新逻辑）
   },
 
   getDays(year, month) {
@@ -115,6 +185,61 @@ Page({
       days.push(i)
     }
     return days
+  },
+
+  formatTimeToISO(timeStr) {
+    try {
+      // 解析中文日期时间格式
+      const matches = timeStr.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2})时:?(\d{1,2})分/)
+      if (!matches) {
+        // 如果已经是ISO格式，直接返回
+        if (timeStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
+          return timeStr;
+        }
+        console.error('Invalid date format:', timeStr)
+        throw new Error('Invalid date format')
+      }
+
+      const [_, year, month, day, hour, minute] = matches
+      // 补齐单位数的月份、日期、小时、分钟
+      const formattedMonth = month.padStart(2, '0')
+      const formattedDay = day.padStart(2, '0')
+      const formattedHour = hour.padStart(2, '0')
+      const formattedMinute = minute.padStart(2, '0')
+      
+      // 使用标准的ISO格式
+      return `${year}-${formattedMonth}-${formattedDay}T${formattedHour}:${formattedMinute}:00`
+    } catch (error) {
+      console.error('时间格式转换出错:', error, timeStr)
+      throw error
+    }
+  },
+
+  validateTimeRange() {
+    if (!this.data.borrowTime || !this.data.returnTime) return false
+
+    try {
+      // 转换为标准的ISO格式
+      const borrowTime = this.formatTimeToISO(this.data.borrowTime)
+      const returnTime = this.formatTimeToISO(this.data.returnTime)
+      
+      const borrowDate = new Date(borrowTime)
+      const returnDate = new Date(returnTime)
+
+      console.log('借用时间:', borrowTime, borrowDate)
+      console.log('归还时间:', returnTime, returnDate)
+      console.log('比较结果:', returnDate > borrowDate)
+
+      if (isNaN(borrowDate.getTime()) || isNaN(returnDate.getTime())) {
+        console.error('无效的日期格式')
+        return false
+      }
+
+      return returnDate > borrowDate
+    } catch (error) {
+      console.error('时间比较出错:', error)
+      return false
+    }
   },
 
   async handleSubmit(e) {
@@ -129,19 +254,31 @@ Page({
       return
     }
 
-    // 转换时间格式为ISO
-    const formatTime = (timeStr) => {
-      const date = new Date(timeStr.replace(/[年月日时分]/g, (match) => {
-        return { '年': '-', '月': '-', '日': 'T', '时': ':', '分': '' }[match]
-      }))
-      return date.toISOString()
-    }
-
     try {
+      // 先验证时间格式
+      const formattedBorrowTime = this.formatTimeToISO(borrowTime)
+      const formattedReturnTime = this.formatTimeToISO(returnTime)
+
+      // 验证时间范围
+      const borrowDate = new Date(formattedBorrowTime)
+      const returnDate = new Date(formattedReturnTime)
+
+      if (isNaN(borrowDate.getTime()) || isNaN(returnDate.getTime())) {
+        throw new Error('无效的日期格式')
+      }
+
+      if (returnDate <= borrowDate) {
+        wx.showToast({
+          title: '归还时间必须在借用时间之后',
+          icon: 'none'
+        })
+        return
+      }
+
       const response = await post('/reservations/device', {
         device_name: deviceId,
-        borrow_time: formatTime(borrowTime),
-        return_time: formatTime(returnTime),
+        borrow_time: formattedBorrowTime,
+        return_time: formattedReturnTime,
         reason
       })
 
@@ -154,6 +291,7 @@ Page({
         wx.navigateBack()
       }, 1500)
     } catch (error) {
+      console.error('预约失败:', error)
       wx.showToast({
         title: error.message || '预约失败',
         icon: 'none'

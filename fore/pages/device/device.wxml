@@ -10,7 +10,7 @@
       <view class="label">借用时间</view>
       <picker mode="multiSelector" value="{{dateTimeIndex}}" range="{{dateTimeArray}}" bindchange="onDateTimeChange" bindcolumnchange="onColumnChange">
         <view class="picker {{borrowTime ? '' : 'placeholder'}}">
-          {{borrowTime || '请选择借用时间'}}
+          {{borrowTime || '点击选择借用时间'}}
         </view>
       </picker>
     </view>

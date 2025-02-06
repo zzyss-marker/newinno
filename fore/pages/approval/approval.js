@@ -1,5 +1,11 @@
 import { get, post } from '../../utils/request'
 
+// 添加设备名称映射
+const deviceNameMap = {
+  'electric_screwdriver': '电动螺丝刀',
+  'multimeter': '万用表'
+}
+
 Page({
   data: {
     currentTab: 'pending',
@@ -11,7 +17,8 @@ Page({
       { key: 'pending', name: '待审批' },
       { key: 'approved', name: '已通过' },
       { key: 'rejected', name: '已拒绝' }
-    ]
+    ],
+    deviceNameMap: deviceNameMap
   },
 
   onLoad() {
@@ -61,12 +68,16 @@ Page({
         ...response.device_reservations.map(item => ({
           ...item,
           type: 'device',
-          created_at: this.formatDateTime(item.created_at)
+          device_name: deviceNameMap[item.device_name] || item.device_name,
+          created_at: this.formatDateTime(item.created_at),
+          borrow_time: item.borrow_time,
+          return_time: item.return_time
         })),
         ...response.printer_reservations.map(item => ({
           ...item,
           type: 'printer',
-          created_at: this.formatDateTime(item.created_at)
+          created_at: this.formatDateTime(item.created_at),
+          print_time: item.print_time
         }))
       ]
 
@@ -138,7 +149,7 @@ Page({
     const { id, type } = e.currentTarget.dataset
     
     try {
-      await post('/admin/reservations/reject', {
+      await post('/admin/reservations/approve', {
         id: parseInt(id),
         type: type,
         status: 'rejected'

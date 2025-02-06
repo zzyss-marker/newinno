@@ -5,12 +5,11 @@
       <view class="printer-info">
         <image class="printer-icon" src="https://img.icons8.com/windows/32/3d-printer.png"/>
         <text class="printer-name">{{item.name}}</text>
-        <text class="printer-status {{item.status === 'available' ? 'available' : 'busy'}}">
-          {{item.status === 'available' ? '可用' : '使用中'}}
-        </text>
+        <text class="printer-status available">可预约</text>
       </view>
-      <button class="reserve-btn" bindtap="goToReserve" data-printer="{{item.id}}" 
-              disabled="{{item.status !== 'available'}}">
+      <button class="reserve-btn" 
+              bindtap="goToReserve" 
+              data-printer="{{item.id}}">
         预约
       </button>
     </view>
@@ -18,54 +17,28 @@
 
   <view class="reservation-form" wx:if="{{showForm}}">
     <view class="form-header">
-      <image class="back-icon" src="https://img.icons8.com/windows/32/back.png" bindtap="hideForm"/>
+      <image class="back-icon" bindtap="hideForm" src="https://img.icons8.com/windows/32/back.png"/>
       <text>预约{{selectedPrinter.name}}</text>
     </view>
 
-    <form bindsubmit="handleSubmit">
-      <view class="form-group">
-        <view class="form-item">
-          <text class="label">打印机</text>
-          <picker 
-            mode="selector" 
-            range="{{printers}}" 
-            range-key="name"
-            value="{{printerIndex}}" 
-            bindchange="handlePrinterChange"
-          >
-            <view class="picker">
-              {{printerIndex > -1 ? printers[printerIndex].name : '请选择打印机'}}
-            </view>
-          </picker>
+    <view class="form-group">
+      <view class="label">预约日期</view>
+      <picker mode="date" value="{{date}}" start="{{minDate}}" bindchange="handleDateChange">
+        <view class="picker {{date ? '' : 'placeholder'}}">
+          {{date || '请选择日期'}}
         </view>
+      </picker>
+    </view>
 
-        <view class="form-item">
-          <text class="label">预约日期</text>
-          <picker 
-            mode="date" 
-            value="{{date}}" 
-            start="{{minDate}}"
-            bindchange="handleDateChange"
-          >
-            <view class="picker">{{date || '请选择日期'}}</view>
-          </picker>
+    <view class="form-group">
+      <view class="label">预约时间</view>
+      <picker mode="time" value="{{time}}" bindchange="handleTimeChange">
+        <view class="picker {{time ? '' : 'placeholder'}}">
+          {{time || '请选择时间'}}
         </view>
+      </picker>
+    </view>
 
-        <view class="form-item">
-          <text class="label">打印时间</text>
-          <picker 
-            mode="time" 
-            value="{{time}}" 
-            bindchange="handleTimeChange"
-          >
-            <view class="picker">{{time || '请选择时间'}}</view>
-          </picker>
-        </view>
-      </view>
-
-      <view class="submit-btn">
-        <button type="primary" form-type="submit">提交预约</button>
-      </view>
-    </form>
+    <button class="submit-btn" type="primary" bindtap="handleSubmit">提交预约</button>
   </view>
 </view>

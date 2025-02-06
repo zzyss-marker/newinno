@@ -8,30 +8,32 @@ Page({
    * 页面的初始数据
    */
   data: {
-    printers: [
-      { id: 'printer_1', name: '3D打印机1号' },
-      { id: 'printer_2', name: '3D打印机2号' },
-      { id: 'printer_3', name: '3D打印机3号' }
-    ],
-    printerIndex: -1,
+    printers: [],
+    selectedPrinter: null,
     date: '',
     time: '',
-    minDate: ''
+    minDate: '',
+    showForm: false
   },
 
   /**
    * 生命周期函数--监听页面加载
    */
   async onLoad(options) {
+    // 设置最小可选日期（明天）
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    this.setData({
+      minDate: tomorrow.toISOString().split('T')[0],
+      // 初始化打印机列表，默认状态为loading
+      printers: config.printers.map(printer => ({
+        ...printer,
+        status: 'loading'
+      }))
+    })
+
     // 获取打印机状态
     await this.getPrinterStatus()
-    
-    // 设置最小可选日期（明天）
-    const minDate = new Date()
-    minDate.setDate(minDate.getDate() + 1)
-    this.setData({
-      minDate: minDate.toISOString().split('T')[0]
-    })
   },
 
   /**
@@ -89,23 +91,38 @@ Page({
         params: { category: 'printer' }
       })
       
-      const printers = config.printers.map(printer => {
-        const status = response.find(item => item.device_or_venue_name === printer.name)
-        return {
-          ...printer,
-          status: status ? status.status : 'unavailable'
-        }
-      })
+      // 所有打印机默认可用，管理员审核时才会改变状态
+      const printers = config.printers.map(printer => ({
+        ...printer,
+        status: 'available'  // 默认都是可用的
+      }))
       
       this.setData({ printers })
     } catch (error) {
       console.error('获取打印机状态失败:', error)
+      // 即使获取状态失败，也设置为可用
+      const printers = config.printers.map(printer => ({
+        ...printer,
+        status: 'available'
+      }))
+      this.setData({ printers })
     }
   },
 
-  handlePrinterChange(e) {
+  goToReserve(e) {
+    const printerId = e.currentTarget.dataset.printer
+    const printer = this.data.printers.find(p => p.id === printerId)
     this.setData({
-      printerIndex: e.detail.value
+      selectedPrinter: printer,
+      showForm: true
+    })
+  },
+
+  hideForm() {
+    this.setData({
+      showForm: false,
+      date: '',
+      time: ''
     })
   },
 
@@ -121,43 +138,33 @@ Page({
     })
   },
 
-  async handleSubmit(e) {
-    const { printerIndex, date, time } = this.data
+  async handleSubmit() {
+    const { selectedPrinter, date, time } = this.data
     
-    if (printerIndex === -1) {
+    if (!selectedPrinter || !date || !time) {
       wx.showToast({
-        title: '请选择打印机',
-        icon: 'none'
-      })
-      return
-    }
-    
-    if (!date) {
-      wx.showToast({
-        title: '请选择日期',
-        icon: 'none'
-      })
-      return
-    }
-    
-    if (!time) {
-      wx.showToast({
-        title: '请选择时间',
+        title: '请填写完整信息',
         icon: 'none'
       })
       return
     }
 
     try {
-      const printer = this.data.printers[printerIndex]
-      await post('/reservations/printer', {
-        printer_name: printer.id,
+      // 格式化日期和时间
+      const formattedDateTime = `${date}T${time}:00`
+
+      const requestData = {
+        printer_name: selectedPrinter.id,
         reservation_date: date,
-        print_time: `${date}T${time}:00`
-      })
+        print_time: formattedDateTime
+      }
+
+      console.log('预约请求数据:', requestData)
+
+      await post('/reservations/printer', requestData)
 
       wx.showToast({
-        title: '预约成功',
+        title: '预约成功，等待审核',
         icon: 'success'
       })
 

@@ -4,15 +4,29 @@ from typing import List, Dict
 from datetime import datetime
 from ..database import get_db
 from ..models import models
-from ..schemas import schemas
+from ..schemas import (  # 直接从schemas模块导入需要的类
+    PendingReservations,
+    ApprovedReservations,
+    ReservationStatusUpdate
+)
 from ..utils.auth import get_current_admin
 from ..utils.excel import read_users_excel, export_reservations_excel
 import io
 from fastapi.responses import StreamingResponse
+from ..models.models import DeviceNames
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-@router.get("/reservations/pending", response_model=schemas.PendingReservations)
+def convert_device_names(devices_needed: dict) -> dict:
+    """将设备名称转换为中文"""
+    if not devices_needed:
+        return {}
+    return {
+        DeviceNames.from_str(k): v 
+        for k, v in devices_needed.items()
+    }
+
+@router.get("/reservations/pending", response_model=PendingReservations)
 async def get_pending_reservations(
     current_user: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db)
@@ -40,10 +54,10 @@ async def get_pending_reservations(
             "status": r.status,
             "created_at": r.created_at,
             "venue_type": r.venue_type,
-            "reservation_date": r.reservation_date,
+            "reservation_date": str(r.reservation_date),
             "business_time": r.business_time,
             "purpose": r.purpose,
-            "devices_needed": r.devices_needed
+            "devices_needed": convert_device_names(r.devices_needed) if isinstance(r.devices_needed, dict) else {}
         } for r in venue_reservations],
         "device_reservations": [{
             "id": r.reservation_id,
@@ -53,9 +67,10 @@ async def get_pending_reservations(
             "status": r.status,
             "created_at": r.created_at,
             "device_name": r.device_name,
-            "borrow_time": r.borrow_time,
-            "return_time": r.return_time,
-            "reason": r.reason
+            "borrow_time": str(r.borrow_time),
+            "return_time": str(r.return_time),
+            "reason": r.reason,
+            "type": "device"
         } for r in device_reservations],
         "printer_reservations": [{
             "id": r.reservation_id,
@@ -65,12 +80,12 @@ async def get_pending_reservations(
             "status": r.status,
             "created_at": r.created_at,
             "printer_name": r.printer_name,
-            "reservation_date": r.reservation_date,
-            "print_time": r.print_time
+            "reservation_date": str(r.reservation_date),
+            "print_time": str(r.print_time)
         } for r in printer_reservations]
     }
 
-@router.get("/reservations/approved", response_model=schemas.ApprovedReservations)
+@router.get("/reservations/approved", response_model=ApprovedReservations)
 async def get_approved_reservations(
     current_user: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db)
@@ -97,10 +112,10 @@ async def get_approved_reservations(
             "status": r.status,
             "created_at": r.created_at,
             "venue_type": r.venue_type,
-            "reservation_date": r.reservation_date,
+            "reservation_date": str(r.reservation_date),
             "business_time": r.business_time,
             "purpose": r.purpose,
-            "devices_needed": r.devices_needed
+            "devices_needed": convert_device_names(r.devices_needed) if isinstance(r.devices_needed, dict) else {}
         } for r in venue_reservations],
         "device_reservations": [{
             "id": r.reservation_id,
@@ -110,8 +125,8 @@ async def get_approved_reservations(
             "status": r.status,
             "created_at": r.created_at,
             "device_name": r.device_name,
-            "borrow_time": r.borrow_time,
-            "return_time": r.return_time,
+            "borrow_time": str(r.borrow_time),
+            "return_time": str(r.return_time),
             "reason": r.reason
         } for r in device_reservations],
         "printer_reservations": [{
@@ -122,17 +137,18 @@ async def get_approved_reservations(
             "status": r.status,
             "created_at": r.created_at,
             "printer_name": r.printer_name,
-            "reservation_date": r.reservation_date,
-            "print_time": r.print_time
+            "reservation_date": str(r.reservation_date),
+            "print_time": str(r.print_time)
         } for r in printer_reservations]
     }
 
 @router.post("/reservations/approve")
 async def approve_reservation(
-    data: schemas.ReservationStatusUpdate,
+    data: ReservationStatusUpdate,  # 修改回使用 ReservationStatusUpdate schema
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_admin)
 ):
+    """审批预约"""
     try:
         model_map = {
             "venue": models.VenueReservation,
@@ -150,6 +166,22 @@ async def approve_reservation(
         if not reservation:
             raise HTTPException(status_code=404, detail="Reservation not found")
             
+        # 如果是打印机预约，检查时间冲突
+        if data.type == "printer" and data.status == "approved":
+            existing = db.query(models.PrinterReservation).filter(
+                models.PrinterReservation.printer_name == reservation.printer_name,
+                models.PrinterReservation.reservation_date == reservation.reservation_date,
+                models.PrinterReservation.print_time == reservation.print_time,
+                models.PrinterReservation.status == "approved",
+                models.PrinterReservation.reservation_id != reservation.reservation_id
+            ).first()
+            
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Time slot already approved for another reservation"
+                )
+        
         reservation.status = data.status
         db.commit()
         return {"message": f"Reservation {data.status}"}
@@ -159,7 +191,7 @@ async def approve_reservation(
 
 @router.post("/reservations/reject")
 async def reject_reservation(
-    data: schemas.ReservationStatusUpdate,
+    data: ReservationStatusUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_admin)
 ):

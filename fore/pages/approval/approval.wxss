@@ -209,3 +209,17 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+.devices-list {
+  display: inline;
+  word-break: keep-all;
+  white-space: normal;
+}
+
+.devices-list text:last-child::after {
+  content: '';
+}
+
+.devices-list text:not(:last-child)::after {
+  content: '、';
+}
