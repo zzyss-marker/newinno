@@ -49,14 +49,14 @@ class PrinterName(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    user_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, primary_key=True)
     username = Column(String(255), unique=True, index=True)
     name = Column(String(255))
     password = Column(String(255))
-    role = Column(String(50))  # 'admin', 'teacher', 'student'
+    role = Column(String(50))  # student, teacher, admin
     department = Column(String(255))
 
-    # 添加关系定义
+    # 关联关系
     venue_reservations = relationship("VenueReservation", back_populates="user")
     device_reservations = relationship("DeviceReservation", back_populates="user")
     printer_reservations = relationship("PrinterReservation", back_populates="user")

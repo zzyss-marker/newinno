@@ -4,25 +4,27 @@ from .routers import auth, reservations, admin, management
 from .database import engine
 from .models import models
 
-# 创建数据库表
+# 确保创建所有数据库表
+print("Creating database tables...")  # 调试信息
 models.Base.metadata.create_all(bind=engine)
+print("Database tables created")  # 调试信息
 
-app = FastAPI(title="预约系统API")
+app = FastAPI()
 
-# 添加CORS中间件
+# 配置CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 允许所有来源
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # 允许所有方法
+    allow_headers=["*"],  # 允许所有头部
 )
 
 # 注册路由
-app.include_router(auth.router, prefix="/api", tags=["auth"])
-app.include_router(reservations.router, prefix="/api/reservations", tags=["reservations"])
-app.include_router(admin.router, prefix="/api", tags=["admin"])
-app.include_router(management.router, prefix="/api", tags=["management"])
+app.include_router(auth.router)  # /api/token, /api/users/me
+app.include_router(admin.router)  # /api/admin/*
+app.include_router(reservations.router)  # /api/reservations/*
+app.include_router(management.router)  # /api/management/*
 
 @app.get("/")
 async def root():

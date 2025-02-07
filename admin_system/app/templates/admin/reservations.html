@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}预约记录{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">预约记录管理</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">筛选条件</h5>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="startDate">开始日期</label>
+                        <input type="date" class="form-control" id="startDate">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="endDate">结束日期</label>
+                        <input type="date" class="form-control" id="endDate">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary">查询</button>
+                            <button type="button" class="btn btn-secondary" onclick="exportReservations()">导出</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">预约列表</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>预约类型</th>
+                            <th>申请人</th>
+                            <th>学院</th>
+                            <th>预约日期</th>
+                            <th>详细信息</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservationList">
+                        <!-- 数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('filterForm').onsubmit = async function(e) {
+    e.preventDefault();
+    await loadReservations();
+};
+
+async function loadReservations() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    try {
+        const response = await fetch(`http://localhost:8001/api/admin/reservations/list?start_date=${startDate}&end_date=${endDate}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received reservations:', data);  // 调试信息
+        
+        const tbody = document.getElementById('reservationList');
+        tbody.innerHTML = data.map(record => {
+            const details = getDetailsHtml(record);
+            return `
+                <tr>
+                    <td>${getReservationType(record.type)}</td>
+                    <td>${record.user?.name || ''}</td>
+                    <td>${record.user?.department || ''}</td>
+                    <td>${formatDate(record.reservation_date)}</td>
+                    <td>${details}</td>
+                    <td>
+                        <span class="badge badge-${getStatusBadgeClass(record.status)}">
+                            ${getStatusText(record.status)}
+                        </span>
+                    </td>
+                    <td>
+                        ${record.status === 'pending' ? `
+                            <button class="btn btn-sm btn-success" onclick="updateStatus('${record.type}', ${record.reservation_id}, 'approved')">通过</button>
+                            <button class="btn btn-sm btn-danger" onclick="updateStatus('${record.type}', ${record.reservation_id}, 'rejected')">拒绝</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('加载预约记录失败：', error);
+        alert('加载预约记录失败：' + error.message);
+    }
+}
+
+function getDetailsHtml(record) {
+    switch (record.type) {
+        case 'venue':
+            return `
+                场地类型: ${record.venue_type}<br>
+                时间段: ${record.business_time}<br>
+                用途: ${record.purpose || ''}
+            `;
+        case 'device':
+            return `
+                设备名称: ${record.device_name}<br>
+                借用时间: ${formatDateTime(record.borrow_time)}<br>
+                归还时间: ${formatDateTime(record.return_time)}
+            `;
+        case 'printer':
+            return `
+                打印机: ${record.printer_name}<br>
+                打印时间: ${formatDateTime(record.print_time)}
+            `;
+        default:
+            return '';
+    }
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('zh-CN');
+}
+
+function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr) return '';
+    const date = new Date(dateTimeStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function getReservationType(type) {
+    const typeMap = {
+        'venue': '场地预约',
+        'device': '设备预约',
+        'printer': '打印机预约'
+    };
+    return typeMap[type] || type;
+}
+
+function getStatusBadgeClass(status) {
+    const statusMap = {
+        'pending': 'warning',
+        'approved': 'success',
+        'rejected': 'danger',
+        'returned': 'info'
+    };
+    return statusMap[status] || 'secondary';
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'pending': '待审批',
+        'approved': '已通过',
+        'rejected': '已拒绝',
+        'returned': '已归还'
+    };
+    return statusMap[status] || status;
+}
+
+async function updateStatus(type, id, status) {
+    try {
+        const response = await fetch('http://localhost:8001/api/admin/reservations/approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ type, id, status })
+        });
+        
+        if (response.ok) {
+            await loadReservations();
+        } else {
+            const error = await response.json();
+            alert(error.detail || '操作失败');
+        }
+    } catch (error) {
+        alert('操作失败：' + error);
+    }
+}
+
+async function exportReservations() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    try {
+        const response = await fetch(`http://localhost:8001/api/admin/export/reservations?start_date=${startDate}&end_date=${endDate}`, {
+            method: 'GET',
+        });
+        
+        if (!response.ok) {
+            throw new Error('导出失败');
+        }
+        
+        // 获取blob数据
+        const blob = await response.blob();
+        // 创建下载链接
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `预约记录_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    } catch (error) {
+        console.error('导出失败：', error);
+        alert('导出失败：' + error.message);
+    }
+}
+
+// 页面加载时获取预约记录
+loadReservations();
+</script>
+{% endblock %} 

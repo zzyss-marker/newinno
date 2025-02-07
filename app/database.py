@@ -11,7 +11,7 @@ MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "123456")
 MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
 MYSQL_DB = os.getenv("MYSQL_DB", "reservation_system")
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, 
     connect_args={"check_same_thread": False}  # 允许多线程访问

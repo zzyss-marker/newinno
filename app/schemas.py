@@ -163,4 +163,28 @@ class BorrowHistoryResponse(BaseModel):
     user_department: str
     borrow_count: int
     return_rate: float
-    history: List[Dict] 
+    history: List[Dict]
+
+# 设备管理相关模型
+class DeviceBase(BaseModel):
+    device_or_venue_name: str
+    category: str  # venue, device, printer
+    quantity: int
+    available_quantity: int
+    status: str = "available"
+
+class DeviceCreate(DeviceBase):
+    pass
+
+class DeviceUpdate(BaseModel):
+    device_or_venue_name: Optional[str] = None
+    category: Optional[str] = None
+    quantity: Optional[int] = None
+    available_quantity: Optional[int] = None
+    status: Optional[str] = None
+
+class Device(DeviceBase):
+    id: int
+
+    class Config:
+        orm_mode = True 

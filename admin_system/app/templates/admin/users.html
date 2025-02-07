@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">用户管理</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">批量导入用户</h5>
+        </div>
+        <div class="card-body">
+            <form id="importForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">选择Excel文件</label>
+                    <input type="file" class="form-control-file" id="file" name="file" accept=".xlsx,.xls">
+                </div>
+                <button type="submit" class="btn btn-primary">导入</button>
+                <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">下载模板</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">用户列表</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>用户名</th>
+                            <th>姓名</th>
+                            <th>学院</th>
+                            <th>角色</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userList">
+                        <!-- 用户数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('importForm').onsubmit = async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    const fileInput = document.getElementById('file');
+    
+    if (!fileInput.files[0]) {
+        alert('请选择要导入的文件');
+        return;
+    }
+    
+    formData.append('file', fileInput.files[0]);
+    
+    try {
+        const response = await fetch('http://localhost:8001/api/admin/users/import', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            alert(`${result.message}\n成功导入 ${result.count} 个用户`);
+            loadUsers();  // 重新加载用户列表
+        } else {
+            alert(result.detail || result.error || '导入失败');
+        }
+    } catch (error) {
+        console.error('导入失败：', error);
+        alert('导入失败：' + error);
+    }
+    
+    // 清空文件输入
+    fileInput.value = '';
+};
+
+async function loadUsers() {
+    try {
+        const response = await fetch('http://localhost:8001/api/admin/users', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const users = await response.json();
+        console.log('Received users:', users);  // 调试信息
+        
+        const tbody = document.getElementById('userList');
+        tbody.innerHTML = users.map(user => `
+            <tr>
+                <td>${user.username || ''}</td>
+                <td>${user.name || ''}</td>
+                <td>${user.department || ''}</td>
+                <td>${getRoleText(user.role) || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('加载用户列表失败：', error);
+        alert('加载用户列表失败：' + error.message);
+    }
+}
+
+function getRoleText(role) {
+    const roleMap = {
+        'student': '学生',
+        'teacher': '教师',
+        'admin': '管理员'
+    };
+    return roleMap[role] || role;
+}
+
+async function deleteUser(username) {
+    if (!confirm('确定要删除此用户吗？')) return;
+    
+    try {
+        const response = await fetch(`http://localhost:8001/api/admin/users/${username}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadUsers();  // 重新加载用户列表
+        } else {
+            const error = await response.json();
+            alert(error.error || '删除失败');
+        }
+    } catch (error) {
+        alert('删除失败：' + error);
+    }
+}
+
+// 页面加载时获取用户列表
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+});
+
+// 添加下载模板的函数
+async function downloadTemplate() {
+    try {
+        const response = await fetch('http://localhost:8001/api/admin/templates/user-import', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`下载失败: ${errorText}`);
+        }
+        
+        // 获取文件名
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = '用户导入模板.xlsx';
+        if (contentDisposition) {
+            const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+            if (matches != null && matches[1]) {
+                filename = matches[1].replace(/['"]/g, '');
+            }
+        }
+        
+        // 下载文件
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        
+        console.log('Template downloaded successfully');  // 添加调试信息
+    } catch (error) {
+        console.error('下载模板失败：', error);
+        alert('下载模板失败：' + error.message);
+    }
+}
+</script>
+{% endblock %} 

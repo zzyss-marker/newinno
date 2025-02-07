@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}首页{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+    <h1 class="display-4">欢迎使用管理系统</h1>
+    <p class="lead">这里是设备预约管理系统的后台管理界面。</p>
+    <hr class="my-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">用户管理</h5>
+                    <p class="card-text">导入和管理用户信息</p>
+                    <a href="{{ url_for('admin.users') }}" class="btn btn-primary">进入</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">预约记录</h5>
+                    <p class="card-text">查看和导出预约记录</p>
+                    <a href="{{ url_for('admin.reservations') }}" class="btn btn-primary">进入</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
