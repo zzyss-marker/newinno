@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -277,124 +277,73 @@ async def import_users_from_excel(
     db.commit()
     return {"message": f"Successfully imported {len(created_users)} users"}
 
-@router.get("/export/reservations")
+@router.get("/export-reservations")
 async def export_reservations(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: str = None,
+    end_date: str = None,
     db: Session = Depends(get_db)
 ):
     """导出预约记录"""
     try:
-        # 使用与列表查询相同的逻辑获取数据
-        venue_reservations = db.query(models.VenueReservation).join(
-            models.User
-        ).options(
+        # 查询预约记录
+        venue_query = db.query(models.VenueReservation).options(
             joinedload(models.VenueReservation.user)
         )
-        
-        device_reservations = db.query(models.DeviceReservation).join(
-            models.User
-        ).options(
+        device_query = db.query(models.DeviceReservation).options(
             joinedload(models.DeviceReservation.user)
         )
-        
-        printer_reservations = db.query(models.PrinterReservation).join(
-            models.User
-        ).options(
+        printer_query = db.query(models.PrinterReservation).options(
             joinedload(models.PrinterReservation.user)
         )
-
-        # 添加日期过滤
+        
+        # 如果有日期筛选
         if start_date:
-            venue_reservations = venue_reservations.filter(models.VenueReservation.reservation_date >= start_date)
-            device_reservations = device_reservations.filter(models.DeviceReservation.borrow_time >= start_date)
-            printer_reservations = printer_reservations.filter(models.PrinterReservation.reservation_date >= start_date)
+            venue_query = venue_query.filter(models.VenueReservation.reservation_date >= start_date)
+            device_query = device_query.filter(models.DeviceReservation.borrow_time >= start_date)
+            printer_query = printer_query.filter(models.PrinterReservation.reservation_date >= start_date)
         
         if end_date:
-            venue_reservations = venue_reservations.filter(models.VenueReservation.reservation_date <= end_date)
-            device_reservations = device_reservations.filter(models.DeviceReservation.borrow_time <= end_date)
-            printer_reservations = printer_reservations.filter(models.PrinterReservation.reservation_date <= end_date)
-
-        # 执行查询
-        venue_reservations = venue_reservations.all()
-        device_reservations = device_reservations.all()
-        printer_reservations = printer_reservations.all()
-
-        # 准备Excel数据
-        data = []
+            venue_query = venue_query.filter(models.VenueReservation.reservation_date <= end_date)
+            device_query = device_query.filter(models.DeviceReservation.borrow_time <= end_date)
+            printer_query = printer_query.filter(models.PrinterReservation.reservation_date <= end_date)
         
-        # 添加场地预约
-        for res in venue_reservations:
-            data.append({
-                '预约类型': '场地预约',
-                '申请人': res.user.name,
-                '学院': res.user.department,
-                '场地类型': res.venue_type,
-                '预约日期': res.reservation_date.strftime('%Y-%m-%d'),
-                '时间段': res.business_time,
-                '用途': res.purpose,
-                '状态': res.status,
-                '创建时间': res.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            })
+        # 获取数据
+        venue_reservations = venue_query.all()
+        device_reservations = device_query.all()
+        printer_reservations = printer_query.all()
         
-        # 添加设备预约
-        for res in device_reservations:
-            data.append({
-                '预约类型': '设备预约',
-                '申请人': res.user.name,
-                '学院': res.user.department,
-                '设备名称': res.device_name,
-                '借用时间': res.borrow_time.strftime('%Y-%m-%d %H:%M'),
-                '归还时间': res.return_time.strftime('%Y-%m-%d %H:%M') if res.return_time else '',
-                '状态': res.status,
-                '创建时间': res.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            })
+        # 生成Excel文件
+        excel_data = export_reservations_excel(
+            venue_reservations,
+            device_reservations,
+            printer_reservations
+        )
         
-        # 添加打印机预约
-        for res in printer_reservations:
-            data.append({
-                '预约类型': '打印机预约',
-                '申请人': res.user.name,
-                '学院': res.user.department,
-                '打印机': res.printer_name,
-                '预约日期': res.reservation_date.strftime('%Y-%m-%d'),
-                '打印时间': res.print_time.strftime('%H:%M') if res.print_time else '',
-                '状态': res.status,
-                '创建时间': res.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            })
-
-        # 创建Excel文件
-        df = pd.DataFrame(data)
+        filename = f'预约记录_{datetime.now().strftime("%Y%m%d")}.xlsx'
         
-        # 创建一个临时文件
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
-        output.seek(0)
-        
-        # 返回文件
-        return StreamingResponse(
-            output,
+        # 使用Response而不是StreamingResponse
+        return Response(
+            content=excel_data,
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             headers={
-                'Content-Disposition': f'attachment; filename=预约记录_{datetime.now().strftime("%Y%m%d")}.xlsx'
+                'Content-Disposition': f'attachment; filename="{filename}"'.encode('utf-8').decode('latin-1')
             }
         )
+        
     except Exception as e:
         print(f"Error exporting reservations: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导出预约记录失败: {str(e)}"
+            detail="导出失败"
         )
 
 @router.post("/reservations/batch-approve")
-async def batch_approve_reservations(
-    reservation_type: str,  # 从查询参数获取
-    data: dict,  # 从请求体获取
+async def approve_reservation(
+    data: dict,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_admin)
 ):
-    """批量审批预约"""
+    """审批预约"""
     if "reservation_ids" not in data or not isinstance(data["reservation_ids"], list):
         raise HTTPException(status_code=400, detail="Invalid reservation_ids")
     
@@ -407,15 +356,14 @@ async def batch_approve_reservations(
         "printer": models.PrinterReservation
     }
     
-    if reservation_type not in model_map:
-        raise HTTPException(status_code=400, detail="Invalid reservation type")
-    
-    model = model_map[reservation_type]
-    status = "approved" if data["action"] == "approve" else "rejected"
+    if data["action"] == "approve":
+        status = "approved"
+    else:
+        status = "rejected"
     
     try:
-        db.query(model).filter(
-            model.reservation_id.in_(data["reservation_ids"])
+        db.query(model_map[data["type"]]).filter(
+            model_map[data["type"]].reservation_id.in_(data["reservation_ids"])
         ).update(
             {"status": status},
             synchronize_session=False
@@ -719,4 +667,45 @@ async def update_device(
     
     db.commit()
     db.refresh(db_device)
-    return db_device 
+    return db_device
+
+@router.delete("/reservations/{type}/{id}")
+async def delete_reservation(
+    type: str,
+    id: int,
+    db: Session = Depends(get_db)
+):
+    """删除预约记录"""
+    try:
+        # 根据预约类型选择对应的模型
+        model_map = {
+            "venue": models.VenueReservation,
+            "device": models.DeviceReservation,
+            "printer": models.PrinterReservation
+        }
+        
+        if type not in model_map:
+            raise HTTPException(status_code=400, detail="无效的预约类型")
+        
+        # 查找预约记录
+        reservation = db.query(model_map[type]).filter(
+            model_map[type].reservation_id == id
+        ).first()
+        
+        if not reservation:
+            raise HTTPException(status_code=404, detail="预约记录不存在")
+        
+        # 删除记录
+        db.delete(reservation)
+        db.commit()
+        
+        return {"message": "删除成功"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting reservation: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="删除失败"
+        ) 

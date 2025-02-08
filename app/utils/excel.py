@@ -52,69 +52,82 @@ def export_reservations_excel(
     device_reservations: List[DeviceReservation],
     printer_reservations: List[PrinterReservation]
 ) -> bytes:
-    # 场地预约数据
-    venue_data = []
-    for res in venue_reservations:
-        # 转换设备需求为中文
-        devices = []
-        if res.devices_needed.get("screen"):
-            devices.append("大屏")
-        if res.devices_needed.get("laptop"):
-            devices.append("笔记本")
-        if res.devices_needed.get("mic_handheld"):
-            devices.append("手持麦")
-        if res.devices_needed.get("mic_gooseneck"):
-            devices.append("鹅颈麦")
-        if res.devices_needed.get("projector"):
-            devices.append("投屏器")
+    """导出预约记录到Excel"""
+    try:
+        # 准备数据
+        venue_data = []
+        for res in venue_reservations:
+            venue_data.append({
+                "预约类型": "场地预约",
+                "场地类型": str(res.venue_type),
+                "预约日期": res.reservation_date.strftime("%Y-%m-%d"),
+                "时间段": str(res.business_time),
+                "用途": str(res.purpose),
+                "预约人": f"{str(res.user.name)}({str(res.user.username)})",
+                "所属部门": str(res.user.department),
+                "状态": str(format_reservation_status(res.status))
+            })
         
-        venue_data.append({
-            "预约类型": "场地预约",
-            "场地类型": res.venue_type,
-            "预约日期": res.reservation_date.strftime("%Y年%m月%d日"),
-            "时间段": res.business_time,
-            "用途": res.purpose,
-            "设备需求": "、".join(devices) if devices else "无",
-            "预约人": f"{res.user.name}({res.user.username})",
-            "所属部门": res.user.department,
-            "状态": format_reservation_status(res.status)
-        })
-    
-    # 设备预约数据
-    device_data = []
-    for res in device_reservations:
-        device_data.append({
-            "预约类型": "设备预约",
-            "设备名称": format_device_name(res.device_name),
-            "借用时间": res.borrow_time.strftime("%Y年%m月%d日 %H:%M"),
-            "预计归还时间": res.return_time.strftime("%Y年%m月%d日 %H:%M"),
-            "实际归还时间": res.actual_return_time.strftime("%Y年%m月%d日 %H:%M") if res.actual_return_time else "未归还",
-            "借用原因": res.reason,
-            "预约人": f"{res.user.name}({res.user.username})",
-            "所属部门": res.user.department,
-            "状态": format_reservation_status(res.status)
-        })
-    
-    # 3D打印机预约数据
-    printer_data = []
-    for res in printer_reservations:
-        printer_data.append({
-            "预约类型": "3D打印机预约",
-            "打印机": format_device_name(res.printer_name),
-            "预约日期": res.reservation_date.strftime("%Y年%m月%d日"),
-            "打印时间": res.print_time.strftime("%H:%M"),
-            "预约人": f"{res.user.name}({res.user.username})",
-            "所属部门": res.user.department,
-            "状态": format_reservation_status(res.status)
-        })
-    
-    # 创建Excel文件
-    with pd.ExcelWriter(io.BytesIO()) as writer:
-        pd.DataFrame(venue_data).to_excel(writer, sheet_name="场地预约", index=False)
-        pd.DataFrame(device_data).to_excel(writer, sheet_name="设备预约", index=False)
-        pd.DataFrame(printer_data).to_excel(writer, sheet_name="3D打印机预约", index=False)
+        device_data = []
+        for res in device_reservations:
+            device_data.append({
+                "预约类型": "设备预约",
+                "设备名称": str(format_device_name(res.device_name)),
+                "借用时间": res.borrow_time.strftime("%Y-%m-%d %H:%M"),
+                "预计归还时间": res.return_time.strftime("%Y-%m-%d %H:%M"),
+                "实际归还时间": res.actual_return_time.strftime("%Y-%m-%d %H:%M") if res.actual_return_time else "未归还",
+                "借用原因": str(res.reason),
+                "预约人": f"{str(res.user.name)}({str(res.user.username)})",
+                "所属部门": str(res.user.department),
+                "状态": str(format_reservation_status(res.status))
+            })
         
-        writer.save()
-        excel_file = writer.handles.handle.getvalue()
-    
-    return excel_file 
+        printer_data = []
+        for res in printer_reservations:
+            printer_data.append({
+                "预约类型": "3D打印机预约",
+                "打印机": str(format_device_name(res.printer_name)),
+                "预约日期": res.reservation_date.strftime("%Y-%m-%d"),
+                "打印时间": res.print_time.strftime("%H:%M"),
+                "预约人": f"{str(res.user.name)}({str(res.user.username)})",
+                "所属部门": str(res.user.department),
+                "状态": str(format_reservation_status(res.status))
+            })
+
+        # 创建DataFrame
+        dfs = []
+        if venue_data:
+            dfs.append(("场地预约", pd.DataFrame(venue_data)))
+        if device_data:
+            dfs.append(("设备预约", pd.DataFrame(device_data)))
+        if printer_data:
+            dfs.append(("3D打印机预约", pd.DataFrame(printer_data)))
+
+        # 使用openpyxl直接写入
+        from openpyxl import Workbook
+        wb = Workbook()
+        
+        # 删除默认的sheet
+        wb.remove(wb.active)
+        
+        # 写入每个sheet
+        for sheet_name, df in dfs:
+            ws = wb.create_sheet(sheet_name)
+            # 写入表头
+            for col, header in enumerate(df.columns, 1):
+                ws.cell(row=1, column=col, value=header)
+            # 写入数据
+            for row_idx, row in enumerate(df.values, 2):
+                for col_idx, value in enumerate(row, 1):
+                    ws.cell(row=row_idx, column=col_idx, value=value)
+
+        # 保存到BytesIO
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return output.getvalue()
+
+    except Exception as e:
+        print(f"Error in export_reservations_excel: {str(e)}")
+        raise 

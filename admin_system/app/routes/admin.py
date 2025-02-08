@@ -12,6 +12,33 @@ import io
 
 bp = Blueprint('admin', __name__)
 
+def get_api_url(endpoint):
+    """构建API URL"""
+    base_url = current_app.config['API_BASE_URL']
+    url = f"{base_url}/{endpoint.lstrip('/')}"
+    current_app.logger.debug(f"Constructed API URL: {url}")
+    current_app.logger.debug(f"Base URL from config: {base_url}")
+    current_app.logger.debug(f"Endpoint: {endpoint}")
+    return url
+
+def make_request(method, url, **kwargs):
+    """统一的请求处理函数"""
+    # 禁用所有代理
+    kwargs.setdefault('proxies', {
+        'http': None,
+        'https': None
+    })
+    
+    # 添加认证头
+    headers = kwargs.get('headers', {})
+    headers['Authorization'] = f'Bearer {current_app.config["API_TOKEN"]}'
+    kwargs['headers'] = headers
+    
+    current_app.logger.debug(f"Making {method} request to: {url}")
+    current_app.logger.debug(f"Request kwargs: {kwargs}")
+    
+    return requests.request(method, url, **kwargs)
+
 @bp.route('/')
 @login_required
 def index():
@@ -38,8 +65,9 @@ def import_users():
     try:
         # 调用后端API导入用户
         files = {'file': (file.filename, file.stream, file.content_type)}
-        response = requests.post(
-            'http://localhost:8001/api/admin/users/import',
+        response = make_request(
+            'POST',
+            get_api_url('admin/users/import'),
             files=files
         )
         response.raise_for_status()
@@ -47,9 +75,9 @@ def import_users():
         # 获取导入的用户数据并同步到认证系统
         users_data = response.json().get('users', [])
         if users_data:
-            # 调用后端的账号创建API
-            auth_response = requests.post(
-                'http://localhost:8001/api/auth/batch_create',
+            auth_response = make_request(
+                'POST',
+                get_api_url('auth/batch_create'),
                 json={'users': users_data}
             )
             auth_response.raise_for_status()
@@ -68,7 +96,8 @@ def export_template():
     """从后端API获取用户导入模板"""
     try:
         response = requests.get(
-            'http://localhost:8001/api/admin/users/template',
+            get_api_url('admin/users/template'),
+            headers={'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
             stream=True
         )
         response.raise_for_status()
@@ -88,7 +117,10 @@ def export_template():
 def get_users():
     """从后端API获取用户列表"""
     try:
-        response = requests.get('http://localhost:8001/api/admin/users')
+        response = requests.get(
+            get_api_url('admin/users'),
+            headers={'Accept': 'application/json'}
+        )
         response.raise_for_status()
         return jsonify(response.json())
     except requests.exceptions.RequestException as e:
@@ -101,7 +133,8 @@ def delete_user(username):
     """通过后端API删除用户"""
     try:
         response = requests.delete(
-            f'http://localhost:8001/api/admin/users/{username}'
+            get_api_url(f'admin/users/{username}'),
+            headers={'Accept': 'application/json'}
         )
         response.raise_for_status()
         return jsonify(response.json())
@@ -123,15 +156,75 @@ def get_reservations():
     end_date = request.args.get('end_date')
     
     try:
-        # 调用后端API
-        response = requests.get(
-            'http://localhost:8001/api/admin/export/reservations',
-            params={'start_date': start_date, 'end_date': end_date}
+        current_app.logger.info(f"Fetching reservations with dates: start={start_date}, end={end_date}")
+        
+        api_url = get_api_url('admin/reservations/list')
+        
+        params = {
+            'start_date': start_date if start_date else None,
+            'end_date': end_date if end_date else None
+        }
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+        
+        current_app.logger.debug(f"Request details:")
+        current_app.logger.debug(f"  URL: {api_url}")
+        current_app.logger.debug(f"  Method: GET")
+        current_app.logger.debug(f"  Headers: {headers}")
+        current_app.logger.debug(f"  Params: {params}")
+        
+        # 使用新的请求函数
+        response = make_request(
+            'GET',
+            api_url,
+            params=params,
+            headers=headers,
+            timeout=10
         )
-        response.raise_for_status()
-        return jsonify(response.json())
+        
+        # 记录响应信息
+        current_app.logger.debug(f"Response details:")
+        current_app.logger.debug(f"  Status code: {response.status_code}")
+        current_app.logger.debug(f"  Headers: {dict(response.headers)}")
+        current_app.logger.debug(f"  URL: {response.url}")  # 实际请求的URL
+        
+        if response.status_code == 404:
+            return jsonify({'error': '未找到数据'}), 404
+        
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            current_app.logger.error(f"HTTP Error: {str(e)}")
+            current_app.logger.error(f"Response content: {response.text}")
+            raise
+        
+        data = response.json()
+        current_app.logger.debug(f"Response data type: {type(data)}")
+        current_app.logger.debug(f"Response data: {data}")
+        
+        if not isinstance(data, list):
+            data = data.get('reservations', [])
+            
+        current_app.logger.info(f"Successfully fetched {len(data)} reservations")
+        return jsonify(data)
+        
+    except requests.exceptions.Timeout:
+        current_app.logger.error("API request timed out")
+        return jsonify({'error': '请求超时，请稍后重试'}), 504
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error fetching reservations: {str(e)}")
+        error_details = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            error_details += f"\nResponse: {e.response.text}"
+        if hasattr(e, 'request') and e.request is not None:
+            current_app.logger.error(f"Request URL: {e.request.url}")
+            current_app.logger.error(f"Request method: {e.request.method}")
+            current_app.logger.error(f"Request headers: {e.request.headers}")
+        current_app.logger.error(f"Detailed error: {error_details}")
+        current_app.logger.error(f"Exception type: {type(e)}")
+        current_app.logger.error(f"Exception args: {e.args}")
         return jsonify({'error': '获取预约记录失败'}), 500
 
 @bp.route('/api/reservations/approve', methods=['POST'])
@@ -139,16 +232,59 @@ def get_reservations():
 def approve_reservation():
     """通过后端API审批预约"""
     try:
-        # 调用后端API
-        response = requests.post(
-            'http://localhost:8001/api/admin/reservations/approve',
-            json=request.get_json()
+        data = request.get_json()
+        if not data or 'type' not in data or 'id' not in data or 'status' not in data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
+        response = make_request(
+            'POST',
+            get_api_url('admin/reservations/batch-approve'),
+            params={'reservation_type': data['type']},
+            json={
+                'reservation_ids': [data['id']],
+                'action': 'approve' if data['status'] == 'approved' else 'reject'
+            },
+            headers={
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
         )
+        
+        # 添加更详细的错误处理
+        if response.status_code == 401:
+            current_app.logger.error("Unauthorized access. Check API token.")
+            return jsonify({'error': '认证失败，请检查API token'}), 401
+            
         response.raise_for_status()
         return jsonify(response.json())
+    except requests.exceptions.Timeout:
+        current_app.logger.error("API request timed out")
+        return jsonify({'error': '请求超时，请稍后重试'}), 504
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error approving reservation: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            current_app.logger.error(f"Response content: {e.response.text}")
         return jsonify({'error': '审批失败'}), 500
+
+@bp.route('/api/reservations/<reservation_type>/<int:reservation_id>', methods=['DELETE'])
+@login_required
+def delete_reservation(reservation_type, reservation_id):
+    """删除预约记录"""
+    try:
+        response = make_request(
+            'DELETE',
+            get_api_url(f'admin/reservations/{reservation_type}/{reservation_id}'),
+            headers={'Accept': 'application/json'}
+        )
+        
+        if response.status_code == 404:
+            return jsonify({'error': '预约记录不存在'}), 404
+            
+        response.raise_for_status()
+        return jsonify({'message': '删除成功'})
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error deleting reservation: {str(e)}")
+        return jsonify({'error': '删除失败'}), 500
 
 @bp.route('/api/export/reservations')
 @login_required
@@ -158,19 +294,44 @@ def export_reservations():
     end_date = request.args.get('end_date')
     
     try:
-        response = requests.get(
-            'http://localhost:8001/api/admin/export/reservations',
-            params={'start_date': start_date, 'end_date': end_date},
-            stream=True
+        response = make_request(
+            'GET',
+            get_api_url('admin/export-reservations'),
+            params={
+                'start_date': start_date if start_date else None,
+                'end_date': end_date if end_date else None
+            },
+            headers={
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            },
+            stream=True,
+            timeout=30
         )
         response.raise_for_status()
         
+        # 从响应头中获取文件名，如果没有则使用默认文件名
+        content_disposition = response.headers.get('content-disposition', '')
+        filename = None
+        if content_disposition:
+            try:
+                filename = content_disposition.split('filename=')[-1].strip('"')
+                # 确保文件名是UTF-8编码
+                filename = filename.encode('latin-1').decode('utf-8')
+            except Exception:
+                filename = None
+                
+        if not filename:
+            filename = f'预约记录_{datetime.now().strftime("%Y%m%d")}.xlsx'
+            
         return send_file(
             io.BytesIO(response.content),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            attachment_filename=f'预约记录_{datetime.now().strftime("%Y%m%d")}.xlsx'
+            download_name=filename  # Flask 2.0+使用download_name替代attachment_filename
         )
+    except requests.exceptions.Timeout:
+        current_app.logger.error("Export request timed out")
+        return jsonify({'error': '导出超时，请稍后重试'}), 504
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error exporting reservations: {str(e)}")
         return jsonify({'error': '导出失败'}), 500 
