@@ -1,20 +1,28 @@
 # 创新实验室预约系统
 
-一个基于FastAPI和微信小程序的实验室预约管理系统。(需求在docs的path里面)
+一个基于FastAPI和微信小程序的实验室预约管理系统。(需求在docs/command.md里面)
 
 ![1739079874624](image/README/1739079874624.png)
 
 ## 项目结构
 
-.
-├── app/                    # 后端代码
-│   ├── models/            # 数据库模型
-│   ├── routers/           # API路由
-│   ├── utils/             # 工具函数
-│   └── main.py            # 后端入口文件
+project/
+├── app/                    # 主应用
+│   ├── models/         # 数据库模型
+│   ├── routers/	    #API路由
+│   ├── utils/              #工具函数
+│   ├── database.py
+│   └── main.py 	    #后端入口文件
+├── admin_system/    # 后台管理系统
+│   ├── app/
+│   │   ├── models.py
+│   │   └── routes/
+│   ├── create_admin.py
+│   └── run.py
 ├── fore/                  # 微信小程序前端
 ├── DB/                    # 数据库相关脚本
-└── test/                  # 测试代码
+└── test/                  # 创建审批管理员的账号
+└── README.md
 
 ## 环境要求
 
@@ -24,7 +32,7 @@
 - FastAPI
 - SQLAlchemy
 - uvicorn
-- MySQL 5.7+ 或 SQLite
+- SQLite
 
 ### 前端环境
 
@@ -49,14 +57,7 @@ source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 ```
 
-3. 初始化数据库（需要先安装MySQL以及mysql-connector-python）
-
-```bash
-cd DB
-python create.py
-```
-
-4. 启动后端服务
+   3.启动后端服务（自动创建主业务数据库app.db）
 
 ```bash
 cd app
@@ -82,16 +83,20 @@ uvicorn main:app --reload --port 8001
 
 - 点击开发者工具的"编译"按钮
 
-## 测试账号（测试账号需要先生成，应该有临时数据库了直接用）
+## 测试账号（测试账号需要先生成，仓库有临时数据库直接用）
 
 ```
-管理员账号：
-- 用户名：admin001
-- 密码：admin123
+审批管理员账号：
+- 用户名：1
+- 密码：1
 
 学生/教师账号：
-- 用户名：201900001
+- 用户名：2021001
 - 密码：123456
+
+后台管理账号（create_admin.py生成，在admin.db里面)：
+- 用户名：admin
+- 密码：admin123
 ```
 
 ## 主要功能
@@ -112,7 +117,7 @@ uvicorn main:app --reload --port 8001
 4. 3D打印机预约
 
    - 支持多台打印机预约
-5. 管理功能（comming soon...)
+5. 管理功能
 
    - 预约审批
    - 设备管理
@@ -128,8 +133,7 @@ uvicorn main:app --reload --port 8001
 
 ### 数据库
 
-- 默认使用SQLite数据库（test.db）
-- 如需使用MySQL，修改 `app/database.py` 中的配置
+- 默认使用SQLite数据库（app.db）
 
 ### 测试
 
