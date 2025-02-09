@@ -24,10 +24,10 @@
       暂无记录
     </view>
     
-    <view wx:for="{{pendingList}}" wx:key="id" class="record-item {{item.status}}">
+    <view wx:for="{{pendingList}}" wx:key="id" class="record-item {{item.type}} {{item.status}}">
       <view class="record-header">
         <view class="header-left">
-          <text class="type-tag">{{item.type === 'venue' ? '场地预约' : (item.type === 'device' ? '设备预约' : '打印机预约')}}</text>
+          <text class="type-tag {{item.type}}">{{item.type === 'venue' ? '场地预约' : (item.type === 'device' ? '设备预约' : '打印机预约')}}</text>
           <text class="status-tag {{item.status}}">{{currentTab === 'approved' ? '已通过' : (currentTab === 'rejected' ? '已拒绝' : '待审批')}}</text>
         </view>
         <text class="time">{{item.created_at}}</text>
@@ -108,7 +108,7 @@
           <button 
             class="btn approve" 
             size="mini" 
-            bindtap="handleApprove" 
+            bindtap="showApproveConfirm" 
             data-id="{{item.id}}"
             data-type="{{item.type}}"
             disabled="{{isLoading}}"
@@ -116,7 +116,7 @@
           <button 
             class="btn reject" 
             size="mini" 
-            bindtap="handleReject" 
+            bindtap="showRejectConfirm" 
             data-id="{{item.id}}"
             data-type="{{item.type}}"
             disabled="{{isLoading}}"

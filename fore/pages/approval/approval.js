@@ -119,10 +119,43 @@ Page({
     this.loadData()
   },
 
-  async handleApprove(e) {
+  // 显示通过确认对话框
+  showApproveConfirm(e) {
     const { id, type } = e.currentTarget.dataset
-    
+    wx.showModal({
+      title: '确认通过',
+      content: '确定要通过这条预约申请吗？',
+      confirmText: '确定通过',
+      confirmColor: '#52C41A',
+      success: (res) => {
+        if (res.confirm) {
+          this.handleApprove(id, type)
+        }
+      }
+    })
+  },
+
+  // 显示拒绝确认对话框
+  showRejectConfirm(e) {
+    const { id, type } = e.currentTarget.dataset
+    wx.showModal({
+      title: '确认拒绝',
+      content: '确定要拒绝这条预约申请吗？',
+      confirmText: '确定拒绝',
+      confirmColor: '#FF4D4F',
+      success: (res) => {
+        if (res.confirm) {
+          this.handleReject(id, type)
+        }
+      }
+    })
+  },
+
+  // 修改原有的处理函数
+  async handleApprove(id, type) {
     try {
+      this.setData({ isLoading: true })
+      
       await post('/admin/reservations/approve', {
         id: parseInt(id),
         type: type,
@@ -142,13 +175,15 @@ Page({
         title: error.message || '审批失败',
         icon: 'none'
       })
+    } finally {
+      this.setData({ isLoading: false })
     }
   },
 
-  async handleReject(e) {
-    const { id, type } = e.currentTarget.dataset
-    
+  async handleReject(id, type) {
     try {
+      this.setData({ isLoading: true })
+      
       await post('/admin/reservations/approve', {
         id: parseInt(id),
         type: type,
@@ -156,7 +191,7 @@ Page({
       })
       
       wx.showToast({
-        title: '已拒绝',
+        title: '已拒绝申请',
         icon: 'success'
       })
       
@@ -168,6 +203,8 @@ Page({
         title: error.message || '操作失败',
         icon: 'none'
       })
+    } finally {
+      this.setData({ isLoading: false })
     }
   }
 }) 
