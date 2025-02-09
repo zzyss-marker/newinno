@@ -1,10 +1,11 @@
 # 预约系统 API 文档
 
-![1738851493044](image/backbone/1738851493044.png)
+![1739079910388](image/backbone/1739079910388.png)
 
 ## 基础信息
 
 - 基础URL: `http://localhost:8001/api`
+- 查询接口文档：`http://localhost:8001/docs`/
 - 认证方式: Bearer Token
 - 所有需要认证的接口都需要在请求头中添加: `Authorization: Bearer {token}`
 
