@@ -1,61 +1,105 @@
 /* pages/printer/printer.wxss */
 .container {
   min-height: 100vh;
-  background: #f8f8f8;
-  padding: 30rpx;
+  background: linear-gradient(180deg, #F0F2F6 0%, #F7F8FA 100%);
+  padding: 24rpx;
 }
 
 .printer-list {
-  margin-bottom: 30rpx;
+  margin-bottom: 32rpx;
 }
 
 .printer-item {
-  background: #fff;
-  padding: 20rpx;
-  margin-bottom: 20rpx;
-  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.printer-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6rpx;
+  height: 100%;
+  background: #007AFF;
+  opacity: 0.6;
 }
 
 .printer-info {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 
 .printer-icon {
   width: 48rpx;
   height: 48rpx;
+  opacity: 0.8;
 }
 
 .printer-name {
   font-size: 32rpx;
-  color: #333;
+  color: #1A1A1A;
+  font-weight: 500;
 }
 
 .printer-status {
   font-size: 24rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 4rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
 }
 
 .printer-status.available {
-  background: #e8f5e9;
-  color: #4caf50;
+  color: #34C759;
+  background: rgba(52, 199, 89, 0.1);
 }
 
 .printer-status.busy {
-  background: #ffebee;
-  color: #f44336;
+  color: #FF3B30;
+  background: rgba(255, 59, 48, 0.1);
 }
 
 .reserve-btn {
   min-width: 160rpx;
   margin: 0;
   font-size: 28rpx;
-  padding: 12rpx 24rpx;
+  padding: 16rpx 32rpx;
+  background: #007AFF;
+  color: #fff;
+  border-radius: 16rpx;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.reserve-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.reserve-btn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+.reserve-btn:active::after {
+  transform: translateX(100%);
 }
 
 .reservation-form {
@@ -64,22 +108,46 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: #fff;
+  background: linear-gradient(180deg, #F0F2F6 0%, #F7F8FA 100%);
   z-index: 100;
-  padding: 30rpx;
+  padding: 32rpx;
   box-sizing: border-box;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 .form-header {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 24rpx;
   margin-bottom: 40rpx;
+  padding: 16rpx 0;
 }
 
 .back-icon {
   width: 48rpx;
   height: 48rpx;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.back-icon:active {
+  opacity: 0.8;
+  transform: scale(0.9);
+}
+
+.form-header text {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1A1A1A;
 }
 
 .form-group {

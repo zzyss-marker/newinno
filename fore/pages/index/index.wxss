@@ -1,43 +1,97 @@
 .container {
-  padding: 20rpx;
+  padding: 24rpx;
+  background: linear-gradient(180deg, #F0F2F6 0%, #F7F8FA 100%);
+  min-height: 100vh;
 }
 
 .section {
-  margin-bottom: 40rpx;
-  background: #fff;
-  border-radius: 10rpx;
-  padding: 20rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+  margin-bottom: 32rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.2), transparent);
+}
+
+.section:active {
+  transform: scale(0.98) translateY(2rpx);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 
 .section-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 20rpx;
-  padding-left: 20rpx;
-  border-left: 8rpx solid #1AAD19;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin-bottom: 28rpx;
+  padding-left: 24rpx;
+  border-left: 6rpx solid #007AFF;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 2rpx;
+  background: linear-gradient(90deg, rgba(0, 122, 255, 0.2), transparent);
+  margin-left: 24rpx;
 }
 
 .button-group {
   display: flex;
   flex-wrap: wrap;
   gap: 20rpx;
+  padding: 8rpx;
 }
 
 .btn {
   flex: 1;
   min-width: 200rpx;
   margin: 0;
-  background: #f8f8f8;
-  color: #333;
+  background: rgba(245, 247, 250, 0.8);
+  color: #1A1A1A;
   font-size: 28rpx;
-  padding: 20rpx 0;
+  padding: 28rpx 0;
   text-align: center;
-  border-radius: 8rpx;
-  border: 2rpx solid #e0e0e0;
+  border-radius: 16rpx;
+  border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  line-height: 1.4;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
 }
 
 .btn:active {
-  background: #e0e0e0;
+  background: #E8E8ED;
+  transform: scale(0.96);
+}
+
+.btn:active::after {
+  transform: translateX(100%);
 } 
