@@ -60,8 +60,7 @@ pip install -r requirements.txt
    3.启动后端服务（自动创建主业务数据库app.db）
 
 ```bash
-cd app
-uvicorn main:app --reload --port 8001
+python run.py
 ```
 
 服务将在 http://localhost:8001 启动，API文档可访问 http://localhost:8001/docs（API文档在仓库的docs中Backbone也有）
@@ -125,6 +124,13 @@ uvicorn main:app --reload --port 8001
    - 数据导出
 
 ## 开发说明
+
+* 其他设备可以通过你的 IP 地址访问（例如：http://192.168.1.100:5000）
+* 本地仍然可以通过 localhost:5000 或 127.0.0.1:5000 访问
+* 在生产环境中要注意安全性，建议使用反向代理（如 Nginx）
+
+* FastAPI 后端：http://your-ip:8001
+* Flask 管理系统：http://your-ip:5000
 
 ### API文档
 

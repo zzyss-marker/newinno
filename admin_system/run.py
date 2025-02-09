@@ -8,4 +8,4 @@ from app.config import Config
 app = create_app(Config)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)  # 使用5000端口避免与现有服务冲突 
+    app.run(host='0.0.0.0', debug=True, port=5000)  # 修改为监听所有网络接口 
