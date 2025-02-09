@@ -23,9 +23,6 @@
       wx:for="{{records}}" 
       wx:key="id" 
       class="record-item"
-      bindtap="viewDetail"
-      data-id="{{item.id}}"
-      data-type="{{item.type}}"
     >
       <view class="record-header">
         <text class="type-tag">{{item.typeText}}</text>
@@ -44,6 +41,10 @@
         <view class="info-row" wx:if="{{item.purpose}}">
           <text class="label">用途说明：</text>
           <text>{{item.purpose}}</text>
+        </view>
+        <view class="info-row" wx:if="{{item.type === 'venue' && item.devicesText}}">
+          <text class="label">设备需求：</text>
+          <text>{{item.devicesText}}</text>
         </view>
       </view>
 

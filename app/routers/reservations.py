@@ -185,6 +185,7 @@ async def get_my_reservations(
                 "reservation_date": res.reservation_date.strftime('%Y-%m-%d'),
                 "business_time": res.business_time,
                 "purpose": res.purpose,
+                "devices_needed": res.devices_needed,
                 "status": res.status
             })
         

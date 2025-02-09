@@ -4,6 +4,8 @@ from datetime import datetime
 from ..models.models import VenueReservation, DeviceReservation, PrinterReservation
 import io
 import bcrypt
+from io import BytesIO
+from openpyxl.utils import get_column_letter
 
 def read_users_excel(file) -> List[Dict]:
     df = pd.read_excel(file)
@@ -57,12 +59,22 @@ def export_reservations_excel(
         # 准备数据
         venue_data = []
         for res in venue_reservations:
+            # 处理设备需求
+            devices_needed = []
+            if res.devices_needed:
+                if res.devices_needed.get('screen'): devices_needed.append('大屏')
+                if res.devices_needed.get('laptop'): devices_needed.append('笔记本')
+                if res.devices_needed.get('mic_handheld'): devices_needed.append('手持麦')
+                if res.devices_needed.get('mic_gooseneck'): devices_needed.append('鹅颈麦')
+                if res.devices_needed.get('projector'): devices_needed.append('投屏器')
+
             venue_data.append({
                 "预约类型": "场地预约",
                 "场地类型": str(res.venue_type),
                 "预约日期": res.reservation_date.strftime("%Y-%m-%d"),
                 "时间段": str(res.business_time),
                 "用途": str(res.purpose),
+                "设备需求": '、'.join(devices_needed) if devices_needed else '无',
                 "预约人": f"{str(res.user.name)}({str(res.user.username)})",
                 "所属部门": str(res.user.department),
                 "状态": str(format_reservation_status(res.status))
@@ -97,11 +109,34 @@ def export_reservations_excel(
         # 创建DataFrame
         dfs = []
         if venue_data:
-            dfs.append(("场地预约", pd.DataFrame(venue_data)))
+            venue_df = pd.DataFrame(venue_data)
+            # 设置场地预约的列顺序
+            venue_columns = [
+                "预约类型", "场地类型", "预约日期", "时间段", 
+                "用途", "设备需求", "预约人", "所属部门", "状态"
+            ]
+            venue_df = venue_df.reindex(columns=venue_columns)
+            dfs.append(("场地预约", venue_df))
+            
         if device_data:
-            dfs.append(("设备预约", pd.DataFrame(device_data)))
+            device_df = pd.DataFrame(device_data)
+            # 设置设备预约的列顺序
+            device_columns = [
+                "预约类型", "设备名称", "借用时间", "预计归还时间", 
+                "实际归还时间", "借用原因", "预约人", "所属部门", "状态"
+            ]
+            device_df = device_df.reindex(columns=device_columns)
+            dfs.append(("设备预约", device_df))
+            
         if printer_data:
-            dfs.append(("3D打印机预约", pd.DataFrame(printer_data)))
+            printer_df = pd.DataFrame(printer_data)
+            # 设置打印机预约的列顺序
+            printer_columns = [
+                "预约类型", "打印机", "预约日期", "打印时间",
+                "预约人", "所属部门", "状态"
+            ]
+            printer_df = printer_df.reindex(columns=printer_columns)
+            dfs.append(("3D打印机预约", printer_df))
 
         # 使用openpyxl直接写入
         from openpyxl import Workbook
@@ -120,6 +155,14 @@ def export_reservations_excel(
             for row_idx, row in enumerate(df.values, 2):
                 for col_idx, value in enumerate(row, 1):
                     ws.cell(row=row_idx, column=col_idx, value=value)
+            
+            # 调整列宽
+            for idx, col in enumerate(df.columns, 1):
+                max_length = max(
+                    df[col].astype(str).apply(len).max(),
+                    len(col)
+                )
+                ws.column_dimensions[get_column_letter(idx)].width = max_length + 2
 
         # 保存到BytesIO
         output = io.BytesIO()

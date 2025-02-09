@@ -3,29 +3,121 @@
 {% block title %}首页{% endblock %}
 
 {% block content %}
-<div class="jumbotron">
-    <h1 class="display-4">欢迎使用管理系统</h1>
-    <p class="lead">这里是设备预约管理系统的后台管理界面。</p>
-    <hr class="my-4">
+<div class="dashboard">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4 mb-4">
+                <i class="fas fa-tachometer-alt text-primary mr-3"></i>
+                管理控制台
+            </h1>
+            <p class="lead text-muted">欢迎使用创新实验室预约管理系统</p>
+        </div>
+    </div>
+
     <div class="row">
-        <div class="col-md-6">
-            <div class="card">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">用户管理</h5>
-                    <p class="card-text">导入和管理用户信息</p>
-                    <a href="{{ url_for('admin.users') }}" class="btn btn-primary">进入</a>
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="icon-box bg-primary text-white mr-3">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                        <h5 class="card-title mb-0">用户管理</h5>
+                    </div>
+                    <p class="card-text text-muted">管理系统用户，导入用户数据，维护用户信息。</p>
+                    <a href="{{ url_for('admin.users') }}" class="btn btn-primary btn-block">
+                        <i class="fas fa-arrow-right mr-2"></i>进入管理
+                    </a>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">预约记录</h5>
-                    <p class="card-text">查看和导出预约记录</p>
-                    <a href="{{ url_for('admin.reservations') }}" class="btn btn-primary">进入</a>
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="icon-box bg-success text-white mr-3">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                        <h5 class="card-title mb-0">预约管理</h5>
+                    </div>
+                    <p class="card-text text-muted">查看和管理场地、设备、打印机的预约记录。</p>
+                    <a href="{{ url_for('admin.reservations') }}" class="btn btn-success btn-block">
+                        <i class="fas fa-arrow-right mr-2"></i>查看预约
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="icon-box bg-info text-white mr-3">
+                            <i class="fas fa-chart-bar fa-2x"></i>
+                        </div>
+                        <h5 class="card-title mb-0">数据统计</h5>
+                    </div>
+                    <p class="card-text text-muted">查看系统使用统计数据，导出预约记录报表。</p>
+                    <a href="{{ url_for('admin.reservations') }}" class="btn btn-info btn-block">
+                        <i class="fas fa-arrow-right mr-2"></i>查看统计
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        .dashboard {
+            padding: 1rem 0;
+        }
+        
+        .icon-box {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .bg-primary {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+        }
+        
+        .bg-success {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        }
+        
+        .bg-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+        }
+        
+        .card {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.8rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .display-4 {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .lead {
+            font-size: 1.1rem;
+        }
+    </style>
 </div>
 {% endblock %} 

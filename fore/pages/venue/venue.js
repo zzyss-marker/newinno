@@ -96,13 +96,15 @@ Page({
         projector: Boolean(selectedDevices.projector)
       } : {}
 
-      const response = await post('/reservations/venue', {
+      const data = {
         venue_type: venueTypeObj.id,
         reservation_date: date,
         business_time: selectedBusinessTime,
         purpose: purpose,
         devices_needed: devices_needed
-      })
+      }
+
+      const response = await post('/reservations/venue', data)
 
       wx.showToast({
         title: '预约成功',

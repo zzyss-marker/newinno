@@ -1,45 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - 管理系统</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --sidebar-width: 250px;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        .navbar {
+            padding: 0.8rem 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,.08);
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+        }
+        
+        .navbar-brand {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: white !important;
+        }
+        
+        .nav-item {
+            margin: 0 5px;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            padding: 0.8rem 1rem !important;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white !important;
+        }
+        
+        .nav-item.active .nav-link {
+            background-color: rgba(255,255,255,0.2);
+            color: white !important;
+        }
+        
+        .container {
+            max-width: 1400px;
+            padding: 2rem;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.08);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-body {
+            padding: 2rem;
+        }
+        
+        .card-title {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            padding: 0.6rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1557b0;
+            border-color: #1557b0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26,115,232,0.3);
+        }
+        
+        .alert {
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,.05);
+        }
+        
+        /* 添加动画效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .container > * {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('admin.index') }}">管理系统</a>
-            {% if current_user.is_authenticated %}
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('admin.index') }}">
+                <i class="fas fa-layer-group mr-2"></i>管理系统
+            </a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.users') }}">用户管理</a>
+                    <li class="nav-item {% if request.endpoint == 'admin.index' %}active{% endif %}">
+                        <a class="nav-link" href="{{ url_for('admin.index') }}">
+                            <i class="fas fa-home mr-2"></i>首页
+                        </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.index') }}">预约管理</a>
+                    <li class="nav-item {% if request.endpoint == 'admin.users' %}active{% endif %}">
+                        <a class="nav-link" href="{{ url_for('admin.users') }}">
+                            <i class="fas fa-users mr-2"></i>用户管理
+                        </a>
                     </li>
+                    <li class="nav-item {% if request.endpoint == 'admin.reservations' %}active{% endif %}">
+                        <a class="nav-link" href="{{ url_for('admin.reservations') }}">
+                            <i class="fas fa-calendar-check mr-2"></i>预约管理
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ml-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.logout') }}">退出</a>
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">
+                            <i class="fas fa-sign-out-alt mr-2"></i>退出
+                        </a>
                     </li>
                 </ul>
             </div>
-            {% endif %}
         </div>
     </nav>
-    <div class="container mt-4">
+
+    <div class="container">
         {% for message in get_flashed_messages() %}
-        <div class="alert alert-info">{{ message }}</div>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle mr-2"></i>{{ message }}
+        </div>
         {% endfor %}
         {% block content %}{% endblock %}
     </div>
+
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-    // 添加全局错误处理
     window.addEventListener('unhandledrejection', function(event) {
         console.error('Unhandled promise rejection:', event.reason);
         if (event.reason.message) {

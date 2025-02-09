@@ -70,9 +70,9 @@ class VenueReservation(Base):
     reservation_date = Column(Date)
     business_time = Column(String)
     purpose = Column(String)
-    devices_needed = Column(JSON)
     status = Column(String, default="pending")
     created_at = Column(DateTime, default=datetime.now)
+    devices_needed = Column(JSON)
     
     user = relationship("User", back_populates="venue_reservations")
 

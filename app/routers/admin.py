@@ -578,11 +578,18 @@ async def list_reservations(
         device_reservations = device_reservations.all()
         printer_reservations = printer_reservations.all()
 
+        # 添加调试日志
+        for res in venue_reservations:
+            print(f"Venue reservation data: {res.__dict__}")
+
         # 转换为响应格式
         result = []
         
         # 添加场地预约
         for res in venue_reservations:
+            # 添加调试日志
+            print(f"Venue devices_needed: {res.devices_needed}")
+            
             result.append({
                 "type": "venue",
                 "reservation_id": res.reservation_id,
@@ -591,6 +598,13 @@ async def list_reservations(
                 "business_time": res.business_time,
                 "purpose": res.purpose,
                 "status": res.status,
+                "devices_needed": {
+                    "screen": res.devices_needed.get('screen', False) if res.devices_needed else False,
+                    "laptop": res.devices_needed.get('laptop', False) if res.devices_needed else False,
+                    "mic_handheld": res.devices_needed.get('mic_handheld', False) if res.devices_needed else False,
+                    "mic_gooseneck": res.devices_needed.get('mic_gooseneck', False) if res.devices_needed else False,
+                    "projector": res.devices_needed.get('projector', False) if res.devices_needed else False
+                },
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
@@ -612,14 +626,15 @@ async def list_reservations(
                 }
             })
         
-        # 添加打印机预约
+        # 修改打印机预约部分
         for res in printer_reservations:
+            print(f"Printer reservation print_time: {res.print_time}")  # 添加调试日志
             result.append({
                 "type": "printer",
                 "reservation_id": res.reservation_id,
                 "printer_name": res.printer_name,
-                "reservation_date": res.reservation_date.strftime('%Y-%m-%d'),
-                "print_time": res.print_time.strftime('%H:%M') if res.print_time else None,
+                "reservation_date": res.created_at.strftime('%Y-%m-%d'),
+                "print_time": res.print_time.strftime('%Y-%m-%d %H:%M') if res.print_time else None,
                 "status": res.status,
                 "user": {
                     "name": res.user.name,
@@ -634,7 +649,7 @@ async def list_reservations(
         return result
         
     except Exception as e:
-        print(f"Error getting reservations: {str(e)}")
+        print(f"Error in list_reservations: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取预约记录失败: {str(e)}"

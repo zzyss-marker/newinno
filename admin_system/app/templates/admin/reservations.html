@@ -93,10 +93,21 @@ async function loadReservations() {
             let details = '';
             switch(record.type) {
                 case 'venue':
+                    let devicesHtml = '';
+                    if (record.devices_needed) {
+                        const deviceList = [];
+                        if (record.devices_needed.screen) deviceList.push('大屏');
+                        if (record.devices_needed.laptop) deviceList.push('笔记本');
+                        if (record.devices_needed.mic_handheld) deviceList.push('手持麦');
+                        if (record.devices_needed.mic_gooseneck) deviceList.push('鹅颈麦');
+                        if (record.devices_needed.projector) deviceList.push('投屏器');
+                        devicesHtml = deviceList.length > 0 ? 
+                            `<br>所需设备: ${deviceList.join(', ')}` : '';
+                    }
                     details = `
                         场地类型: ${getVenueType(record.venue_type)}<br>
                         时间段: ${getBusinessTime(record.business_time)}<br>
-                        用途: ${record.purpose || ''}
+                        用途: ${record.purpose || ''}${devicesHtml}
                     `;
                     break;
                 case 'device':
@@ -109,6 +120,7 @@ async function loadReservations() {
                 case 'printer':
                     details = `
                         打印机: ${record.printer_name}<br>
+                        预约日期: ${formatDate(record.reservation_date)}<br>
                         打印时间: ${formatDateTime(record.print_time)}
                     `;
                     break;
@@ -138,23 +150,35 @@ async function loadReservations() {
 }
 
 function getDetailsHtml(record) {
-    switch (record.type) {
+    switch(record.type) {
         case 'venue':
+            let devicesHtml = '';
+            if (record.devices_needed) {
+                const deviceList = [];
+                if (record.devices_needed.screen) deviceList.push('大屏');
+                if (record.devices_needed.laptop) deviceList.push('笔记本');
+                if (record.devices_needed.mic_handheld) deviceList.push('手持麦');
+                if (record.devices_needed.mic_gooseneck) deviceList.push('鹅颈麦');
+                if (record.devices_needed.projector) deviceList.push('投屏器');
+                devicesHtml = deviceList.length > 0 ? 
+                    `<br>所需设备: ${deviceList.join(', ')}` : '';
+            }
             return `
                 场地类型: ${record.venue_type}<br>
                 时间段: ${record.business_time}<br>
-                用途: ${record.purpose || ''}
-            `;
-        case 'device':
-            return `
-                设备名称: ${record.device_name}<br>
-                借用时间: ${formatDateTime(record.borrow_time)}<br>
-                归还时间: ${formatDateTime(record.return_time)}
+                用途: ${record.purpose || ''}${devicesHtml}
             `;
         case 'printer':
             return `
                 打印机: ${record.printer_name}<br>
+                预约日期: ${formatDate(record.reservation_date)}<br>
                 打印时间: ${formatDateTime(record.print_time)}
+            `;
+        case 'device':
+            return `
+                设备名称: ${getDeviceName(record.device_name)}<br>
+                借用时间: ${formatDateTime(record.borrow_time)}<br>
+                归还时间: ${formatDateTime(record.return_time)}
             `;
         default:
             return '';
@@ -167,10 +191,22 @@ function formatDate(dateStr) {
     return date.toLocaleDateString('zh-CN');
 }
 
-function formatDateTime(dateTimeStr) {
-    if (!dateTimeStr) return '';
-    const date = new Date(dateTimeStr);
-    return date.toLocaleString('zh-CN');
+function formatDateTime(timeStr) {
+    if (!timeStr) return '';
+    try {
+        const date = new Date(timeStr);
+        if (isNaN(date.getTime())) return '';
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('时间格式化错误:', error);
+        return '';
+    }
 }
 
 function getReservationType(type) {

@@ -75,37 +75,94 @@ Page({
   async loadRecords() {
     try {
       const response = await get('/reservations/my-reservations')
+      console.log('API Response:', response)
       
-      // 整合所有类型的预约记录
-      const allRecords = [
-        ...response.venue_reservations.map(item => ({
-          ...item,
-          type: 'venue',
-          typeText: '场地预约',
-          resourceName: this.getVenueTypeName(item.venue_type),
-          timeText: `${item.reservation_date} ${this.getBusinessTimeName(item.business_time)}`,
-          created_at: this.formatDateTime(item.created_at || new Date())
-        })),
-        ...response.device_reservations.map(item => ({
-          ...item,
-          type: 'device',
-          typeText: '设备预约',
-          resourceName: this.getDeviceName(item.device_name),
-          timeText: `${this.formatDateTime(item.borrow_time)} ~ ${this.formatDateTime(item.return_time)}`,
-          created_at: this.formatDateTime(item.created_at || new Date())
-        })),
-        ...response.printer_reservations.map(item => ({
-          ...item,
-          type: 'printer',
-          typeText: '打印机预约',
-          resourceName: this.getPrinterName(item.printer_name),
-          timeText: this.formatDateTime(item.print_time),
-          created_at: this.formatDateTime(item.created_at || new Date())
-        }))
-      ]
+      // 检查响应是否是数组
+      const reservations = Array.isArray(response) ? response : []
+      
+      // 直接处理返回的预约记录数组
+      const allRecords = reservations.map(item => {
+        let typeText, resourceName, timeText, devicesText = ''
+        
+        switch(item.type) {
+          case 'venue':
+            typeText = '场地预约'
+            resourceName = this.getVenueTypeName(item.venue_type)
+            timeText = `${item.reservation_date} ${this.getBusinessTimeName(item.business_time)}`
+            // 添加设备需求的处理和调试日志
+            console.log('Venue devices_needed:', item.devices_needed)
+            if (item.devices_needed) {
+              try {
+                // 如果 devices_needed 是字符串，尝试解析它
+                const devicesObj = typeof item.devices_needed === 'string' 
+                  ? JSON.parse(item.devices_needed) 
+                  : item.devices_needed
 
-      // 根据当前tab筛选记录
-      const records = allRecords.filter(record => record.status === this.data.currentTab)
+                const devices = []
+                if (devicesObj.screen) devices.push('大屏')
+                if (devicesObj.laptop) devices.push('笔记本')
+                if (devicesObj.mic_handheld) devices.push('手持麦')
+                if (devicesObj.mic_gooseneck) devices.push('鹅颈麦')
+                if (devicesObj.projector) devices.push('投屏器')
+                devicesText = devices.length > 0 ? devices.join('、') : '无'
+                console.log('Processed devices:', devices)
+                console.log('Final devicesText:', devicesText)
+              } catch (error) {
+                console.error('Error processing devices:', error)
+                devicesText = '无'
+              }
+            } else {
+              devicesText = '无'
+            }
+            break
+          case 'device':
+            typeText = '设备预约'
+            resourceName = this.getDeviceName(item.device_name)
+            timeText = `${item.borrow_time} ~ ${item.return_time}`
+            break
+          case 'printer':
+            typeText = '打印机预约'
+            resourceName = this.getPrinterName(item.printer_name)
+            timeText = item.print_time
+            break
+          default:
+            typeText = '未知类型'
+            resourceName = '未知'
+            timeText = ''
+        }
+
+        const record = {
+          ...item,
+          typeText,
+          resourceName,
+          timeText,
+          devicesText,
+          created_at: this.formatDateTime(item.created_at || new Date())
+        }
+        console.log('Processed record:', record)
+        return record
+      })
+
+      console.log('All Records:', allRecords)
+
+      // 修改筛选逻辑，处理状态值的映射
+      const records = allRecords.filter(record => {
+        // 获取记录状态
+        let recordStatus = String(record.status).toLowerCase()
+        
+        // 处理状态映射
+        switch(recordStatus) {
+          case 'pending':
+          case 'approved':
+          case 'rejected':
+            return recordStatus === this.data.currentTab
+          default:
+            console.warn('Unknown status:', record.status)
+            return false
+        }
+      })
+      
+      console.log('Filtered Records:', records)
       
       this.setData({ records })
     } catch (error) {
@@ -165,12 +222,4 @@ Page({
     const date = new Date(dateTimeStr)
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
   },
-
-  // 查看预约详情
-  viewDetail(e) {
-    const { id, type } = e.currentTarget.dataset
-    wx.navigateTo({
-      url: `/pages/records/detail/detail?id=${id}&type=${type}`
-    })
-  }
 })
