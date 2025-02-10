@@ -6,14 +6,15 @@
 
 ## 项目结构
 
+```
 project/
 ├── app/                    # 主应用
-│   ├── models/         # 数据库模型
-│   ├── routers/	    #API路由
-│   ├── utils/              #工具函数
+│   ├── models/            # 数据库模型
+│   ├── routers/           # API路由
+│   ├── utils/             # 工具函数
 │   ├── database.py
-│   └── main.py 	    #后端入口文件
-├── admin_system/    # 后台管理系统
+│   └── main.py           # 后端入口文件
+├── admin_system/          # 后台管理系统
 │   ├── app/
 │   │   ├── models.py
 │   │   └── routes/
@@ -21,8 +22,9 @@ project/
 │   └── run.py
 ├── fore/                  # 微信小程序前端
 ├── DB/                    # 数据库相关脚本
-└── test/                  # 创建审批管理员的账号
+├── test/                  # 创建审批管理员的账号
 └── README.md
+```
 
 ## 环境要求
 
@@ -46,8 +48,8 @@ project/
 1. 创建并激活虚拟环境
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
+python -m venv myvenv
+source myvenv/bin/activate  # Linux/Mac
 .\venv\Scripts\activate   # Windows
 ```
 
@@ -128,7 +130,6 @@ python run.py
 * 其他设备可以通过你的 IP 地址访问（例如：http://192.168.1.100:5000）
 * 本地仍然可以通过 localhost:5000 或 127.0.0.1:5000 访问
 * 在生产环境中要注意安全性，建议使用反向代理（如 Nginx）
-
 * FastAPI 后端：http://your-ip:8001
 * Flask 管理系统：http://your-ip:5000
 
@@ -140,13 +141,6 @@ python run.py
 ### 数据库
 
 - 默认使用SQLite数据库（app.db）
-
-### 测试
-
-```bash
-cd test
-python3 test.py
-```
 
 ## 注意事项
 

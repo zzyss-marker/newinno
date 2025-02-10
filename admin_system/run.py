@@ -1,6 +1,9 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# 添加当前目录到 Python 路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
 
 from app import create_app
 from app.config import Config

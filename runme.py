@@ -1,21 +1,20 @@
-import uvicorn
-import multiprocessing
-from flask import Flask
-import sys
 import os
+import multiprocessing
+import sys
 
 def run_fastapi():
     """运行 FastAPI 后端服务"""
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8001, reload=True)
+    os.system("uvicorn app.main:app --host 0.0.0.0 --port 8001")
 
 def run_flask():
     """运行 Flask admin system"""
-    # 添加 admin_system 到 Python 路径
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'admin_system'))
+    # 添加项目根目录到 Python 路径
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    admin_path = os.path.join(root_path, 'admin_system')
+    os.environ['PYTHONPATH'] = admin_path
     
     # 导入 Flask 应用
-    from admin_system.app import create_app
-    app = create_app()
+    from admin_system.run import app
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
 
 if __name__ == "__main__":

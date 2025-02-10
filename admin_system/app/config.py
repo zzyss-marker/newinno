@@ -1,3 +1,5 @@
+import os
+
 class Config:
     # API配置
     API_BASE_URL = 'http://localhost:8001/api'  # 确保这个URL是正确的
@@ -8,5 +10,8 @@ class Config:
     
     # 其他配置...
     SECRET_KEY = 'your-secret-key'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///admin.db'
+    
+    # 指定数据库路径为项目根目录
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(BASE_DIR, "admin.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
