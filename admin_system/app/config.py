@@ -5,6 +5,10 @@ class Config:
     API_BASE_URL = 'http://localhost:8001/api'  # 确保这个URL是正确的
     API_TOKEN = 'your-admin-token'  # 添加API认证token
     
+    # 添加代理配置
+    PROXY_FIX = True  # 启用代理修复
+    PREFERRED_URL_SCHEME = 'http'  # 或 'https'，取决于你的部署环境
+    
     # 日志配置
     LOGGING_LEVEL = 'DEBUG'  # 设置为DEBUG以获取更多日志信息
     

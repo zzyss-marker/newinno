@@ -64,7 +64,7 @@ document.getElementById('importForm').onsubmit = async function(e) {
     formData.append('file', fileInput.files[0]);
     
     try {
-        const response = await fetch('http://localhost:8001/api/admin/users/import', {
+        const response = await fetch('/api/admin/users/import', {
             method: 'POST',
             body: formData
         });
@@ -87,7 +87,7 @@ document.getElementById('importForm').onsubmit = async function(e) {
 
 async function loadUsers() {
     try {
-        const response = await fetch('http://localhost:8001/api/admin/users', {
+        const response = await fetch('/api/admin/users', {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -132,7 +132,7 @@ async function deleteUser(username) {
     if (!confirm('确定要删除此用户吗？')) return;
     
     try {
-        const response = await fetch(`http://localhost:8001/api/admin/users/${username}`, {
+        const response = await fetch(`/api/admin/users/${username}`, {
             method: 'DELETE'
         });
         
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // 添加下载模板的函数
 async function downloadTemplate() {
     try {
-        const response = await fetch('http://localhost:8001/api/admin/templates/user-import', {
+        const response = await fetch('/api/admin/templates/user-import', {
             method: 'GET',
             headers: {
                 'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

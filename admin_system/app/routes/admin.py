@@ -51,7 +51,7 @@ def users():
     """用户管理页面"""
     return render_template('admin/users.html')
 
-@bp.route('/api/users/import', methods=['POST'])
+@bp.route('/api/admin/users/import', methods=['POST'])
 @login_required
 def import_users():
     """通过后端API导入用户"""
@@ -90,9 +90,9 @@ def import_users():
         current_app.logger.error(f"Error importing users: {str(e)}")
         return jsonify({'error': '导入失败'}), 500
 
-@bp.route('/api/export/template')
+@bp.route('/api/admin/templates/user-import')
 @login_required
-def export_template():
+def get_template():
     """从后端API获取用户导入模板"""
     try:
         response = requests.get(
@@ -112,22 +112,27 @@ def export_template():
         current_app.logger.error(f"Error getting template: {str(e)}")
         return jsonify({'error': '获取模板失败'}), 500
 
-@bp.route('/api/users')
+@bp.route('/api/admin/users')
 @login_required
 def get_users():
     """从后端API获取用户列表"""
     try:
-        response = requests.get(
+        response = make_request(
+            'GET',
             get_api_url('admin/users'),
             headers={'Accept': 'application/json'}
         )
+        
+        if response.status_code == 404:
+            return jsonify({'error': '找不到用户数据'}), 404
+            
         response.raise_for_status()
         return jsonify(response.json())
     except requests.exceptions.RequestException as e:
-        current_app.logger.error(f"Error fetching users: {str(e)}")
+        current_app.logger.error(f"Error getting users: {str(e)}")
         return jsonify({'error': '获取用户列表失败'}), 500
 
-@bp.route('/api/users/<username>', methods=['DELETE'])
+@bp.route('/api/admin/users/<username>', methods=['DELETE'])
 @login_required
 def delete_user(username):
     """通过后端API删除用户"""

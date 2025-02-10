@@ -44,7 +44,7 @@ def create_app(config_class=Config):
     # 注册蓝图
     from .routes import admin, auth
     app.register_blueprint(admin.bp)
-    app.register_blueprint(auth.bp)
+    app.register_blueprint(auth.bp, url_prefix='/auth')
     
     # 添加测试路由来验证配置
     @app.route('/test-config')
