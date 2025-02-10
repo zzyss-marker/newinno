@@ -374,7 +374,7 @@ async def approve_reservation(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/templates/user-import")
+@router.get("/templates/user-import", response_class=StreamingResponse)
 async def get_user_import_template():
     """获取用户导入模板"""
     try:
@@ -457,6 +457,7 @@ async def import_users(
         # 处理导入的用户数据
         success_count = 0
         error_messages = []
+        users_data = []  # 存储成功导入的用户数据
         
         for _, row in df.iterrows():
             try:
@@ -480,6 +481,12 @@ async def import_users(
                 )
                 db.add(user)
                 success_count += 1
+                users_data.append({  # 添加到成功导入的用户列表
+                    'username': row['username'],
+                    'name': row['name'],
+                    'department': row['department'],
+                    'role': row['role']
+                })
                 print(f"Added user: {row['username']}")  # 调试信息
             except Exception as e:
                 error_msg = f"添加用户 {row['username']} 失败: {str(e)}"
@@ -491,7 +498,8 @@ async def import_users(
             
         result = {
             "message": "用户导入完成",
-            "success_count": success_count,
+            "count": success_count,
+            "users": users_data,  # 返回成功导入的用户数据
             "error_messages": error_messages
         }
         

@@ -70,43 +70,82 @@ def import_users():
             get_api_url('admin/users/import'),
             files=files
         )
-        response.raise_for_status()
         
-        # 获取导入的用户数据并同步到认证系统
-        users_data = response.json().get('users', [])
-        if users_data:
-            auth_response = make_request(
-                'POST',
-                get_api_url('auth/batch_create'),
-                json={'users': users_data}
-            )
-            auth_response.raise_for_status()
+        # 获取响应内容
+        result = response.json()
+        
+        if response.status_code >= 400:
+            # 处理错误响应
+            error_message = result.get('detail', '导入失败')
+            if isinstance(error_message, dict):
+                # 如果是详细的错误信息对象
+                if 'error_messages' in error_message:
+                    error_message = '\n'.join(error_message['error_messages'])
+                elif 'message' in error_message:
+                    error_message = error_message['message']
+            return jsonify({'error': error_message}), response.status_code
             
+        # 处理成功响应
+        success_count = result.get('count', 0)
+        error_messages = result.get('error_messages', [])
+        
+        # 构建返回消息
+        message = f'成功导入 {success_count} 个用户'
+        if error_messages:
+            message += f'\n失败: {len(error_messages)} 个'
+            message += '\n' + '\n'.join(error_messages[:5])  # 只显示前5个错误
+            if len(error_messages) > 5:
+                message += f'\n... 等共 {len(error_messages)} 个错误'
+        
         return jsonify({
-            'message': f'成功导入用户并创建账号',
-            'count': len(users_data)
+            'message': message,
+            'count': success_count,
+            'errors': error_messages
         })
+        
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error importing users: {str(e)}")
-        return jsonify({'error': '导入失败'}), 500
+        # 尝试从错误响应中获取详细信息
+        error_message = '导入失败'
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_data = e.response.json()
+                if isinstance(error_data, dict):
+                    error_message = error_data.get('detail', error_data.get('error', '导入失败'))
+                    if isinstance(error_message, dict):
+                        if 'error_messages' in error_message:
+                            error_message = '\n'.join(error_message['error_messages'])
+                        elif 'message' in error_message:
+                            error_message = error_message['message']
+            except:
+                pass
+        return jsonify({'error': error_message}), 500
 
 @bp.route('/api/admin/templates/user-import')
 @login_required
 def get_template():
     """从后端API获取用户导入模板"""
     try:
-        response = requests.get(
-            get_api_url('admin/users/template'),
-            headers={'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+        # 使用统一的请求函数
+        response = make_request(
+            'GET',
+            get_api_url('admin/templates/user-import'),  # 修改为正确的API端点
+            headers={
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            },
             stream=True
         )
+        
+        if response.status_code == 404:
+            return jsonify({'error': '模板文件不存在'}), 404
+            
         response.raise_for_status()
         
         return send_file(
             io.BytesIO(response.content),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            attachment_filename='用户导入模板.xlsx'
+            download_name='user_import_template.xlsx'  # 使用 download_name 替代 attachment_filename
         )
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error getting template: {str(e)}")

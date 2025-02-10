@@ -71,14 +71,27 @@ document.getElementById('importForm').onsubmit = async function(e) {
         
         const result = await response.json();
         if (response.ok) {
-            alert(`${result.message}\n成功导入 ${result.count} 个用户`);
+            // 构建显示消息
+            let message = `成功导入 ${result.count} 个用户`;
+            if (result.errors && result.errors.length > 0) {
+                message += `\n失败 ${result.errors.length} 个`;
+                // 显示前5个错误信息
+                const errorMessages = result.errors.slice(0, 5);
+                message += '\n' + errorMessages.join('\n');
+                if (result.errors.length > 5) {
+                    message += `\n... 等共 ${result.errors.length} 个错误`;
+                }
+            }
+            alert(message);
             loadUsers();  // 重新加载用户列表
         } else {
-            alert(result.detail || result.error || '导入失败');
+            // 显示错误信息
+            const errorMessage = result.error || '导入失败';
+            alert(errorMessage);
         }
     } catch (error) {
         console.error('导入失败：', error);
-        alert('导入失败：' + error);
+        alert('导入失败：' + (error.message || '未知错误'));
     }
     
     // 清空文件输入
