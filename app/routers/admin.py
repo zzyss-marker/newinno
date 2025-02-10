@@ -279,13 +279,13 @@ async def import_users_from_excel(
 
 @router.get("/export-reservations")
 async def export_reservations(
-    start_date: str = None,
-    end_date: str = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """导出预约记录"""
     try:
-        # 查询预约记录
+        # 查询预约记录，确保加载用户关联数据
         venue_query = db.query(models.VenueReservation).options(
             joinedload(models.VenueReservation.user)
         )
@@ -296,45 +296,149 @@ async def export_reservations(
             joinedload(models.PrinterReservation.user)
         )
         
-        # 如果有日期筛选
+        # 如果指定了日期范围，添加过滤条件
         if start_date:
-            venue_query = venue_query.filter(models.VenueReservation.reservation_date >= start_date)
-            device_query = device_query.filter(models.DeviceReservation.borrow_time >= start_date)
-            printer_query = printer_query.filter(models.PrinterReservation.reservation_date >= start_date)
-        
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            venue_query = venue_query.filter(models.VenueReservation.reservation_date >= start_datetime)
+            device_query = device_query.filter(models.DeviceReservation.borrow_time >= start_datetime)
+            printer_query = printer_query.filter(models.PrinterReservation.reservation_date >= start_datetime)
+            
         if end_date:
-            venue_query = venue_query.filter(models.VenueReservation.reservation_date <= end_date)
-            device_query = device_query.filter(models.DeviceReservation.borrow_time <= end_date)
-            printer_query = printer_query.filter(models.PrinterReservation.reservation_date <= end_date)
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            venue_query = venue_query.filter(models.VenueReservation.reservation_date <= end_datetime)
+            device_query = device_query.filter(models.DeviceReservation.borrow_time <= end_datetime)
+            printer_query = printer_query.filter(models.PrinterReservation.reservation_date <= end_datetime)
         
-        # 获取数据
+        # 执行查询
         venue_reservations = venue_query.all()
         device_reservations = device_query.all()
         printer_reservations = printer_query.all()
         
-        # 生成Excel文件
-        excel_data = export_reservations_excel(
-            venue_reservations,
-            device_reservations,
-            printer_reservations
-        )
+        # 定义状态映射
+        status_map = {
+            'pending': '待审批',
+            'approved': '已通过',
+            'rejected': '已拒绝',
+            'returned': '已归还'
+        }
+
+        # 定义场地类型映射
+        venue_type_map = {
+            'meeting_room': '会议室',
+            'activity_room': '活动室',
+            'classroom': '教室',
+            'lecture_hall': '报告厅',
+            'seminar': '研讨室',
+            'lecture': '讲座'
+        }
+
+        # 定义设备名称映射
+        device_name_map = {
+            'screen': '大屏',
+            'laptop': '笔记本电脑',
+            'mic_handheld': '手持麦',
+            'mic_gooseneck': '鹅颈麦',
+            'projector': '投影仪',
+            'electric_screwdriver': '电动螺丝刀',
+            'multimeter': '万用表'
+        }
+
+        # 定义时间段映射
+        time_map = {
+            'morning': '上午',
+            'afternoon': '下午',
+            'evening': '晚上'
+        }
+
+        # 创建 Excel 文件
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # 场地预约数据
+            venue_data = [{
+                '用户姓名': r.user.name if r.user else f'已删除用户(ID:{r.user_id})',
+                '学号/工号': r.user.username if r.user else r.user_id,
+                '所属学院': r.user.department if r.user else '未知',
+                '场地类型': venue_type_map.get(r.venue_type, r.venue_type),
+                '预约日期': r.reservation_date.strftime('%Y-%m-%d') if r.reservation_date else '',
+                '时间段': time_map.get(r.business_time, r.business_time),
+                '用途': r.purpose,
+                '所需设备': '、'.join([
+                    device_name_map.get(name, name) 
+                    for name, needed in (r.devices_needed or {}).items() 
+                    if needed
+                ]) or '无',
+                '状态': status_map.get(r.status, r.status),
+                '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
+            } for r in venue_reservations]
+            
+            # 设备预约数据
+            device_data = [{
+                '用户姓名': r.user.name if r.user else f'已删除用户(ID:{r.user_id})',
+                '学号/工号': r.user.username if r.user else r.user_id,
+                '所属学院': r.user.department if r.user else '未知',
+                '设备名称': device_name_map.get(r.device_name, r.device_name),
+                '借用时间': r.borrow_time.strftime('%Y-%m-%d %H:%M') if r.borrow_time else '',
+                '归还时间': r.return_time.strftime('%Y-%m-%d %H:%M') if r.return_time else '',
+                '用途': r.reason,
+                '状态': status_map.get(r.status, r.status),
+                '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
+            } for r in device_reservations]
+            
+            # 打印机预约数据
+            printer_data = [{
+                '用户姓名': r.user.name if r.user else f'已删除用户(ID:{r.user_id})',
+                '学号/工号': r.user.username if r.user else r.user_id,
+                '所属学院': r.user.department if r.user else '未知',
+                '打印机': r.printer_name,
+                '预约日期': r.reservation_date.strftime('%Y-%m-%d') if r.reservation_date else '',
+                '打印时间': r.print_time.strftime('%H:%M') if r.print_time else '',
+                '状态': status_map.get(r.status, r.status),
+                '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
+            } for r in printer_reservations]
+            
+            # 确保即使没有数据也创建工作表
+            dfs = {
+                '场地预约': pd.DataFrame(venue_data if venue_data else [{}]),
+                '设备预约': pd.DataFrame(device_data if device_data else [{}]),
+                '打印机预约': pd.DataFrame(printer_data if printer_data else [{}])
+            }
+            
+            # 写入每个工作表并设置格式
+            for sheet_name, df in dfs.items():
+                if not df.empty and len(df.columns) > 0:  # 确保有数据和列
+                    df = df.sort_values('申请时间', ascending=False)
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
+                # 调整列宽
+                worksheet = writer.sheets[sheet_name]
+                if len(df.columns) > 0:  # 只在有列的情况下调整列宽
+                    for idx, col in enumerate(df.columns):
+                        max_length = max(
+                            df[col].astype(str).apply(len).max(),
+                            len(str(col))
+                        ) + 2
+                        worksheet.column_dimensions[chr(65 + idx)].width = min(max_length, 50)
         
+        # 准备文件名
         filename = f'预约记录_{datetime.now().strftime("%Y%m%d")}.xlsx'
         
-        # 使用Response而不是StreamingResponse
-        return Response(
-            content=excel_data,
+        # 返回文件
+        output.seek(0)
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"'.encode('utf-8').decode('latin-1')
+        }
+        
+        return StreamingResponse(
+            output,
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"'.encode('utf-8').decode('latin-1')
-            }
+            headers=headers
         )
         
     except Exception as e:
         print(f"Error exporting reservations: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="导出失败"
+            detail=f"导出失败: {str(e)}"
         )
 
 @router.post("/reservations/batch-approve")
