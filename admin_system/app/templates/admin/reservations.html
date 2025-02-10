@@ -76,6 +76,8 @@ async function loadReservations() {
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
     
+    setTableLoading('reservationList', true);
+    
     try {
         const response = await fetch(`/api/reservations?start_date=${startDate}&end_date=${endDate}`);
         if (!response.ok) {
@@ -146,6 +148,8 @@ async function loadReservations() {
         }).join('');
     } catch (error) {
         handleApiError(error);
+    } finally {
+        setTableLoading('reservationList', false);
     }
 }
 
@@ -269,6 +273,9 @@ async function deleteReservation(type, id) {
         return;
     }
     
+    const button = event.target;
+    setButtonLoading(button, true);
+    
     try {
         const response = await fetch(`/api/reservations/${type}/${id}`, {
             method: 'DELETE',
@@ -287,14 +294,19 @@ async function deleteReservation(type, id) {
     } catch (error) {
         console.error('删除失败：', error);
         alert('删除失败：' + error.message);
+    } finally {
+        setButtonLoading(button, false);
     }
 }
 
 async function exportReservations() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
+    const button = event.target;
+    setButtonLoading(button, true);
     
     try {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
         const response = await fetch(`/api/export/reservations?start_date=${startDate}&end_date=${endDate}`, {
             method: 'GET',
             headers: {
@@ -319,6 +331,8 @@ async function exportReservations() {
     } catch (error) {
         console.error('导出失败：', error);
         alert('导出失败：' + error.message);
+    } finally {
+        setButtonLoading(button, false);
     }
 }
 

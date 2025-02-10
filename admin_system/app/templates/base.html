@@ -107,9 +107,77 @@
         .container > * {
             animation: fadeIn 0.5s ease-out forwards;
         }
+        
+        /* 添加加载遮罩样式 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 10px;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 表格加载状态样式 */
+        .table-loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* 按钮加载状态样式 */
+        .btn.loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .btn.loading:after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            margin-top: -8px;
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body>
+    <div class="loading-overlay">
+        <div class="text-center">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">加载中...</div>
+        </div>
+    </div>
+
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('admin.index') }}">
@@ -166,6 +234,38 @@
             alert('操作失败：' + event.reason.message);
         }
     });
+
+    // 全局加载状态控制
+    window.showLoading = function() {
+        document.querySelector('.loading-overlay').style.display = 'flex';
+    };
+
+    window.hideLoading = function() {
+        document.querySelector('.loading-overlay').style.display = 'none';
+    };
+
+    // 表格加载状态控制
+    window.setTableLoading = function(tableId, loading) {
+        const table = document.getElementById(tableId);
+        if (table) {
+            if (loading) {
+                table.classList.add('table-loading');
+            } else {
+                table.classList.remove('table-loading');
+            }
+        }
+    };
+
+    // 按钮加载状态控制
+    window.setButtonLoading = function(button, loading) {
+        if (loading) {
+            button.classList.add('loading');
+            button.disabled = true;
+        } else {
+            button.classList.remove('loading');
+            button.disabled = false;
+        }
+    };
     </script>
     {% block scripts %}{% endblock %}
 </body>

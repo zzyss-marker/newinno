@@ -50,14 +50,50 @@
 
 {% block scripts %}
 <script>
+// 全局加载状态控制
+window.showLoading = function() {
+    document.querySelector('.loading-overlay').style.display = 'flex';
+};
+
+window.hideLoading = function() {
+    document.querySelector('.loading-overlay').style.display = 'none';
+};
+
+// 表格加载状态控制
+window.setTableLoading = function(tableId, loading) {
+    const table = document.getElementById(tableId);
+    if (table) {
+        if (loading) {
+            table.classList.add('table-loading');
+        } else {
+            table.classList.remove('table-loading');
+        }
+    }
+};
+
+// 按钮加载状态控制
+window.setButtonLoading = function(button, loading) {
+    if (loading) {
+        button.classList.add('loading');
+        button.disabled = true;
+    } else {
+        button.classList.remove('loading');
+        button.disabled = false;
+    }
+};
+
 document.getElementById('importForm').onsubmit = async function(e) {
     e.preventDefault();
+    
+    const submitButton = this.querySelector('button[type="submit"]');
+    setButtonLoading(submitButton, true);
     
     const formData = new FormData();
     const fileInput = document.getElementById('file');
     
     if (!fileInput.files[0]) {
         alert('请选择要导入的文件');
+        setButtonLoading(submitButton, false);
         return;
     }
     
@@ -71,11 +107,9 @@ document.getElementById('importForm').onsubmit = async function(e) {
         
         const result = await response.json();
         if (response.ok) {
-            // 构建显示消息
             let message = `成功导入 ${result.count} 个用户`;
             if (result.errors && result.errors.length > 0) {
                 message += `\n失败 ${result.errors.length} 个`;
-                // 显示前5个错误信息
                 const errorMessages = result.errors.slice(0, 5);
                 message += '\n' + errorMessages.join('\n');
                 if (result.errors.length > 5) {
@@ -85,20 +119,19 @@ document.getElementById('importForm').onsubmit = async function(e) {
             alert(message);
             loadUsers();  // 重新加载用户列表
         } else {
-            // 显示错误信息
-            const errorMessage = result.error || '导入失败';
-            alert(errorMessage);
+            alert(result.error || '导入失败');
         }
     } catch (error) {
         console.error('导入失败：', error);
         alert('导入失败：' + (error.message || '未知错误'));
+    } finally {
+        setButtonLoading(submitButton, false);
+        fileInput.value = '';
     }
-    
-    // 清空文件输入
-    fileInput.value = '';
 };
 
 async function loadUsers() {
+    setTableLoading('userList', true);
     try {
         const response = await fetch('/api/admin/users', {
             method: 'GET',
@@ -112,8 +145,6 @@ async function loadUsers() {
         }
         
         const users = await response.json();
-        console.log('Received users:', users);  // 调试信息
-        
         const tbody = document.getElementById('userList');
         tbody.innerHTML = users.map(user => `
             <tr>
@@ -129,6 +160,8 @@ async function loadUsers() {
     } catch (error) {
         console.error('加载用户列表失败：', error);
         alert('加载用户列表失败：' + error.message);
+    } finally {
+        setTableLoading('userList', false);
     }
 }
 
@@ -144,19 +177,24 @@ function getRoleText(role) {
 async function deleteUser(username) {
     if (!confirm('确定要删除此用户吗？')) return;
     
+    const button = event.target;
+    setButtonLoading(button, true);
+    
     try {
         const response = await fetch(`/api/admin/users/${username}`, {
             method: 'DELETE'
         });
         
         if (response.ok) {
-            loadUsers();  // 重新加载用户列表
+            await loadUsers();  // 重新加载用户列表
         } else {
             const error = await response.json();
             alert(error.error || '删除失败');
         }
     } catch (error) {
         alert('删除失败：' + error);
+    } finally {
+        setButtonLoading(button, false);
     }
 }
 
