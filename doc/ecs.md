@@ -1,3 +1,103 @@
+# 糟糕透了，乱改Nginx会破坏面板的环境，nginx反向代理和证书申请建议在面板搞定，只参考下面的环境安装
+
+# 更新包列表
+
+sudo apt update
+
+# 安装 Python 相关工具
+
+sudo apt install python3 python3-pip python3-venv
+
+# 验证安装
+
+python3 --version
+pip3 --version
+
+# 安装开发工具包
+
+sudo apt install python3-dev build-essential
+
+# 安装其他有用的工具
+
+sudo apt install wget curl git
+
+# 升级 pip
+
+python3 -m pip install --upgrade pip
+
+# 更新包列表
+
+sudo apt update
+
+# 安装 Git
+
+sudo apt install git
+
+# 验证安装
+
+git --version
+
+# 配置全局用户名
+
+git config --global user.name "Your Name"
+
+# 配置全局邮箱
+
+git config --global user.email "your.email@example.com"
+
+# 查看配置
+
+git config --list
+
+# 生成 SSH 密钥
+
+ssh-keygen -t ed25519 -C "your.email@example.com"
+
+# 或者使用 RSA
+
+# ssh-keygen -t rsa -b 4096 -C "your.email@example.com"
+
+# 启动 ssh-agent
+
+eval "$(ssh-agent -s)"
+
+# 添加私钥到 ssh-agent
+
+ssh-add ~/.ssh/id_ed25519
+
+# 查看公钥（需要添加到 GitHub/GitLab）
+
+cat ~/.ssh/id_ed25519.pub
+
+# 测试 GitHub 连接
+
+ssh -T git@github.com
+
+# 测试 GitLab 连接
+
+ssh -T git@gitlab.com
+
+
+# 停止 Nginx 服务
+
+sudosystemctlstopnginx
+
+# 或者
+
+sudoservicenginxstop
+
+# 如果还不行，可以强制杀死进程
+
+sudopkillnginx
+
+# 再次检查端口
+
+sudolsof-i:80
+
+# 如果端口已释放，重新申请证书
+
+sudo certbot --nginx -d api.domain.fun
+
 1. **域名配置**：
 
 - 在阿里云/腾讯云购买域名（比如：yourdomain.com）
@@ -72,46 +172,79 @@ sudo certbot --nginx -d api.yourdomain.com
 sudo apt install nginx
 
 # 创建 Nginx 配置文件
-sudo nano /etc/nginx/sites-available/default
+sudo nano /etc/nginx/sites-available/yourapp
 ```
 
 配置内容：
 
 ```nginx
+# HTTP 服务器配置（将 HTTP 重定向到 HTTPS）
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    server_name youdomain.com; ##记得更改
-
-    ssl_certificate /etc/letsencrypt/live/api.yourdomainn.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.yourdomainn.com/privkey.pem;
-
-
-    # API 请求转发到 FastAPI
-    location / {
-        proxy_pass http://localhost:8001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+    listen 80;                # 监听 80 端口（HTTP）
+    listen [::]:80;          # 监听 IPv6 的 80 端口
+    server_name yourdomain.com;  # 您的域名
+  
+    # 将所有 HTTP 请求重定向到 HTTPS
+    return 301 https://$server_name$request_uri;
 }
 
+# HTTPS 服务器配置
+server {
+    # SSL 配置
+    listen 443 ssl;          # 监听 443 端口（HTTPS）
+    listen [::]:443 ssl;     # 监听 IPv6 的 443 端口
+    server_name yourdomain.com;  # 您的域名
+
+    # SSL 证书配置
+    ssl_certificate /etc/letsencrypt/live/api.yourdomain.com/fullchain.pem;     # SSL证书文件
+    ssl_certificate_key /etc/letsencrypt/live/api.yourdomain.com/privkey.pem;   # SSL私钥文件
+
+    # SSL 安全配置
+    ssl_protocols TLSv1.2 TLSv1.3;    # 使用的 SSL 协议版本
+    ssl_prefer_server_ciphers on;      # 优先使用服务器的加密套件
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;    # 加密算法
+
+    # 反向代理配置
+    location / {
+        proxy_pass http://localhost:8001;  # 转发到本地的 FastAPI 服务
+    
+        # 代理的 HTTP 设置
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;  # WebSocket 支持
+        proxy_set_header Connection 'upgrade';
+    
+        # 传递客户端信息
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;  # 传递真实IP
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;  # 传递代理链路
+        proxy_set_header X-Forwarded-Proto $scheme;  # 传递协议类型
+    
+        # 超时设置
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
 ```
 
 启用配置：
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/fastapi /etc/nginx/sites-enabled/
-sudo nginx -t  # 测试配置
+# 创建符号链接到 sites-enabled 目录
+sudo ln -s /etc/nginx/sites-available/your_app /etc/nginx/sites-enabled/
+
+# 可选：删除默认配置的符号链接（如果不需要默认站点）
+sudo rm /etc/nginx/sites-enabled/default
+
+# 测试配置
+sudo nginx -t
+
+# 如果测试通过，重启 Nginx
+sudo systemctl restart nginxsudo nginx -t  # 测试配置
 sudo systemctl restart nginx
 ```
 
-4. **配置后端服务为系统服务**：
+4. **配置后端服务为系统服务（似乎可以不用，宕机后重新运行runme.py**：
 
 ```bash
 # 创建服务文件
@@ -126,24 +259,34 @@ Description=FastAPI application
 After=network.target
 
 [Service]
-User=ubuntu  # 使用你的用户名
-WorkingDirectory=/path/to/your/project  # 项目路径
-Environment="PATH=/path/to/your/venv/bin"  # 虚拟环境路径
-ExecStart=/path/to/your/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
+User=your_username  # 替换为您的用户名（whoami）
+Group=your_username  # 替换为您的用户组（groups）
+WorkingDirectory=/path/to/your/fastapi/app  # 替换为您的FastAPI应用目录
+Environment="PATH=/path/to/your/venv/bin"  # 如果使用虚拟环境，替换为实际路径
+ExecStart=/path/to/your/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001
+
 Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-启动服务：
-
 ```bash
+# 重新加载 systemd 配置
+sudo systemctl daemon-reload
+
+# 启动服务
 sudo systemctl start fastapi
+
+# 检查服务状态
+sudo systemctl status fastapi
+
+# 设置开机自启
 sudo systemctl enable fastapi
 ```
 
-5. **修改微信小程序配置**：
+6. **修改微信小程序配置**：
 
 ```javascript:fore/utils/request.js
 const baseURL = 'https://api.yourdomain.com/api'  // 使用 HTTPS
@@ -169,7 +312,6 @@ const baseURL = 'https://api.yourdomain.com/api'  // 使用 HTTPS
 ```bash
 # 检查服务状态
 sudo systemctl status nginx
-sudo systemctl status fastapi
 
 # 检查日志
 sudo tail -f /var/log/nginx/error.log

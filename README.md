@@ -48,7 +48,7 @@ project/
 1. 创建并激活虚拟环境
 
 ```bash
-python -m venv myvenv
+python3 -m venv myvenv
 source myvenv/bin/activate  # Linux/Mac
 .\venv\Scripts\activate   # Windows
 ```
