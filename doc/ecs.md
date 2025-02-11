@@ -1,16 +1,58 @@
-
 1. **域名配置**：
 
 - 在阿里云/腾讯云购买域名（比如：yourdomain.com）
 - 进行域名备案（预计 1-2 周）
 - 添加域名解析：
   ```
-  Type: A
-  Host: api    # 这样你的 API 域名就是 api.yourdomain.com
-  Value: 你的服务器IP
+  记录类型: A
+  主机记录: api    # 这样你的API域名就是 api.yourdomain.com
+  记录值: 你的ip地址
+  TTL: 600s
   ```
 
-2. **SSL 证书申请**：
+2. nginx的安装
+
+   1.**首先卸载现有的 certbot 相关包**：
+
+```bash
+sudo apt remove certbot python3-certbot-nginx
+```
+
+2. **然后重新安装 certbot 和 nginx 插件**：
+
+```bash
+# 更新软件包列表
+sudo apt update
+
+# 安装 snapd（如果还没有安装）
+sudo apt install snapd
+
+# 安装 core snap
+sudo snap install core
+
+# 刷新 core
+sudo snap refresh core
+
+# 删除可能存在的旧版本 certbot
+sudo apt remove certbot
+
+# 通过 snap 安装 certbot
+sudo snap install --classic certbot
+
+# 创建符号链接
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+
+# 安装 nginx 插件
+sudo snap install certbot-nginx
+```
+
+3. **确保 nginx 正在运行**：
+
+```bash
+sudo systemctl status nginx
+```
+
+3. **SSL 证书申请**：
 
 ```bash
 # 安装 certbot（以 Ubuntu 为例）
@@ -19,6 +61,8 @@ sudo apt install certbot python3-certbot-nginx
 
 # 申请证书
 sudo certbot --nginx -d api.yourdomain.com
+
+#如果是中文域名先运行：python3 -c "print('yourdomain.fun'.encode('idna').decode())"
 ```
 
 3. **安装和配置 Nginx**：
@@ -28,25 +72,22 @@ sudo certbot --nginx -d api.yourdomain.com
 sudo apt install nginx
 
 # 创建 Nginx 配置文件
-sudo nano /etc/nginx/sites-available/fastapi
+sudo nano /etc/nginx/sites-available/default
 ```
 
 配置内容：
 
 ```nginx
 server {
-    listen 80;
-    server_name api.yourdomain.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
     listen 443 ssl;
-    server_name api.yourdomain.com;
+    listen [::]:443 ssl;
+    server_name youdomain.com; ##记得更改
 
-    ssl_certificate /etc/letsencrypt/live/api.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.yourdomain.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/api.yourdomainn.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.yourdomainn.com/privkey.pem;
 
+
+    # API 请求转发到 FastAPI
     location / {
         proxy_pass http://localhost:8001;
         proxy_http_version 1.1;
@@ -59,6 +100,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+
 ```
 
 启用配置：
