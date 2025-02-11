@@ -488,13 +488,33 @@ async def get_user_import_template():
             'name': ['张三', '李四', '王老师'],  # 姓名
             'department': ['计算机学院', '机械学院', '计算机学院'],  # 学院
             'role': ['student', 'student', 'teacher'],  # 角色
-            'password': ['123456', '123456', '123456']  # 初始密码
+            'password': ['123456', '012345', '001234']  # 初始密码
         })
         
         # 创建一个临时文件
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # 将所有列都设置为文本格式
+            df = df.astype(str)
             df.to_excel(writer, index=False)
+            
+            # 获取工作表
+            worksheet = writer.sheets['Sheet1']
+            
+            # 设置所有列为文本格式
+            for col in range(1, 6):  # A到E列
+                for row in range(2, len(df) + 2):  # 跳过标题行
+                    cell = worksheet.cell(row=row, column=col)
+                    cell.number_format = '@'
+            
+            # 特别处理密码列
+            for row in range(2, len(df) + 2):
+                password_cell = worksheet[f'E{row}']
+                password_cell.number_format = '@'
+                # 确保密码显示为6位
+                if password_cell.value:
+                    password_cell.value = str(password_cell.value).zfill(6)
+        
         output.seek(0)
         
         headers = {
@@ -508,7 +528,7 @@ async def get_user_import_template():
             headers=headers
         )
     except Exception as e:
-        print(f"Error creating template: {str(e)}")  # 添加调试信息
+        print(f"Error creating template: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"创建模板失败: {str(e)}"
@@ -546,7 +566,7 @@ async def import_users(
     try:
         # 读取Excel文件
         contents = await file.read()
-        df = pd.read_excel(contents)
+        df = pd.read_excel(contents, dtype={'password': str})  # 将password列作为字符串读取
         print(f"Read Excel file with {len(df)} rows")  # 调试信息
         
         # 验证数据格式
@@ -567,29 +587,31 @@ async def import_users(
             try:
                 # 检查用户是否已存在
                 existing_user = db.query(models.User).filter(
-                    models.User.username == row['username']
+                    models.User.username == str(row['username'])
                 ).first()
                 
                 if existing_user:
                     error_messages.append(f"用户 {row['username']} 已存在")
                     continue
                 
+                # 确保密码是字符串类型
+                password = str(row['password']).strip()
                 # 创建新用户
-                hashed_password = get_password_hash(str(row['password']))
+                hashed_password = get_password_hash(password)
                 user = models.User(
-                    username=row['username'],
-                    name=row['name'],
-                    department=row['department'],
-                    role=row['role'],
+                    username=str(row['username']),
+                    name=str(row['name']),
+                    department=str(row['department']),
+                    role=str(row['role']),
                     password=hashed_password
                 )
                 db.add(user)
                 success_count += 1
-                users_data.append({  # 添加到成功导入的用户列表
-                    'username': row['username'],
-                    'name': row['name'],
-                    'department': row['department'],
-                    'role': row['role']
+                users_data.append({
+                    'username': str(row['username']),
+                    'name': str(row['name']),
+                    'department': str(row['department']),
+                    'role': str(row['role'])
                 })
                 print(f"Added user: {row['username']}")  # 调试信息
             except Exception as e:

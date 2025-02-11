@@ -8,16 +8,18 @@ from io import BytesIO
 from openpyxl.utils import get_column_letter
 
 def read_users_excel(file) -> List[Dict]:
-    df = pd.read_excel(file)
+    # 确保所有列都被读取为字符串
+    df = pd.read_excel(file, dtype=str)
     users = []
     
     for _, row in df.iterrows():
-        username = str(row["学号/工号"])
-        password = str(row["身份证号后6位"])
+        username = str(row["学号/工号"]).strip()
+        # 确保密码保持原始格式，包括前导零
+        password = str(row["身份证号后6位"]).strip().zfill(6)  # 使用zfill确保6位数，不足补零
         user = {
             "username": username,
-            "name": str(row["姓名"]),
-            "department": str(row["学院"]),
+            "name": str(row["姓名"]).strip(),
+            "department": str(row["学院"]).strip(),
             "password": bcrypt.hashpw(
                 password.encode('utf-8'), 
                 bcrypt.gensalt()
