@@ -203,6 +203,11 @@
                             <i class="fas fa-calendar-check mr-2"></i>预约管理
                         </a>
                     </li>
+                    <li class="nav-item {% if request.endpoint == 'admin.statistics' %}active{% endif %}">
+                        <a class="nav-link" href="{{ url_for('admin.statistics') }}">
+                            <i class="fas fa-chart-bar mr-2"></i>数据统计
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav ml-auto">
                     <li class="nav-item">

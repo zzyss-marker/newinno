@@ -378,4 +378,29 @@ def export_reservations():
         return jsonify({'error': '导出超时，请稍后重试'}), 504
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error exporting reservations: {str(e)}")
-        return jsonify({'error': '导出失败'}), 500 
+        return jsonify({'error': '导出失败'}), 500
+
+@bp.route('/statistics')
+@login_required
+def statistics():
+    """统计页面"""
+    return render_template('admin/statistics.html')
+
+@bp.route('/api/admin/statistics')
+def get_statistics():
+    """获取统计数据"""
+    try:
+        response = make_request(
+            'GET',
+            get_api_url('admin/statistics'),
+            headers={'Accept': 'application/json'}
+        )
+        
+        if response.status_code == 404:
+            return jsonify({'error': '未找到统计数据'}), 404
+            
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error getting statistics: {str(e)}")
+        return jsonify({'error': '获取统计数据失败'}), 500 

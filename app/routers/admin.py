@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..database import get_db
 from ..models import models
 from ..schemas import (  # 直接从schemas模块导入需要的类
@@ -12,7 +12,7 @@ from ..schemas import (  # 直接从schemas模块导入需要的类
     DeviceUpdate,
     Device
 )
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, get_current_user
 from ..utils.excel import read_users_excel, export_reservations_excel
 import io
 from fastapi.responses import StreamingResponse, FileResponse
@@ -20,6 +20,7 @@ from ..models.models import DeviceNames
 import pandas as pd
 import os
 from ..utils.security import get_password_hash
+from sqlalchemy import func
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -857,4 +858,108 @@ async def delete_reservation(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除失败"
+        )
+
+@router.get("/statistics")
+async def get_statistics(
+    db: Session = Depends(get_db)
+):
+    """获取统计数据"""
+    try:
+        # 1. 预约状态统计
+        status_stats = {
+            "pending": 0,
+            "approved": 0,
+            "rejected": 0
+        }
+        
+        # 统计各类预约的状态数量
+        for status in ["pending", "approved", "rejected"]:
+            status_stats[status] = (
+                db.query(models.VenueReservation).filter(models.VenueReservation.status == status).count() +
+                db.query(models.DeviceReservation).filter(models.DeviceReservation.status == status).count() +
+                db.query(models.PrinterReservation).filter(models.PrinterReservation.status == status).count()
+            )
+
+        # 2. 预约类型分布
+        type_stats = {
+            "venue": db.query(models.VenueReservation).count(),
+            "device": db.query(models.DeviceReservation).count(),
+            "printer": db.query(models.PrinterReservation).count()
+        }
+
+        # 3. 每日预约趋势（最近7天）
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=6)
+        
+        # 准备日期列表
+        dates = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') 
+                for i in range(7)]
+        
+        # 统计每天的预约总数
+        daily_counts = []
+        for date in dates:
+            total = (
+                db.query(models.VenueReservation)
+                .filter(func.date(models.VenueReservation.created_at) == date)
+                .count() +
+                db.query(models.DeviceReservation)
+                .filter(func.date(models.DeviceReservation.created_at) == date)
+                .count() +
+                db.query(models.PrinterReservation)
+                .filter(func.date(models.PrinterReservation.created_at) == date)
+                .count()
+            )
+            daily_counts.append(total)
+
+        # 4. 设备使用率
+        device_usage = {
+            "names": ["电动螺丝刀", "万用表"],
+            "total": [5, 8],  # 设备总数
+            "used": [
+                db.query(models.DeviceReservation)
+                .filter(
+                    models.DeviceReservation.device_name == "electric_screwdriver",
+                    models.DeviceReservation.status == "approved"
+                ).count(),
+                db.query(models.DeviceReservation)
+                .filter(
+                    models.DeviceReservation.device_name == "multimeter",
+                    models.DeviceReservation.status == "approved"
+                ).count()
+            ]
+        }
+
+        # 5. 场地使用率
+        venue_types = ["lecture", "seminar", "meeting_room"]
+        venue_names = ["讲座", "研讨室", "会议室"]
+        venue_usage = {
+            "types": venue_names,
+            "total": [3, 5, 4],  # 各类场地总数
+            "reserved": [
+                db.query(models.VenueReservation)
+                .filter(
+                    models.VenueReservation.venue_type == venue_type,
+                    models.VenueReservation.status == "approved"
+                ).count()
+                for venue_type in venue_types
+            ]
+        }
+
+        return {
+            "status_stats": status_stats,
+            "type_stats": type_stats,
+            "daily_trend": {
+                "dates": dates,
+                "counts": daily_counts
+            },
+            "device_usage": device_usage,
+            "venue_usage": venue_usage
+        }
+
+    except Exception as e:
+        print(f"Error in get_statistics: {str(e)}")  # 添加错误日志
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取统计数据失败: {str(e)}"
         ) 
