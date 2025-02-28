@@ -91,6 +91,21 @@ class PrinterReservation(db.Model):
 
     user = db.relationship('User', back_populates='printer_reservations')
 
+class Management(db.Model):
+    __tablename__ = 'management'
+
+    management_id = db.Column(db.Integer, primary_key=True)
+    device_or_venue_name = db.Column(db.String(255), nullable=False)
+    category = db.Column(db.String(50), nullable=False)  # 'device' or 'venue'
+    quantity = db.Column(db.Integer, nullable=False)
+    available_quantity = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(50), default='available')  # 'available' or 'maintenance'
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<Management {self.device_or_venue_name}>'
+
 @login_manager.user_loader
 def load_user(user_id):
     return Admin.query.get(int(user_id)) 

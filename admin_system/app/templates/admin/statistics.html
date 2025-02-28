@@ -50,26 +50,26 @@
     </div>
 
     <div class="row">
-        <!-- 设备使用率卡片 -->
+        <!-- 设备预约占比卡片 -->
         <div class="col-md-6 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">设备使用率</h5>
+                    <h5 class="mb-0">设备预约占比</h5>
                 </div>
                 <div class="card-body">
-                    <div id="deviceUsageChart" style="height: 300px;"></div>
+                    <div id="deviceStatsChart" style="height: 300px;"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 场地使用率卡片 -->
+        <!-- 场地预约占比卡片 -->
         <div class="col-md-6 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">场地使用率</h5>
+                    <h5 class="mb-0">场地预约占比</h5>
                 </div>
                 <div class="card-body">
-                    <div id="venueUsageChart" style="height: 300px;"></div>
+                    <div id="venueStatsChart" style="height: 300px;"></div>
                 </div>
             </div>
         </div>
@@ -85,21 +85,22 @@
 const statusChart = echarts.init(document.getElementById('statusChart'));
 const typeChart = echarts.init(document.getElementById('typeChart'));
 const trendChart = echarts.init(document.getElementById('trendChart'));
-const deviceUsageChart = echarts.init(document.getElementById('deviceUsageChart'));
-const venueUsageChart = echarts.init(document.getElementById('venueUsageChart'));
+const deviceStatsChart = echarts.init(document.getElementById('deviceStatsChart'));
+const venueStatsChart = echarts.init(document.getElementById('venueStatsChart'));
 
 // 加载统计数据
 async function loadStatistics() {
     try {
         const response = await fetch('/api/admin/statistics');
         const data = await response.json();
+        console.log('Statistics data:', data);
         
         // 更新各个图表
         updateStatusChart(data.status_stats);
         updateTypeChart(data.type_stats);
         updateTrendChart(data.daily_trend);
-        updateDeviceUsageChart(data.device_usage);
-        updateVenueUsageChart(data.venue_usage);
+        updateDeviceStatsChart(data.device_stats);
+        updateVenueStatsChart(data.venue_stats);
     } catch (error) {
         console.error('加载统计数据失败:', error);
         alert('加载统计数据失败');
@@ -111,27 +112,63 @@ function updateStatusChart(data) {
     const option = {
         tooltip: {
             trigger: 'item',
-            formatter: '{b}: {c} ({d}%)'
+            formatter: '{b}: {c} ({d}%)',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: {
+                color: '#333'
+            }
         },
         legend: {
             orient: 'vertical',
-            left: 'left'
+            left: 'left',
+            textStyle: {
+                fontSize: 12
+            }
         },
         series: [{
             type: 'pie',
-            radius: '50%',
-            data: [
-                { value: data.pending, name: '待审批' },
-                { value: data.approved, name: '已通过' },
-                { value: data.rejected, name: '已拒绝' }
-            ],
+            radius: ['40%', '70%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+                borderRadius: 10,
+                borderColor: '#fff',
+                borderWidth: 2
+            },
+            label: {
+                show: true,
+                formatter: '{b}: {c}'
+            },
             emphasis: {
+                label: {
+                    show: true,
+                    fontSize: 14,
+                    fontWeight: 'bold'
+                },
                 itemStyle: {
                     shadowBlur: 10,
                     shadowOffsetX: 0,
                     shadowColor: 'rgba(0, 0, 0, 0.5)'
                 }
-            }
+            },
+            data: [
+                { 
+                    value: data.pending, 
+                    name: '待审批', 
+                    itemStyle: { color: '#faad14' }
+                },
+                { 
+                    value: data.approved, 
+                    name: '已通过', 
+                    itemStyle: { color: '#52c41a' }
+                },
+                { 
+                    value: data.rejected, 
+                    name: '已拒绝', 
+                    itemStyle: { color: '#ff4d4f' }
+                }
+            ]
         }]
     };
     statusChart.setOption(option);
@@ -142,27 +179,63 @@ function updateTypeChart(data) {
     const option = {
         tooltip: {
             trigger: 'item',
-            formatter: '{b}: {c} ({d}%)'
+            formatter: '{b}: {c} ({d}%)',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: {
+                color: '#333'
+            }
         },
         legend: {
             orient: 'vertical',
-            left: 'left'
+            left: 'left',
+            textStyle: {
+                fontSize: 12
+            }
         },
         series: [{
             type: 'pie',
-            radius: '50%',
-            data: [
-                { value: data.venue, name: '场地预约' },
-                { value: data.device, name: '设备预约' },
-                { value: data.printer, name: '打印机预约' }
-            ],
+            radius: ['40%', '70%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+                borderRadius: 10,
+                borderColor: '#fff',
+                borderWidth: 2
+            },
+            label: {
+                show: true,
+                formatter: '{b}: {c}'
+            },
             emphasis: {
+                label: {
+                    show: true,
+                    fontSize: 14,
+                    fontWeight: 'bold'
+                },
                 itemStyle: {
                     shadowBlur: 10,
                     shadowOffsetX: 0,
                     shadowColor: 'rgba(0, 0, 0, 0.5)'
                 }
-            }
+            },
+            data: [
+                { 
+                    value: data.venue, 
+                    name: '场地预约',
+                    itemStyle: { color: '#1890ff' }
+                },
+                { 
+                    value: data.device, 
+                    name: '设备预约',
+                    itemStyle: { color: '#13c2c2' }
+                },
+                { 
+                    value: data.printer, 
+                    name: '打印机预约',
+                    itemStyle: { color: '#722ed1' }
+                }
+            ]
         }]
     };
     typeChart.setOption(option);
@@ -172,92 +245,231 @@ function updateTypeChart(data) {
 function updateTrendChart(data) {
     const option = {
         tooltip: {
-            trigger: 'axis'
+            trigger: 'axis',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: {
+                color: '#333'
+            },
+            axisPointer: {
+                type: 'shadow'
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
         },
         xAxis: {
             type: 'category',
-            data: data.dates
+            data: data.dates,
+            axisLabel: {
+                rotate: 45,
+                fontSize: 12,
+                color: '#666'
+            },
+            axisLine: {
+                lineStyle: {
+                    color: '#ddd'
+                }
+            }
         },
         yAxis: {
-            type: 'value'
+            type: 'value',
+            minInterval: 1,
+            axisLabel: {
+                color: '#666'
+            },
+            axisLine: {
+                lineStyle: {
+                    color: '#ddd'
+                }
+            },
+            splitLine: {
+                lineStyle: {
+                    color: '#eee'
+                }
+            }
         },
         series: [{
             data: data.counts,
             type: 'line',
-            smooth: true
+            smooth: true,
+            symbolSize: 8,
+            itemStyle: {
+                color: '#1890ff',
+                borderWidth: 2
+            },
+            lineStyle: {
+                width: 3,
+                shadowColor: 'rgba(24,144,255,0.3)',
+                shadowBlur: 10
+            },
+            areaStyle: {
+                color: {
+                    type: 'linear',
+                    x: 0,
+                    y: 0,
+                    x2: 0,
+                    y2: 1,
+                    colorStops: [{
+                        offset: 0,
+                        color: 'rgba(24,144,255,0.3)'
+                    }, {
+                        offset: 1,
+                        color: 'rgba(24,144,255,0.1)'
+                    }]
+                }
+            }
         }]
     };
     trendChart.setOption(option);
 }
 
-// 更新设备使用率图表
-function updateDeviceUsageChart(data) {
+// 更新设备预约占比图表
+function updateDeviceStatsChart(data) {
+    const colors = ['#1890ff', '#13c2c2', '#52c41a', '#722ed1', '#eb2f96', '#fa8c16', '#a0d911'];
     const option = {
         tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'shadow'
+            trigger: 'item',
+            formatter: function(params) {
+                return `${params.name}<br/>预约次数: ${data.counts[params.dataIndex]}<br/>占比: ${params.value}%`;
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: {
+                color: '#333'
             }
         },
         legend: {
-            data: ['总数', '已借出']
-        },
-        xAxis: {
-            type: 'category',
-            data: data.names
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [
-            {
-                name: '总数',
-                type: 'bar',
-                data: data.total
+            orient: 'vertical',
+            left: 'left',
+            type: 'scroll',
+            textStyle: {
+                fontSize: 12
             },
-            {
-                name: '已借出',
-                type: 'bar',
-                data: data.used
+            pageTextStyle: {
+                color: '#666'
             }
-        ]
+        },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['60%', '50%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+                borderRadius: 10,
+                borderColor: '#fff',
+                borderWidth: 2
+            },
+            label: {
+                show: true,
+                position: 'outside',
+                formatter: '{b}\n{c}%',
+                fontSize: 12
+            },
+            labelLine: {
+                show: true,
+                length: 15,
+                length2: 10
+            },
+            emphasis: {
+                label: {
+                    show: true,
+                    fontSize: 14,
+                    fontWeight: 'bold'
+                },
+                itemStyle: {
+                    shadowBlur: 10,
+                    shadowOffsetX: 0,
+                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                }
+            },
+            data: data.names.map((name, index) => ({
+                name: name,
+                value: data.proportions[index],
+                itemStyle: {
+                    color: colors[index % colors.length]
+                }
+            }))
+        }]
     };
-    deviceUsageChart.setOption(option);
+    deviceStatsChart.setOption(option);
 }
 
-// 更新场地使用率图表
-function updateVenueUsageChart(data) {
+// 更新场地预约占比图表
+function updateVenueStatsChart(data) {
+    const colors = ['#1890ff', '#13c2c2', '#52c41a', '#722ed1', '#eb2f96', '#fa8c16', '#a0d911'];
     const option = {
         tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'shadow'
+            trigger: 'item',
+            formatter: function(params) {
+                return `${params.name}<br/>预约次数: ${data.counts[params.dataIndex]}<br/>占比: ${params.value}%`;
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: {
+                color: '#333'
             }
         },
         legend: {
-            data: ['总数', '已预约']
-        },
-        xAxis: {
-            type: 'category',
-            data: data.types
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [
-            {
-                name: '总数',
-                type: 'bar',
-                data: data.total
+            orient: 'vertical',
+            left: 'left',
+            type: 'scroll',
+            textStyle: {
+                fontSize: 12
             },
-            {
-                name: '已预约',
-                type: 'bar',
-                data: data.reserved
+            pageTextStyle: {
+                color: '#666'
             }
-        ]
+        },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['60%', '50%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+                borderRadius: 10,
+                borderColor: '#fff',
+                borderWidth: 2
+            },
+            label: {
+                show: true,
+                position: 'outside',
+                formatter: '{b}\n{c}%',
+                fontSize: 12
+            },
+            labelLine: {
+                show: true,
+                length: 15,
+                length2: 10
+            },
+            emphasis: {
+                label: {
+                    show: true,
+                    fontSize: 14,
+                    fontWeight: 'bold'
+                },
+                itemStyle: {
+                    shadowBlur: 10,
+                    shadowOffsetX: 0,
+                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                }
+            },
+            data: data.types.map((type, index) => ({
+                name: type,
+                value: data.proportions[index],
+                itemStyle: {
+                    color: colors[index % colors.length]
+                }
+            }))
+        }]
     };
-    venueUsageChart.setOption(option);
+    venueStatsChart.setOption(option);
 }
 
 // 监听窗口大小变化，调整图表大小
@@ -265,8 +477,8 @@ window.addEventListener('resize', function() {
     statusChart.resize();
     typeChart.resize();
     trendChart.resize();
-    deviceUsageChart.resize();
-    venueUsageChart.resize();
+    deviceStatsChart.resize();
+    venueStatsChart.resize();
 });
 
 // 页面加载完成后加载统计数据

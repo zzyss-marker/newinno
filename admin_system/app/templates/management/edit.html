@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>编辑 {{ item.device_or_venue_name }}</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group mb-3">
+                    <label for="name">名称</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ item.device_or_venue_name }}" required>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="quantity">总数量</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" value="{{ item.quantity }}" min="1" required>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="available_quantity">可用数量</label>
+                    <input type="number" class="form-control" id="available_quantity" name="available_quantity" value="{{ item.available_quantity }}" min="0" required>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="status">状态</label>
+                    <select class="form-control" id="status" name="status" required>
+                        <option value="available" {% if item.status == 'available' %}selected{% endif %}>可用</option>
+                        <option value="maintenance" {% if item.status == 'maintenance' %}selected{% endif %}>维护中</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">保存</button>
+                <a href="{{ url_for('admin.management') }}" class="btn btn-secondary">返回</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

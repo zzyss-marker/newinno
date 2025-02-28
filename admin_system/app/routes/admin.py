@@ -1,14 +1,15 @@
-from flask import Blueprint, render_template, request, jsonify, send_file, current_app
-from flask_login import login_required
+from flask import Blueprint, render_template, request, jsonify, send_file, current_app, redirect, url_for, flash
+from flask_login import login_required, current_user
 import pandas as pd
 from .. import db
-from ..models import Admin, User, VenueReservation, DeviceReservation, PrinterReservation
+from ..models import Admin, User, VenueReservation, DeviceReservation, PrinterReservation, Management
 from ..utils import allowed_file
 import os
 from werkzeug.security import generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import io
+from sqlalchemy import func, case
 
 bp = Blueprint('admin', __name__)
 
@@ -390,17 +391,216 @@ def statistics():
 def get_statistics():
     """获取统计数据"""
     try:
-        response = make_request(
-            'GET',
-            get_api_url('admin/statistics'),
-            headers={'Accept': 'application/json'}
+        current_app.logger.debug("开始获取统计数据...")
+        
+        try:
+            # 从数据库获取设备和场地信息
+            devices = Management.query.filter_by(category='device').all()
+            venues = Management.query.filter_by(category='venue').all()
+            
+            device_names = [device.device_or_venue_name for device in devices]
+            venue_names = [venue.device_or_venue_name for venue in venues]
+            
+            # 获取所有预约记录
+            response = make_request(
+                'GET',
+                get_api_url('admin/reservations/list'),
+                headers={'Accept': 'application/json'}
+            )
+            response.raise_for_status()
+            reservations_data = response.json()
+            
+            if isinstance(reservations_data, dict):
+                reservations_data = reservations_data.get('reservations', [])
+            
+            current_app.logger.debug(f"从API获取到 {len(reservations_data)} 条预约记录")
+            
+            # 分类统计预约记录
+            venue_reservations = [r for r in reservations_data if r.get('type') == 'venue']
+            device_reservations = [r for r in reservations_data if r.get('type') == 'device']
+            printer_reservations = [r for r in reservations_data if r.get('type') == 'printer']
+            
+            total_venue_reservations = len(venue_reservations)
+            total_device_reservations = len(device_reservations)
+            total_printer_reservations = len(printer_reservations)
+            
+            current_app.logger.debug(f"场地预约数: {total_venue_reservations}")
+            current_app.logger.debug(f"设备预约数: {total_device_reservations}")
+            current_app.logger.debug(f"打印机预约数: {total_printer_reservations}")
+            
+            # 统计预约状态
+            status_stats = {
+                'pending': len([r for r in reservations_data if r.get('status') == 'pending']),
+                'approved': len([r for r in reservations_data if r.get('status') == 'approved']),
+                'rejected': len([r for r in reservations_data if r.get('status') == 'rejected'])
+            }
+            
+            # 统计预约类型分布
+            type_stats = {
+                'venue': total_venue_reservations,
+                'device': total_device_reservations,
+                'printer': total_printer_reservations
+            }
+            
+            # 按日期分组统计预约数量
+            reservations_by_date = {}
+            for r in reservations_data:
+                date = r.get('reservation_date', '').split('T')[0]
+                if date:
+                    reservations_by_date[date] = reservations_by_date.get(date, 0) + 1
+            
+            all_dates = sorted(reservations_by_date.keys())
+            if not all_dates:
+                today = datetime.now().date()
+                all_dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
+                daily_counts = [0] * 7
+            else:
+                daily_counts = [reservations_by_date.get(date, 0) for date in all_dates]
+            
+            daily_trend = {
+                'dates': all_dates,
+                'counts': daily_counts
+            }
+            
+            # 初始化设备统计
+            device_stats = {
+                'names': device_names,
+                'counts': [0] * len(device_names),
+                'proportions': [0] * len(device_names)
+            }
+            
+            # 统计各设备的预约次数
+            for r in device_reservations:
+                device_name = r.get('device_name', '')
+                if device_name in device_names:
+                    idx = device_names.index(device_name)
+                    device_stats['counts'][idx] += 1
+            
+            # 计算设备预约比例
+            if total_device_reservations > 0:
+                device_stats['proportions'] = [
+                    round(count / total_device_reservations * 100, 2)
+                    for count in device_stats['counts']
+                ]
+            else:
+                device_stats['proportions'] = [0] * len(device_names)
+            
+            # 初始化场地统计
+            venue_stats = {
+                'types': venue_names,
+                'counts': [0] * len(venue_names),
+                'proportions': [0] * len(venue_names)
+            }
+            
+            # 统计各场地的预约次数
+            for r in venue_reservations:
+                venue_type = r.get('venue_type', '')
+                if venue_type in venue_names:
+                    idx = venue_names.index(venue_type)
+                    venue_stats['counts'][idx] += 1
+            
+            # 计算场地预约比例
+            if total_venue_reservations > 0:
+                venue_stats['proportions'] = [
+                    round(count / total_venue_reservations * 100, 2)
+                    for count in venue_stats['counts']
+                ]
+            else:
+                venue_stats['proportions'] = [0] * len(venue_names)
+            
+            # 打印最终统计结果
+            current_app.logger.debug(f"设备统计: {device_stats}")
+            current_app.logger.debug(f"场地统计: {venue_stats}")
+            
+            return jsonify({
+                'status_stats': status_stats,
+                'type_stats': type_stats,
+                'daily_trend': daily_trend,
+                'device_stats': device_stats,
+                'venue_stats': venue_stats
+            })
+            
+        except requests.exceptions.RequestException as e:
+            current_app.logger.error(f"API请求错误: {str(e)}")
+            if hasattr(e, 'response'):
+                current_app.logger.error(f"API响应: {e.response.text}")
+            raise
+            
+    except Exception as e:
+        current_app.logger.error(f"Error getting statistics: {str(e)}")
+        current_app.logger.exception("Detailed error traceback:")
+        return jsonify({'error': '获取统计数据失败'}), 500
+
+# 设备和场地管理路由
+@bp.route('/management')
+@login_required
+def management():
+    # 获取设备和场地基本信息
+    devices = Management.query.filter_by(category='device').all()
+    venues = Management.query.filter_by(category='venue').all()
+    return render_template('management/index.html', devices=devices, venues=venues)
+
+@bp.route('/management/add', methods=['GET', 'POST'])
+@login_required
+def add_management():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        category = request.form.get('category')
+        quantity = int(request.form.get('quantity'))
+        
+        item = Management(
+            device_or_venue_name=name,
+            category=category,
+            quantity=quantity,
+            available_quantity=quantity,
+            status='available'
         )
         
-        if response.status_code == 404:
-            return jsonify({'error': '未找到统计数据'}), 404
-            
-        response.raise_for_status()
-        return jsonify(response.json())
-    except requests.exceptions.RequestException as e:
-        current_app.logger.error(f"Error getting statistics: {str(e)}")
-        return jsonify({'error': '获取统计数据失败'}), 500 
+        db.session.add(item)
+        db.session.commit()
+        flash('添加成功！', 'success')
+        return redirect(url_for('admin.management'))
+        
+    return render_template('management/add.html')
+
+@bp.route('/management/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_management(id):
+    item = Management.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        item.device_or_venue_name = request.form.get('name')
+        item.quantity = int(request.form.get('quantity'))
+        item.available_quantity = int(request.form.get('available_quantity'))
+        item.status = request.form.get('status')
+        
+        db.session.commit()
+        flash('更新成功！', 'success')
+        return redirect(url_for('admin.management'))
+        
+    return render_template('management/edit.html', item=item)
+
+@bp.route('/management/delete/<int:id>', methods=['POST'])
+@login_required
+def delete_management(id):
+    item = Management.query.get_or_404(id)
+    db.session.delete(item)
+    db.session.commit()
+    flash('删除成功！', 'success')
+    return redirect(url_for('admin.management'))
+
+@bp.route('/api/management', methods=['GET'])
+def get_management_items():
+    category = request.args.get('category')
+    query = Management.query
+    if category:
+        query = query.filter_by(category=category)
+    items = query.all()
+    return jsonify([{
+        'id': item.management_id,
+        'name': item.device_or_venue_name,
+        'category': item.category,
+        'quantity': item.quantity,
+        'available_quantity': item.available_quantity,
+        'status': item.status
+    } for item in items]) 

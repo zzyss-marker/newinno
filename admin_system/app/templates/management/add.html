@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>添加新设备/场地</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group mb-3">
+                    <label for="name">名称</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="category">类型</label>
+                    <select class="form-control" id="category" name="category" required>
+                        <option value="venue">场地</option>
+                        <option value="device">设备</option>
+                    </select>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="quantity">数量</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">添加</button>
+                <a href="{{ url_for('admin.management') }}" class="btn btn-secondary">返回</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 
