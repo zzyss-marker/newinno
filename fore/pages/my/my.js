@@ -161,7 +161,8 @@ Page({
   },
 
   goToAdmin() {
-    if (this.data.userInfo.role !== 'admin') {
+    // 检查是否为管理员或教师
+    if (!this.data.userInfo || (this.data.userInfo.role !== 'admin' && this.data.userInfo.role !== 'teacher')) {
       wx.showToast({
         title: '无权限访问',
         icon: 'none'
@@ -170,6 +171,21 @@ Page({
     }
     wx.navigateTo({
       url: '/pages/admin/admin'
+    })
+  },
+
+  // 跳转到审批管理页面
+  goToApproval() {
+    // 检查是否为管理员或教师
+    if (!this.data.userInfo || (this.data.userInfo.role !== 'admin' && this.data.userInfo.role !== 'teacher')) {
+      wx.showToast({
+        title: '无权限访问',
+        icon: 'none'
+      })
+      return
+    }
+    wx.navigateTo({
+      url: '/pages/approval/approval'
     })
   }
 })

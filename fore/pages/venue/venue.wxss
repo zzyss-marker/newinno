@@ -1,7 +1,109 @@
 .container {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #F0F2F6 0%, #F7F8FA 100%);
-  padding: 24rpx;
+  padding: 30rpx;
+}
+
+/* 筛选区域样式 */
+.filter-container {
+  margin-bottom: 30rpx;
+  background-color: #fff;
+  border-radius: 10rpx;
+  padding: 20rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+}
+
+.filter-title {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 20rpx;
+  font-weight: bold;
+}
+
+.category-scroll {
+  white-space: nowrap;
+  height: 80rpx;
+}
+
+.category-item {
+  display: inline-block;
+  padding: 10rpx 30rpx;
+  margin-right: 20rpx;
+  background-color: #f5f5f5;
+  border-radius: 30rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.category-item.active {
+  background-color: #1aad19;
+  color: #fff;
+}
+
+/* 场地列表样式 */
+.venue-list {
+  margin-top: 20rpx;
+}
+
+.venue-item {
+  background-color: #fff;
+  border-radius: 10rpx;
+  margin-bottom: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+}
+
+.venue-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.venue-name {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10rpx;
+}
+
+.venue-type {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.venue-status {
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+  display: inline-block;
+  width: fit-content;
+}
+
+.venue-status.available {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.venue-status.unavailable {
+  background-color: #ffebee;
+  color: #f44336;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300rpx;
+}
+
+.loading text {
+  color: #999;
+  font-size: 28rpx;
 }
 
 .form-group {

@@ -37,10 +37,19 @@
       </view>
 
       <!-- 管理员入口 -->
-      <view class="menu-item" bindtap="goToAdmin" wx:if="{{userInfo.role === 'admin'}}">
+      <view class="menu-item" bindtap="goToAdmin" wx:if="{{userInfo.role === 'admin' || userInfo.role === 'teacher'}}">
         <view class="menu-left">
           <image src="https://img.icons8.com/windows/32/administrative-tools.png"/>
           <text>管理后台</text>
+        </view>
+        <image class="arrow" src="https://img.icons8.com/windows/32/forward.png"/>
+      </view>
+
+      <!-- 审批管理入口 -->
+      <view class="menu-item" bindtap="goToApproval" wx:if="{{userInfo.role === 'admin' || userInfo.role === 'teacher'}}">
+        <view class="menu-left">
+          <image src="https://img.icons8.com/windows/32/approve.png"/>
+          <text>审批管理</text>
         </view>
         <image class="arrow" src="https://img.icons8.com/windows/32/forward.png"/>
       </view>

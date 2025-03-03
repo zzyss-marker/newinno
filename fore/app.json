@@ -8,7 +8,8 @@
     "pages/records/records",
     "pages/records/detail/detail",
     "pages/approval/approval",
-    "pages/approval/detail/detail"
+    "pages/approval/detail/detail",
+    "pages/venueForm/venueForm"
   ],
   "window": {
     "backgroundTextStyle": "light",

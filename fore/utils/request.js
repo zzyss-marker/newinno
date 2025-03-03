@@ -1,6 +1,6 @@
 import config from '../config'
 
-const baseURL = 'http://localhost:8001/api'  // 确保端口号与后端一致
+const baseURL = config.baseUrl  // 使用配置文件中的baseUrl
 
 export const request = async (url, options = {}) => {
   try {
@@ -17,15 +17,18 @@ export const request = async (url, options = {}) => {
       headers['Authorization'] = `Bearer ${token}`
     }
 
+    // 确保URL正确拼接
+    const fullUrl = url.startsWith('/') ? baseURL + url : `${baseURL}/${url}`
+
     console.log('发起请求:', {
-      url: baseURL + url,
+      url: fullUrl,
       ...options,
       header: headers
     })
 
     const response = await new Promise((resolve, reject) => {
       wx.request({
-        url: baseURL + url,
+        url: fullUrl,
         ...options,
         header: headers,
         success: (res) => {
@@ -88,8 +91,20 @@ export const put = (url, data, options = {}) => {
   })
 }
 
+// 获取可用设备列表
+export const getAvailableDevices = async () => {
+  return get('/management/devices/status?category=device')
+}
+
+// 获取可用场地列表
+export const getAvailableVenues = async () => {
+  return get('/management/devices/status?category=venue')
+}
+
 export default {
   get,
   post,
-  put
+  put,
+  getAvailableDevices,
+  getAvailableVenues
 } 

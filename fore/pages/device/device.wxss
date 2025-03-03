@@ -1,164 +1,174 @@
 /* pages/device/device.wxss */
 .container {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #F0F2F6 0%, #F7F8FA 100%);
-  padding: 24rpx;
+  padding: 30rpx;
+}
+
+/* 表单样式 */
+.form-header {
+  margin-bottom: 20rpx;
+}
+
+.form-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #f0f0f0;
+}
+
+form {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
 }
 
 .form-group {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.form-group::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2rpx;
-  background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.2), transparent);
-}
-
-.form-group:active {
-  transform: scale(0.99);
+  margin-bottom: 30rpx;
 }
 
 .label {
   font-size: 28rpx;
-  color: #666;
+  color: #333;
   margin-bottom: 16rpx;
   font-weight: 500;
-  display: flex;
-  align-items: center;
-}
-
-.label::after {
-  content: '';
-  flex: 1;
-  height: 1rpx;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.05), transparent);
-  margin-left: 16rpx;
 }
 
 .value {
-  font-size: 32rpx;
-  color: #1A1A1A;
-  font-weight: 500;
-  padding: 8rpx 0;
-  position: relative;
-}
-
-.value::before {
-  content: '';
-  position: absolute;
-  left: -16rpx;
-  top: 50%;
-  width: 6rpx;
-  height: 6rpx;
-  background: #007AFF;
-  border-radius: 50%;
-  transform: translateY(-50%);
-  opacity: 0.6;
+  font-size: 30rpx;
+  color: #333;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #f0f0f0;
 }
 
 .picker {
-  padding: 24rpx;
-  font-size: 32rpx;
-  background: rgba(245, 247, 250, 0.8);
-  border-radius: 16rpx;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #f0f0f0;
+  font-size: 30rpx;
+  color: #333;
 }
 
-.picker::after {
-  content: '';
-  position: absolute;
-  right: 24rpx;
-  top: 50%;
-  width: 12rpx;
-  height: 12rpx;
-  border-right: 2rpx solid #666;
-  border-bottom: 2rpx solid #666;
-  transform: translateY(-50%) rotate(45deg);
-  opacity: 0.6;
-}
-
-.picker:active {
-  background: #E8E8ED;
-  transform: scale(0.98);
-}
-
-.placeholder {
+.picker.placeholder {
   color: #999;
 }
 
 textarea {
   width: 100%;
   height: 200rpx;
-  padding: 24rpx;
+  border: 2rpx solid #f0f0f0;
+  border-radius: 8rpx;
+  padding: 20rpx;
   box-sizing: border-box;
   font-size: 28rpx;
-  background: rgba(245, 247, 250, 0.8);
-  border: none;
-  border-radius: 16rpx;
-  transition: all 0.3s ease;
-}
-
-textarea:focus {
-  background: #E8E8ED;
 }
 
 .submit-btn {
-  margin-top: 48rpx;
+  margin-top: 40rpx;
   width: 100%;
-  background: #007AFF;
+}
+
+/* 筛选区域样式 */
+.filter-container {
+  margin-bottom: 30rpx;
+  background-color: #fff;
+  border-radius: 10rpx;
+  padding: 20rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+}
+
+.filter-title {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 20rpx;
+  font-weight: bold;
+}
+
+.category-scroll {
+  white-space: nowrap;
+  height: 80rpx;
+}
+
+.category-item {
+  display: inline-block;
+  padding: 10rpx 30rpx;
+  margin-right: 20rpx;
+  background-color: #f5f5f5;
+  border-radius: 30rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.category-item.active {
+  background-color: #1aad19;
   color: #fff;
+}
+
+/* 设备列表样式 */
+.device-list {
+  margin-top: 20rpx;
+}
+
+.device-item {
+  background-color: #fff;
+  border-radius: 10rpx;
+  margin-bottom: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+}
+
+.device-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.device-name {
   font-size: 32rpx;
-  font-weight: 500;
-  padding: 24rpx 0;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10rpx;
+}
+
+.device-type {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.device-status {
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
   border-radius: 20rpx;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  display: inline-block;
+  width: fit-content;
 }
 
-.submit-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2rpx;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+.device-status.available {
+  background-color: #e8f5e9;
+  color: #4caf50;
 }
 
-.submit-btn::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.5s;
+.device-status.unavailable {
+  background-color: #ffebee;
+  color: #f44336;
 }
 
-.submit-btn:active {
-  transform: scale(0.98);
-  opacity: 0.9;
+.empty-tip {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999;
+  font-size: 28rpx;
 }
 
-.submit-btn:active::after {
-  transform: translateX(100%);
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300rpx;
+}
+
+.loading text {
+  color: #999;
+  font-size: 28rpx;
 }
 
 /* 日期时间选择器样式 */
@@ -190,26 +200,6 @@ textarea:focus {
   flex: 1;
   color: #1A1A1A;
   font-size: 28rpx;
-}
-
-/* 设备信息展示 */
-.device-info {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 16rpx 0;
-}
-
-.device-icon {
-  width: 48rpx;
-  height: 48rpx;
-  opacity: 0.8;
-}
-
-.device-name {
-  font-size: 32rpx;
-  color: #1A1A1A;
-  font-weight: 500;
 }
 
 /* 添加动画效果 */

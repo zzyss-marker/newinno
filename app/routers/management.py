@@ -14,6 +14,8 @@ from ..schemas import (
 )
 from ..utils.auth import get_current_admin, get_current_user
 from ..utils.excel import format_reservation_status, format_device_name
+from ..db.admin_system_db import get_admin_system_db
+from ..models.admin_system_models import Management as AdminSystemManagement
 
 router = APIRouter(prefix="/management", tags=["management"])
 
@@ -54,10 +56,9 @@ async def update_device(
 @router.get("/devices/status", response_model=List[Dict])
 async def get_devices_status(
     category: str = None,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    """获取设备状态，普通用户也应该有权限查看"""
+    """获取设备状态，不需要认证也可以查看"""
     query = db.query(models.Management)
     
     if category:
@@ -338,4 +339,25 @@ async def get_users(
             "department": user.department
         }
         for user in users
-    ] 
+    ]
+
+@router.get("/items", response_model=List[Dict])
+async def get_management_items(
+    category: Optional[str] = None,
+    db: Session = Depends(get_admin_system_db)
+):
+    """获取所有管理项目（设备和场地）"""
+    query = db.query(AdminSystemManagement)
+    if category:
+        query = query.filter_by(category=category)
+    items = query.all()
+    
+    # 返回与Flask版本相同的格式
+    return [{
+        'id': item.management_id,
+        'name': item.device_or_venue_name,
+        'category': item.category,
+        'quantity': item.quantity,
+        'available_quantity': item.available_quantity,
+        'status': item.status
+    } for item in items]

@@ -38,7 +38,11 @@
         <block wx:if="{{item.type === 'venue'}}">
           <view class="info-row">
             <text class="label">场地类型：</text>
-            <text>{{item.venue_type === 'lecture' ? '讲座' : (item.venue_type === 'seminar' ? '研讨室' : '会议室')}}</text>
+            <text>{{item.venue_type === 'lecture_hall' ? '讲座厅' : 
+                   item.venue_type === 'seminar_room' ? '研讨室' : 
+                   item.venue_type === 'meeting_room' ? '会议室' : 
+                   item.venue_type === 'innovation_space' ? '创新工坊' : 
+                   item.venue_type}}</text>
           </view>
           <view class="info-row">
             <text class="label">预约日期：</text>

@@ -3,24 +3,47 @@
   <view class="section" wx:if="{{isAdmin}}">
     <view class="section-title">管理功能</view>
     <view class="button-group">
-      <button class="btn" bindtap="goToApproval">审批管理</button>
+      <button class="btn admin-btn" bindtap="goToApproval">
+        <text>审批管理</text>
+      </button>
     </view>
   </view>
 
   <view class="section">
     <view class="section-title">场地预约</view>
     <view class="button-group">
-      <button class="btn" bindtap="goToVenue" data-type="lecture">讲座</button>
-      <button class="btn" bindtap="goToVenue" data-type="seminar">研讨室</button>
-      <button class="btn" bindtap="goToVenue" data-type="meeting_room">会议室</button>
+      <!-- 静态场地按钮 -->
+      <button class="btn" bindtap="goToVenue" data-type="讲座厅">讲座厅</button>
+      <button class="btn" bindtap="goToVenue" data-type="研讨室">研讨室</button>
+      <button class="btn" bindtap="goToVenue" data-type="会议室">会议室</button>
+      
+      <!-- 动态场地按钮 - 只显示非标准类型 -->
+      <block wx:if="{{venues.length > 0}}">
+        <block wx:for="{{venues}}" wx:key="id">
+          <block wx:if="{{item.type === 'custom_venue'}}">
+            <button class="btn" bindtap="goToVenue" data-type="{{item.name}}" data-name="{{item.name}}">{{item.name}}</button>
+          </block>
+        </block>
+      </block>
     </view>
   </view>
 
   <view class="section">
     <view class="section-title">设备预约</view>
     <view class="button-group">
+      <!-- 静态设备按钮 -->
       <button class="btn" bindtap="goToDevice" data-device="electric_screwdriver">电动螺丝刀</button>
       <button class="btn" bindtap="goToDevice" data-device="multimeter">万用表</button>
+      
+      <!-- 动态设备按钮 -->
+      <block wx:if="{{devices.length > 0}}">
+        <block wx:for="{{devices}}" wx:key="id">
+          <!-- 只显示不在默认设备中的设备 -->
+          <block wx:if="{{item.name !== '电动螺丝刀' && item.name !== '万用表'}}">
+            <button class="btn" bindtap="goToDevice" data-device="{{item.id}}">{{item.name}}</button>
+          </block>
+        </block>
+      </block>
     </view>
   </view>
 
