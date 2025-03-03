@@ -1,7 +1,5 @@
 // API配置
 const config = {
-  // API基础URL
-  apiBaseUrl: 'http://localhost:8000',  // 根据实际情况修改
 
   // 是否使用静态数据（用于开发测试）
   useStaticData: false,
