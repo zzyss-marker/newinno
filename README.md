@@ -57,6 +57,7 @@ source myvenv/bin/activate  # Linux/Mac
 
 ```bash
 pip install -r requirements.txt
+pip install -r requirements.txt --no-cache-dir #使用 --no-cache-dir 参数可以确保完全重新安装，避免使用缓存的包。
 ```
 
    3.启动后端服务（自动创建主业务数据库app.db）

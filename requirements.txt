@@ -5,14 +5,14 @@ flask-migrate
 flask-wtf
 fastapi
 uvicorn
-sqlalchemy
+sqlalchemy==1.4.49 
 python-jose
 passlib[bcrypt]
 python-multipart
 pandas
 openpyxl
 python-dotenv
-bcrypt
+bcrypt==4.0.1
 numpy
 xlsxwriter
 werkzeug
