@@ -256,3 +256,35 @@ async def filter_reservations(
 
     # ... 类似地添加设备和打印机的筛选逻辑
     return result 
+
+@router.get("/venue/occupied-times")
+async def get_occupied_time_slots(
+    venue_type: str,
+    date: str,
+    db: Session = Depends(get_db)
+):
+    """获取特定日期和场地类型已被预约的时间段"""
+    try:
+        # 将日期字符串转换为日期对象
+        reservation_date = datetime.strptime(date, "%Y-%m-%d").date()
+        
+        # 查询该日期该场地类型的所有预约，只考虑待审批和已通过的预约
+        reservations = db.query(models.VenueReservation).filter(
+            models.VenueReservation.venue_type == venue_type,
+            models.VenueReservation.reservation_date == reservation_date,
+            models.VenueReservation.status.in_(["pending", "approved"])
+        ).all()
+        
+        # 获取已占用的时间段
+        occupied_times = [r.business_time for r in reservations]
+        
+        return {
+            "venue_type": venue_type,
+            "date": date,
+            "occupied_times": occupied_times
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"获取已占用时间段失败: {str(e)}"
+        ) 

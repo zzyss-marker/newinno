@@ -328,9 +328,12 @@ async def export_reservations(
             'meeting_room': '会议室',
             'activity_room': '活动室',
             'classroom': '教室',
-            'lecture_hall': '报告厅',
+            'lecture_hall': '讲座厅',
+            'seminar_room': '研讨室',
             'seminar': '研讨室',
-            'lecture': '讲座'
+            'lecture': '讲座',
+            'innovation_space': '创新工坊',
+            'innovation': '创新工坊'
         }
 
         # 定义设备名称映射

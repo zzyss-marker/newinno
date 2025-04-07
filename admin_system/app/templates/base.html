@@ -203,11 +203,6 @@
                             <i class="fas fa-calendar-check mr-2"></i>预约管理
                         </a>
                     </li>
-                    <li class="nav-item {% if request.endpoint == 'admin.statistics' %}active{% endif %}">
-                        <a class="nav-link" href="{{ url_for('admin.statistics') }}">
-                            <i class="fas fa-chart-bar mr-2"></i>数据统计
-                        </a>
-                    </li>
                     <li class="nav-item {% if request.endpoint == 'admin.management' %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('admin.management') }}">
                             <i class="fas fa-cogs mr-2"></i>设备和场地管理

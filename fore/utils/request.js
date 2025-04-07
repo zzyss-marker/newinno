@@ -69,10 +69,26 @@ export const request = async (url, options = {}) => {
 }
 
 export const get = async (url, config = {}) => {
-  return request(url, {
+  // 从config中提取data对象作为查询参数
+  const { data, ...restConfig } = config;
+  
+  // 如果有查询参数，将它们添加到URL中
+  let finalUrl = url;
+  if (data && Object.keys(data).length > 0) {
+    const queryParams = Object.entries(data)
+      .filter(([_, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join('&');
+    
+    if (queryParams) {
+      finalUrl = `${url}${url.includes('?') ? '&' : '?'}${queryParams}`;
+    }
+  }
+  
+  return request(finalUrl, {
     method: 'GET',
-    ...config
-  })
+    ...restConfig
+  });
 }
 
 export const post = async (url, data, config = {}) => {

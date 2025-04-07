@@ -17,8 +17,9 @@
     <view class="form-group">
       <view class="label">时间段</view>
       <radio-group bindchange="onTimeChange">
-        <label class="radio" wx:for="{{businessTimes}}" wx:key="id">
-          <radio value="{{index}}" />{{item.name}}
+        <label class="radio {{item.disabled ? 'radio-disabled' : ''}}" wx:for="{{businessTimes}}" wx:key="id">
+          <radio value="{{index}}" disabled="{{item.disabled}}" />
+          {{item.name}} {{item.disabled ? '(已占用)' : ''}}
         </label>
       </radio-group>
     </view>

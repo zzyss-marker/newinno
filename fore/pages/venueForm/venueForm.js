@@ -1,5 +1,5 @@
 import config from '../../config'
-import { post } from '../../utils/request'
+import { post, get } from '../../utils/request'
 
 Page({
   /**
@@ -21,10 +21,12 @@ Page({
     ],
     selectedDevices: [],
     businessTimes: [
-      { id: 1, name: '上午 (8:00-12:00)', value: 'morning' },
-      { id: 2, name: '下午 (13:00-17:00)', value: 'afternoon' },
-      { id: 3, name: '晚上 (18:00-22:00)', value: 'evening' }
-    ]
+      { id: 'morning', name: '上午 (8:00-12:00)', disabled: false },
+      { id: 'afternoon', name: '下午 (13:00-17:00)', disabled: false },
+      { id: 'evening', name: '晚上 (18:00-22:00)', disabled: false }
+    ],
+    occupiedTimes: [], // 存储已占用的时间段
+    loading: false
   },
 
   /**
@@ -63,10 +65,62 @@ Page({
    * 日期选择变更处理
    */
   onDateChange(e) {
+    const date = e.detail.value;
     this.setData({
-      date: e.detail.value
+      date: date,
+      selectedTimeIndex: -1 // 日期变更时重置时间段选择
     });
-    console.log('选择的日期:', e.detail.value);
+    console.log('选择的日期:', date);
+    
+    // 获取该日期已占用的时间段
+    this.getOccupiedTimeSlots(date);
+  },
+
+  /**
+   * 获取指定日期已占用的时间段
+   */
+  async getOccupiedTimeSlots(date) {
+    if (!date || !this.data.venueType) return;
+    
+    // 将场地类型转换为后端需要的格式
+    let backendVenueType = this.data.venueType;
+    if (this.data.venueType === '会议室') backendVenueType = 'meeting_room';
+    else if (this.data.venueType === '讲座厅') backendVenueType = 'lecture_hall';
+    else if (this.data.venueType === '研讨室') backendVenueType = 'seminar_room';
+    else if (this.data.venueType === '创新工坊') backendVenueType = 'innovation_space';
+    
+    this.setData({ loading: true });
+    try {
+      const response = await get('reservations/venue/occupied-times', {
+        data: {
+          venue_type: backendVenueType,
+          date: date
+        }
+      });
+      
+      // 更新占用状态
+      const occupiedTimes = response.occupied_times || [];
+      this.setData({ occupiedTimes });
+      
+      // 更新时间段状态
+      const updatedBusinessTimes = this.data.businessTimes.map(time => {
+        return {
+          ...time,
+          disabled: occupiedTimes.includes(time.id)
+        };
+      });
+      
+      this.setData({ 
+        businessTimes: updatedBusinessTimes,
+        loading: false
+      });
+      
+      console.log('已占用时间段:', occupiedTimes);
+    } catch (error) {
+      console.error('获取已占用时间段失败:', error);
+      this.setData({ loading: false });
+      this.showToast('获取时间段信息失败');
+    }
   },
 
   /**
@@ -74,6 +128,12 @@ Page({
    */
   onTimeChange(e) {
     const index = parseInt(e.detail.value);
+    // 检查所选时间段是否被禁用
+    if (this.data.businessTimes[index].disabled) {
+      this.showToast('该时间段已被预约，请选择其他时间');
+      return;
+    }
+    
     this.setData({
       selectedTimeIndex: index
     });
@@ -97,6 +157,16 @@ Page({
     const { venueId, venueName, venueType, date, selectedTimeIndex, selectedDevices } = this.data;
     const { purpose } = e.detail.value;
     
+    console.log('提交前表单数据:', {
+      venueId, 
+      venueName, 
+      venueType, 
+      date, 
+      selectedTimeIndex,
+      selectedDevices,
+      purpose
+    });
+    
     // 表单验证
     if (!date) {
       this.showToast('请选择预约日期');
@@ -116,21 +186,39 @@ Page({
     // 准备提交的数据
     const selectedTime = this.data.businessTimes[selectedTimeIndex];
     
+    // 转换场地类型为后端需要的格式
+    let backendVenueType = venueType;
+    if (venueType === '会议室') backendVenueType = 'meeting_room';
+    else if (venueType === '讲座厅') backendVenueType = 'lecture_hall';
+    else if (venueType === '研讨室') backendVenueType = 'seminar_room';
+    else if (venueType === '创新工坊') backendVenueType = 'innovation_space';
+    
     const formData = {
       venue_id: venueId,
       venue_name: venueName,
-      venue_type: venueType,
+      venue_type: backendVenueType,
       reservation_date: date,
-      time_slot: selectedTime.value,
+      business_time: selectedTime.id,
       purpose: purpose,
-      devices: selectedDevices
+      devices_needed: {}
     };
+    
+    // 如果是讲座厅且有设备选择，添加设备信息
+    if (venueType === '讲座厅' && selectedDevices && selectedDevices.length > 0) {
+      const devices_needed = {
+        screen: selectedDevices.includes('screen'),
+        projector: selectedDevices.includes('projector'),
+        mic: selectedDevices.includes('mic'),
+        laptop: selectedDevices.includes('laptop')
+      };
+      formData.devices_needed = devices_needed;
+    }
     
     console.log('准备提交的场地预约数据:', formData);
     
     try {
       // 发送预约请求到后端API
-      const result = await post('/api/reservations/venue', formData);
+      const result = await post('reservations/venue', formData);
       
       this.showToast('预约申请已提交', 'success');
       

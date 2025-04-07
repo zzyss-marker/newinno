@@ -242,4 +242,9 @@ textarea:focus {
 
 .submit-btn:active::after {
   transform: translateX(100%);
+}
+
+.radio-disabled {
+  color: #999;
+  opacity: 0.7;
 } 

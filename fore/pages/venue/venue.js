@@ -1,4 +1,4 @@
-import { post } from '../../utils/request'
+import { post, get } from '../../utils/request'
 import config from '../../config'
 import { getAvailableVenues } from '../../utils/api'
 
@@ -10,7 +10,7 @@ Page({
     date: '',
     minDate: '',
     businessTime: '',
-    businessTimes: config.businessTimes,
+    businessTimes: config.businessTimes.map(time => ({...time, disabled: false})),
     selectedBusinessTime: '',
     deviceOptions: config.deviceOptions,
     selectedDevices: {},
@@ -18,7 +18,8 @@ Page({
     venueList: [],
     venueTypes: [],
     categoryFilter: '',
-    loading: true
+    loading: true,
+    occupiedTimes: [] // 存储已占用的时间段
   },
 
   onLoad(options) {
@@ -46,17 +47,99 @@ Page({
   },
 
   onDateChange(e) {
+    const date = e.detail.value;
     this.setData({
-      date: e.detail.value
-    })
+      date: date,
+      selectedBusinessTime: '' // 日期变更时重置时间段选择
+    });
+    
+    // 获取该日期已占用的时间段
+    this.getOccupiedTimeSlots(date);
+  },
+
+  /**
+   * 获取指定日期已占用的时间段
+   */
+  async getOccupiedTimeSlots(date) {
+    if (!date || !this.data.venueType) return;
+    
+    // 将场地类型转换为后端需要的格式
+    let backendVenueType = this.data.venueType;
+    if (this.data.venueType === '会议室') backendVenueType = 'meeting_room';
+    else if (this.data.venueType === '讲座厅') backendVenueType = 'lecture_hall';
+    else if (this.data.venueType === '研讨室') backendVenueType = 'seminar_room';
+    else if (this.data.venueType === '创新工坊') backendVenueType = 'innovation_space';
+    
+    wx.showLoading({ title: '加载中' });
+    try {
+      const response = await get('reservations/venue/occupied-times', {
+        data: {
+          venue_type: backendVenueType,
+          date: date
+        }
+      });
+      
+      // 更新占用状态
+      const occupiedTimes = response.occupied_times || [];
+      this.setData({ occupiedTimes });
+      
+      // 更新时间段状态
+      const updatedBusinessTimes = this.data.businessTimes.map(time => {
+        return {
+          ...time,
+          disabled: occupiedTimes.includes(time.id)
+        };
+      });
+      
+      this.setData({ businessTimes: updatedBusinessTimes });
+      
+      console.log('已占用时间段:', occupiedTimes);
+      wx.hideLoading();
+    } catch (error) {
+      console.error('获取已占用时间段失败:', error);
+      wx.hideLoading();
+      wx.showToast({
+        title: '获取时间段信息失败',
+        icon: 'none'
+      });
+    }
   },
 
   onTimeChange(e) {
-    const selectedTime = e.detail.value
-    const businessTime = config.businessTimes[selectedTime]
+    const selectedTime = e.detail.value;
+    console.log('选择的时间段索引:', selectedTime);
+    
+    // 确保选择的索引有效
+    if (selectedTime === '' || isNaN(parseInt(selectedTime))) {
+      console.log('选择的时间段索引无效');
+      return;
+    }
+    
+    const timeIndex = parseInt(selectedTime);
+    const time = this.data.businessTimes[timeIndex];
+    console.log('选择的时间段对象:', time);
+    
+    // 检查时间对象是否存在
+    if (!time) {
+      console.log('找不到对应的时间段对象');
+      return;
+    }
+    
+    // 检查所选时间段是否被禁用
+    if (time.disabled) {
+      wx.showToast({
+        title: '该时间段已被预约，请选择其他时间',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    // 使用id作为值，而不是访问不存在的value属性
     this.setData({
-      selectedBusinessTime: businessTime.id
-    })
+      selectedBusinessTime: time.id
+    });
+    
+    console.log('设置selectedBusinessTime为:', time.id);
   },
 
   onDevicesChange(e) {
@@ -83,11 +166,26 @@ Page({
     const { purpose } = e.detail.value
     const { venueId, venueName, venueType, date, selectedBusinessTime, selectedDevices } = this.data
 
+    console.log('提交前表单数据:', {
+      venueId, 
+      venueName, 
+      venueType, 
+      date, 
+      selectedBusinessTime,
+      selectedDevices,
+      purpose
+    });
+
     if (!date || !selectedBusinessTime || !purpose) {
       wx.showToast({
         title: '请填写完整信息',
         icon: 'none'
       })
+      console.log('表单验证失败，缺少必填字段:', {
+        date: Boolean(date),
+        selectedBusinessTime: Boolean(selectedBusinessTime),
+        purpose: Boolean(purpose)
+      });
       return
     }
 
@@ -132,6 +230,7 @@ Page({
         wx.navigateBack()
       }, 1500)
     } catch (error) {
+      console.error('预约失败:', error)
       wx.showToast({
         title: error.message || '预约失败',
         icon: 'none'

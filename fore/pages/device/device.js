@@ -137,6 +137,28 @@ Page({
     for (let i = startMinute; i < 60; i += 5) {
       minutes.push(i + '分')
     }
+    
+    // 确保分钟列表不为空，如果没有分钟选项（例如在55分以后），添加下一个小时的0分
+    if (minutes.length === 0) {
+      minutes.push('0分')
+      // 调整小时，如果已经是23时，则需要调整到明天
+      if (hours.length === 0 || parseInt(hours[hours.length - 1]) === 23) {
+        // 如果没有可选小时，添加下一天的0时
+        if (hours.length === 0) {
+          hours.push('0时')
+        }
+        // 需要更新日期到明天
+        const nextDay = new Date(currentYear, currentMonth - 1, currentDay + 1)
+        const nextDayDate = nextDay.getDate()
+        // 如果日期数组为空，添加下一天的日期
+        if (days.length === 0) {
+          days.push(nextDayDate + '日')
+        }
+      } else {
+        // 添加下一个小时
+        hours.push((currentHour + 1) + '时')
+      }
+    }
 
     this.setData({
       dateTimeArray: [years, months, days, hours, minutes],
