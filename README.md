@@ -2,8 +2,6 @@
 
 locust -f locustfile.py --host=http://localhost:8001
 
-666
-
 一个基于FastAPI和微信小程序的实验室预约管理系统。(需求在docs/command.md里面)
 
 ![1739079874624](image/README/1739079874624.png)
