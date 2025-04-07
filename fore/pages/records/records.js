@@ -186,9 +186,15 @@ Page({
   // 辅助函数：获取场地类型名称
   getVenueTypeName(type) {
     const venueTypes = {
-      'lecture': '讲座',
+      'lecture': '讲座厅',
+      'lecture_hall': '讲座厅',
       'seminar': '研讨室',
-      'meeting_room': '会议室'
+      'seminar_room': '研讨室',
+      'meeting_room': '会议室',
+      'meeting': '会议室',
+      'innovation_space': '创新工坊',
+      'innovation': '创新工坊',
+      'custom_venue': '自定义场地'
     }
     return venueTypes[type] || type
   },
