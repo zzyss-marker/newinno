@@ -3,38 +3,8 @@ from . import db, login_manager
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
-class Admin(UserMixin, db.Model):
-    __tablename__ = 'admins'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    name = db.Column(db.String(80), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    
-    @property
-    def password(self):
-        raise AttributeError('password is not a readable attribute')
-        
-    @password.setter
-    def password(self, password):
-        self.password_hash = generate_password_hash(password)
-        
-    def verify_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def __init__(self, username, name=None):
-        self.username = username
-        self.name = name
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-# 使用主应用的模型
-class User(db.Model):
+# User model now inherits from UserMixin to support Flask-Login
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
     user_id = db.Column(db.Integer, primary_key=True)
@@ -47,6 +17,19 @@ class User(db.Model):
     venue_reservations = db.relationship('VenueReservation', back_populates='user')
     device_reservations = db.relationship('DeviceReservation', back_populates='user')
     printer_reservations = db.relationship('PrinterReservation', back_populates='user')
+    
+    # Required for Flask-Login
+    def get_id(self):
+        return str(self.user_id)
+        
+    # Check if the user has admin role
+    def is_admin(self):
+        return self.role == 'admin'
+        
+    # Verify password for login
+    def verify_password(self, password):
+        # Simple password check - can be replaced with more secure method
+        return self.password == password
 
 class VenueReservation(db.Model):
     __tablename__ = 'venue_reservations'
@@ -104,8 +87,4 @@ class Management(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __repr__(self):
-        return f'<Management {self.device_or_venue_name}>'
-
-@login_manager.user_loader
-def load_user(user_id):
-    return Admin.query.get(int(user_id)) 
+        return f'<Management {self.device_or_venue_name}>' 

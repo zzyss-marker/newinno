@@ -67,6 +67,9 @@ class VenueReservation(VenueReservationCreate):
     reservation_id: int
     user_id: int
     status: str
+    created_at: datetime
+    user_name: Optional[str] = None
+    user_department: Optional[str] = None
     
     class Config:
         orm_mode = True
@@ -74,14 +77,18 @@ class VenueReservation(VenueReservationCreate):
 class DeviceReservationCreate(BaseModel):
     device_name: DeviceType
     borrow_time: datetime
-    return_time: datetime
+    return_time: Optional[datetime] = None
     reason: str
+    usage_type: Optional[str] = "takeaway"
 
 class DeviceReservation(DeviceReservationCreate):
     reservation_id: int
     user_id: int
     status: str
     actual_return_time: Optional[datetime]
+    created_at: datetime
+    user_name: Optional[str] = None
+    user_department: Optional[str] = None
     
     class Config:
         orm_mode = True
@@ -129,6 +136,8 @@ class PrinterReservation(PrinterReservationBase):
     user_id: int
     status: str
     created_at: datetime
+    user_name: Optional[str] = None
+    user_department: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -225,12 +234,19 @@ class VenueReservationInfo(ReservationBase):
     type: str = 'venue'
 
 # 设备预约
-class DeviceReservationInfo(ReservationBase):
-    device_name: str
-    borrow_time: datetime
-    return_time: datetime
-    reason: Optional[str]
+class DeviceReservationInfo(BaseModel):
     type: str = 'device'
+    device_name: str
+    borrow_time: str
+    return_time: Optional[str] = None
+    status: str
+    usage_type: Optional[str] = 'takeaway'  # 添加usage_type字段
+    
+    @validator('type')
+    def validate_type(cls, v):
+        if v != 'device':
+            raise ValueError("Type must be 'device'")
+        return v
 
 # 打印机预约
 class PrinterReservationInfo(PrinterReservationBase):

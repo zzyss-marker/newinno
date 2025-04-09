@@ -23,6 +23,7 @@ Page({
     categoryFilter: '',
     loading: true,
     isListPage: true, // 默认显示列表页面
+    usageType: 'onsite', // 默认为现场使用
   },
 
   /**
@@ -127,36 +128,72 @@ Page({
       days.push(i + '日')
     }
 
-    // 如果是当前日期，则从当前小时开始
-    for (let i = currentHour; i < 24; i++) {
-      hours.push(i + '时')
-    }
-
-    // 如果是当前小时，则从当前分钟开始（向上取整到5的倍数）
-    const startMinute = Math.ceil(currentMinute / 5) * 5
-    for (let i = startMinute; i < 60; i += 5) {
-      minutes.push(i + '分')
-    }
+    // 处理日期跨天情况
+    const isEndOfDay = currentHour >= 23 && currentMinute >= 55
     
-    // 确保分钟列表不为空，如果没有分钟选项（例如在55分以后），添加下一个小时的0分
-    if (minutes.length === 0) {
-      minutes.push('0分')
-      // 调整小时，如果已经是23时，则需要调整到明天
-      if (hours.length === 0 || parseInt(hours[hours.length - 1]) === 23) {
-        // 如果没有可选小时，添加下一天的0时
-        if (hours.length === 0) {
-          hours.push('0时')
-        }
-        // 需要更新日期到明天
-        const nextDay = new Date(currentYear, currentMonth - 1, currentDay + 1)
+    if (isEndOfDay) {
+      // 如果是一天的最后几分钟，需要准备第二天的数据
+      // 清空当天的时间数组，因为当天已经没有可选时间了
+      hours.length = 0
+      minutes.length = 0
+      
+      // 检查是否需要切换到下个月
+      const nextDay = new Date(date)
+      nextDay.setDate(currentDay + 1)
+      
+      // 如果当前已经是当月最后一天，添加下个月
+      if (currentDay === lastDay && months.length === 1) {
+        const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+        months.push(nextMonth + '月')
+      }
+      
+      // 如果当前日期已经是当前显示的最后一天，添加下一天
+      if (days.length === 0 || parseInt(days[days.length - 1]) === lastDay) {
         const nextDayDate = nextDay.getDate()
-        // 如果日期数组为空，添加下一天的日期
-        if (days.length === 0) {
-          days.push(nextDayDate + '日')
+        days.push(nextDayDate + '日')
+      }
+      
+      // 添加第二天的所有小时
+      for (let i = 0; i < 24; i++) {
+        hours.push(i + '时')
+      }
+      
+      // 添加所有分钟选项
+      for (let i = 0; i < 60; i += 5) {
+        minutes.push(i + '分')
+      }
+    } else {
+      // 如果是当前日期，则从当前小时开始
+      for (let i = currentHour; i < 24; i++) {
+        hours.push(i + '时')
+      }
+
+      // 如果是当前小时，则从当前分钟开始（向上取整到5的倍数）
+      const startMinute = Math.ceil(currentMinute / 5) * 5
+      for (let i = startMinute; i < 60; i += 5) {
+        minutes.push(i + '分')
+      }
+      
+      // 确保分钟列表不为空，如果没有分钟选项（例如在55分以后），添加下一个小时的0分
+      if (minutes.length === 0) {
+        minutes.push('0分')
+        // 调整小时，如果已经是23时，则需要调整到明天
+        if (hours.length === 0 || parseInt(hours[hours.length - 1]) === 23) {
+          // 如果没有可选小时，添加下一天的0时
+          if (hours.length === 0) {
+            hours.push('0时')
+          }
+          // 需要更新日期到明天
+          const nextDay = new Date(currentYear, currentMonth - 1, currentDay + 1)
+          const nextDayDate = nextDay.getDate()
+          // 如果日期数组为空，添加下一天的日期
+          if (days.length === 0) {
+            days.push(nextDayDate + '日')
+          }
+        } else {
+          // 添加下一个小时
+          hours.push((currentHour + 1) + '时')
         }
-      } else {
-        // 添加下一个小时
-        hours.push((currentHour + 1) + '时')
       }
     }
 
@@ -215,6 +252,8 @@ Page({
         )
       }
       needUpdate = true
+      // 重置月份索引
+      newDateTimeIndex[1] = 0
     }
 
     if (column === 1 || needUpdate) { // 月份变化
@@ -238,6 +277,82 @@ Page({
         )
       }
       needUpdate = true
+      // 重置日期索引
+      newDateTimeIndex[2] = 0
+    }
+    
+    if (column === 2 || needUpdate) { // 日期变化
+      const selectedYear = parseInt(dateTimeArray[0][newDateTimeIndex[0]].replace('年', ''))
+      const selectedMonth = parseInt(dateTimeArray[1][newDateTimeIndex[1]].replace('月', ''))
+      const selectedDay = parseInt(dateTimeArray[2][newDateTimeIndex[2]].replace('日', ''))
+      
+      const selectedDate = new Date(selectedYear, selectedMonth - 1, selectedDay)
+      const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+      
+      if (selectedDate.getTime() === today.getTime()) {
+        // 如果选择的是今天，从当前小时开始
+        const currentHour = currentDate.getHours()
+        newDateTimeArray[3] = Array.from(
+          { length: 24 - currentHour },
+          (_, i) => (currentHour + i) + '时'
+        )
+        
+        // 如果当前小时已经是23时且分钟超过55分，则没有可选时间，需要强制切换到下一天
+        if (currentHour === 23 && currentDate.getMinutes() >= 55) {
+          // 显示明天所有小时
+          newDateTimeArray[3] = Array.from(
+            { length: 24 },
+            (_, i) => i + '时'
+          )
+        }
+      } else {
+        // 非当前日期，显示所有小时
+        newDateTimeArray[3] = Array.from(
+          { length: 24 },
+          (_, i) => i + '时'
+        )
+      }
+      needUpdate = true
+      // 重置小时索引
+      newDateTimeIndex[3] = 0
+    }
+    
+    if (column === 3 || needUpdate) { // 小时变化
+      const selectedYear = parseInt(dateTimeArray[0][newDateTimeIndex[0]].replace('年', ''))
+      const selectedMonth = parseInt(dateTimeArray[1][newDateTimeIndex[1]].replace('月', ''))
+      const selectedDay = parseInt(dateTimeArray[2][newDateTimeIndex[2]].replace('日', ''))
+      const selectedHour = parseInt(dateTimeArray[3][newDateTimeIndex[3]].replace('时', ''))
+      
+      const selectedDate = new Date(selectedYear, selectedMonth - 1, selectedDay)
+      const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+      
+      if (selectedDate.getTime() === today.getTime() && selectedHour === currentDate.getHours()) {
+        // 如果选择的是今天的当前小时，从当前分钟开始（向上取整到5的倍数）
+        const currentMinute = currentDate.getMinutes()
+        const startMinute = Math.ceil(currentMinute / 5) * 5
+        
+        if (startMinute >= 60) {
+          // 如果已经没有可选分钟，显示下一小时的分钟
+          newDateTimeArray[4] = Array.from(
+            { length: 12 },
+            (_, i) => (i * 5) + '分'
+          )
+        } else {
+          newDateTimeArray[4] = Array.from(
+            { length: Math.floor((60 - startMinute) / 5) },
+            (_, i) => (startMinute + i * 5) + '分'
+          )
+        }
+      } else {
+        // 非当前小时，显示所有分钟（5分钟间隔）
+        newDateTimeArray[4] = Array.from(
+          { length: 12 },
+          (_, i) => (i * 5) + '分'
+        )
+      }
+      // 重置分钟索引
+      newDateTimeIndex[4] = 0
+      needUpdate = true
     }
 
     if (needUpdate) {
@@ -252,6 +367,7 @@ Page({
     // 与 onColumnChange 类似的逻辑，但是起始时间是借用时间
     const { column, value } = e.detail
     const { returnDateTimeIndex, dateTimeArray, borrowTime } = this.data
+    const currentDate = new Date()
     
     // 如果还没有选择借用时间，不允许选择归还时间
     if (!borrowTime) {
@@ -262,16 +378,147 @@ Page({
       return
     }
 
-    // 其余逻辑与 onColumnChange 类似，但是以借用时间为起点
+    // 解析借用时间作为基准
+    let borrowDateTime
+    try {
+      borrowDateTime = new Date(this.formatTimeToISO(borrowTime))
+    } catch (error) {
+      console.error('解析借用时间出错:', error)
+      borrowDateTime = new Date() // 如果解析出错，使用当前时间作为基准
+    }
+    
     let needUpdate = false
     const newDateTimeArray = [...dateTimeArray]
     const newReturnDateTimeIndex = [...returnDateTimeIndex]
     newReturnDateTimeIndex[column] = value
 
+    if (column === 0) { // 年份变化
+      const selectedYear = parseInt(dateTimeArray[0][value].replace('年', ''))
+      if (selectedYear === borrowDateTime.getFullYear()) {
+        // 与借用时间相同的年份，从借用时间的月份开始
+        newDateTimeArray[1] = Array.from(
+          { length: 12 - borrowDateTime.getMonth() },
+          (_, i) => (borrowDateTime.getMonth() + 1 + i) + '月'
+        )
+      } else {
+        // 非借用时间的年份，显示所有月份
+        newDateTimeArray[1] = Array.from(
+          { length: 12 },
+          (_, i) => (i + 1) + '月'
+        )
+      }
+      needUpdate = true
+      // 重置月份索引
+      newReturnDateTimeIndex[1] = 0
+    }
+
+    if (column === 1 || needUpdate) { // 月份变化
+      const selectedYear = parseInt(dateTimeArray[0][newReturnDateTimeIndex[0]].replace('年', ''))
+      const selectedMonth = parseInt(dateTimeArray[1][newReturnDateTimeIndex[1]].replace('月', ''))
+      
+      const isSameYearMonth = selectedYear === borrowDateTime.getFullYear() && 
+                            selectedMonth === borrowDateTime.getMonth() + 1
+
+      const lastDay = new Date(selectedYear, selectedMonth, 0).getDate()
+      
+      if (isSameYearMonth) {
+        // 与借用时间相同的年月，从借用时间的日期开始
+        newDateTimeArray[2] = Array.from(
+          { length: lastDay - borrowDateTime.getDate() + 1 },
+          (_, i) => (borrowDateTime.getDate() + i) + '日'
+        )
+      } else {
+        // 非借用时间的年月，显示所有日期
+        newDateTimeArray[2] = Array.from(
+          { length: lastDay },
+          (_, i) => (i + 1) + '日'
+        )
+      }
+      needUpdate = true
+      // 重置日期索引
+      newReturnDateTimeIndex[2] = 0
+    }
+    
+    if (column === 2 || needUpdate) { // 日期变化
+      const selectedYear = parseInt(dateTimeArray[0][newReturnDateTimeIndex[0]].replace('年', ''))
+      const selectedMonth = parseInt(dateTimeArray[1][newReturnDateTimeIndex[1]].replace('月', ''))
+      const selectedDay = parseInt(dateTimeArray[2][newReturnDateTimeIndex[2]].replace('日', ''))
+      
+      const selectedDate = new Date(selectedYear, selectedMonth - 1, selectedDay)
+      const borrowDate = new Date(
+        borrowDateTime.getFullYear(), 
+        borrowDateTime.getMonth(), 
+        borrowDateTime.getDate()
+      )
+      
+      if (selectedDate.getTime() === borrowDate.getTime()) {
+        // 如果选择的是借用时间的同一天，从借用时间的下一个小时开始
+        const borrowHour = borrowDateTime.getHours()
+        newDateTimeArray[3] = Array.from(
+          { length: 24 - borrowHour - 1 },
+          (_, i) => (borrowHour + i + 1) + '时'
+        )
+      } else {
+        // 非借用时间的日期，显示所有小时
+        newDateTimeArray[3] = Array.from(
+          { length: 24 },
+          (_, i) => i + '时'
+        )
+      }
+      needUpdate = true
+      // 重置小时索引
+      newReturnDateTimeIndex[3] = 0
+    }
+    
+    if (column === 3 || needUpdate) { // 小时变化
+      const selectedYear = parseInt(dateTimeArray[0][newReturnDateTimeIndex[0]].replace('年', ''))
+      const selectedMonth = parseInt(dateTimeArray[1][newReturnDateTimeIndex[1]].replace('月', ''))
+      const selectedDay = parseInt(dateTimeArray[2][newReturnDateTimeIndex[2]].replace('日', ''))
+      const selectedHour = parseInt(dateTimeArray[3][newReturnDateTimeIndex[3]].replace('时', ''))
+      
+      const selectedDate = new Date(selectedYear, selectedMonth - 1, selectedDay)
+      const borrowDate = new Date(
+        borrowDateTime.getFullYear(), 
+        borrowDateTime.getMonth(), 
+        borrowDateTime.getDate()
+      )
+      
+      if (selectedDate.getTime() === borrowDate.getTime() && selectedHour === borrowDateTime.getHours()) {
+        // 如果选择的是借用时间的同一天同一小时，从借用时间的下一个5分钟开始
+        const borrowMinute = borrowDateTime.getMinutes()
+        const startMinute = Math.ceil(borrowMinute / 5) * 5 + 5 // 借用时间的下一个5分钟
+        
+        if (startMinute >= 60) {
+          // 如果已经没有可选分钟，应该强制选择下一小时
+          newDateTimeArray[4] = Array.from(
+            { length: 12 },
+            (_, i) => (i * 5) + '分'
+          )
+        } else {
+          newDateTimeArray[4] = Array.from(
+            { length: Math.floor((60 - startMinute) / 5) },
+            (_, i) => (startMinute + i * 5) + '分'
+          )
+        }
+      } else {
+        // 非借用时间的小时，显示所有分钟（5分钟间隔）
+        newDateTimeArray[4] = Array.from(
+          { length: 12 },
+          (_, i) => (i * 5) + '分'
+        )
+      }
+      // 重置分钟索引
+      newReturnDateTimeIndex[4] = 0
+      needUpdate = true
+    }
+
     // 更新索引
-    this.setData({
-      returnDateTimeIndex: newReturnDateTimeIndex
-    })
+    if (needUpdate) {
+      this.setData({
+        dateTimeArray: newDateTimeArray,
+        returnDateTimeIndex: newReturnDateTimeIndex
+      })
+    }
   },
 
   formatTimeToISO(timeStr) {
@@ -303,85 +550,129 @@ Page({
   },
 
   validateTimeRange() {
-    if (!this.data.borrowTime || !this.data.returnTime) return false
-
-    try {
-      // 转换为标准的ISO格式
-      const borrowTime = this.formatTimeToISO(this.data.borrowTime)
-      const returnTime = this.formatTimeToISO(this.data.returnTime)
-      
-      const borrowDate = new Date(borrowTime)
-      const returnDate = new Date(returnTime)
-
-      console.log('借用时间:', borrowTime, borrowDate)
-      console.log('归还时间:', returnTime, returnDate)
-      console.log('比较结果:', returnDate > borrowDate)
-
-      if (isNaN(borrowDate.getTime()) || isNaN(returnDate.getTime())) {
-        console.error('无效的日期格式')
-        return false
-      }
-
-      return returnDate > borrowDate
-    } catch (error) {
-      console.error('时间比较出错:', error)
-      return false
+    const { borrowTime, returnTime, usageType } = this.data;
+    
+    // 如果是现场使用模式，不需要验证归还时间
+    if (usageType === 'onsite') {
+      return true;
     }
+    
+    // 解析时间
+    const borrowDateTime = new Date(this.formatTimeToISO(borrowTime));
+    const returnDateTime = new Date(this.formatTimeToISO(returnTime));
+    
+    // 借用时间必须在归还时间之前
+    if (borrowDateTime >= returnDateTime) {
+      wx.showToast({
+        title: '归还时间必须晚于借用时间',
+        icon: 'none'
+      });
+      return false;
+    }
+    
+    // 借用时间必须在当前时间之后
+    const now = new Date();
+    if (borrowDateTime <= now) {
+      wx.showToast({
+        title: '借用时间必须是未来时间',
+        icon: 'none'
+      });
+      return false;
+    }
+    
+    return true;
+  },
+
+  onUsageTypeChange(e) {
+    this.setData({
+      usageType: e.detail.value
+    });
   },
 
   // 处理表单提交
   async handleSubmit(e) {
-    console.log('设备预约表单提交:', e.detail.value);
-    const { reason } = e.detail.value;
-    const { deviceId, deviceName, borrowTime, returnTime } = this.data;
+    const { deviceId, deviceName, borrowTime, returnTime, usageType } = this.data;
+    const reason = e.detail.value.reason;
 
-    if (!borrowTime || !returnTime || !reason) {
+    // 验证
+    if (!deviceId) {
       wx.showToast({
-        title: '请填写完整信息',
+        title: '设备ID不能为空',
         icon: 'none'
       });
       return;
     }
 
-    // 验证时间范围
-    if (!this.validateTimeRange()) {
+    if (!borrowTime) {
       wx.showToast({
-        title: '归还时间必须在借用时间之后',
+        title: '请选择借用时间',
+        icon: 'none'
+      });
+      return;
+    }
+
+    if (usageType === 'takeaway' && !returnTime) {
+      wx.showToast({
+        title: '请选择归还时间',
+        icon: 'none'
+      });
+      return;
+    }
+
+    // 现场使用时不需要归还时间，设置为空
+    const finalReturnTime = usageType === 'onsite' ? null : returnTime;
+
+    // 验证时间
+    if (usageType === 'takeaway' && !this.validateTimeRange()) {
+      return;
+    }
+
+    if (!reason) {
+      wx.showToast({
+        title: '请输入借用原因',
         icon: 'none'
       });
       return;
     }
 
     try {
-      // 转换为标准的ISO格式
-      const borrowTimeISO = this.formatTimeToISO(borrowTime);
-      const returnTimeISO = this.formatTimeToISO(returnTime);
+      wx.showLoading({
+        title: '提交中...',
+        mask: true
+      });
 
-      // 构建预约请求数据
-      const reservationData = {
-        device_name: deviceName,
+      // 格式化时间
+      const borrowTimeISO = this.formatTimeToISO(borrowTime);
+      const returnTimeISO = usageType === 'takeaway' ? this.formatTimeToISO(returnTime) : null;
+
+      const requestData = {
+        device_name: deviceId,
         borrow_time: borrowTimeISO,
         return_time: returnTimeISO,
-        reason: reason
+        reason: reason,
+        usage_type: usageType
       };
 
-      console.log('提交的预约数据:', reservationData);
+      console.log('预约请求数据:', requestData);
 
-      // 提交预约请求
-      const result = await post('/reservations/device', reservationData);
+      // 提交预约
+      await post('/reservations/device', requestData);
 
+      wx.hideLoading();
       wx.showToast({
-        title: '预约申请已提交',
+        title: '预约成功，等待审核',
         icon: 'success'
       });
-      
+
+      // 返回上一页
       setTimeout(() => {
         wx.navigateBack();
       }, 1500);
     } catch (error) {
-      console.error('设备预约失败:', error);
+      wx.hideLoading();
+      console.error('预约失败:', error);
       wx.showToast({
-        title: error.message || '预约失败，请稍后再试',
+        title: error.message || '预约失败',
         icon: 'none'
       });
     }

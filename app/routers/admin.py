@@ -89,7 +89,11 @@ async def get_pending_reservations(
                 "created_at": r.created_at,
                 "printer_name": r.printer_name,
                 "reservation_date": str(r.reservation_date),
-                "print_time": str(r.print_time)
+                "print_time": str(r.print_time),
+                "end_time": str(r.end_time) if r.end_time else None,
+                "estimated_duration": r.estimated_duration,
+                "model_name": r.model_name,
+                "approver_name": r.approver_name
             } for r in printer_reservations]
         }
     except Exception as e:
@@ -154,7 +158,11 @@ async def get_approved_reservations(
                 "created_at": r.created_at,
                 "printer_name": r.printer_name,
                 "reservation_date": str(r.reservation_date),
-                "print_time": str(r.print_time)
+                "print_time": str(r.print_time),
+                "end_time": str(r.end_time) if r.end_time else None,
+                "estimated_duration": r.estimated_duration,
+                "model_name": r.model_name,
+                "approver_name": r.approver_name
             } for r in printer_reservations]
         }
     except Exception as e:
@@ -197,8 +205,9 @@ async def approve_reservation(
         if not reservation:
             raise HTTPException(status_code=404, detail="预约记录不存在")
         
-        # 更新状态
+        # 更新状态和审批人
         reservation.status = new_status
+        reservation.approver_name = current_user.name  # 记录审批人姓名
         db.commit()
         
         return {"message": "审批成功"}
@@ -236,6 +245,7 @@ async def reject_reservation(
             raise HTTPException(status_code=404, detail="Reservation not found")
             
         reservation.status = data.status
+        reservation.approver_name = current_user.name  # 记录审批人姓名
         db.commit()
         return {"message": f"Reservation {data.status}"}
     except Exception as e:
@@ -257,6 +267,9 @@ async def confirm_device_return(
         
     reservation.status = "returned"
     reservation.actual_return_time = datetime.now()
+    # 如果之前没有审批人记录，添加当前操作员作为审批人
+    if not reservation.approver_name:
+        reservation.approver_name = current_user.name
     db.commit()
     return {"message": "Device return confirmed"}
 
@@ -372,6 +385,7 @@ async def export_reservations(
                     if needed
                 ]) or '无',
                 '状态': status_map.get(r.status, r.status),
+                '审批人': r.approver_name or '未审批',  # 添加审批人信息
                 '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
             } for r in venue_reservations]
             
@@ -381,10 +395,12 @@ async def export_reservations(
                 '学号/工号': r.user.username if r.user else r.user_id,
                 '所属学院': r.user.department if r.user else '未知',
                 '设备名称': device_name_map.get(r.device_name, r.device_name),
+                '使用方式': '现场使用' if r.usage_type == 'onsite' else '带走使用',  # 显示使用方式
                 '借用时间': r.borrow_time.strftime('%Y-%m-%d %H:%M') if r.borrow_time else '',
-                '归还时间': r.return_time.strftime('%Y-%m-%d %H:%M') if r.return_time else '',
+                '归还时间': r.return_time.strftime('%Y-%m-%d %H:%M') if r.return_time else ('不适用' if r.usage_type == 'onsite' else '未归还'),
                 '用途': r.reason,
                 '状态': status_map.get(r.status, r.status),
+                '审批人': r.approver_name or '未审批',  # 添加审批人信息
                 '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
             } for r in device_reservations]
             
@@ -395,8 +411,12 @@ async def export_reservations(
                 '所属学院': r.user.department if r.user else '未知',
                 '打印机': r.printer_name,
                 '预约日期': r.reservation_date.strftime('%Y-%m-%d') if r.reservation_date else '',
-                '打印时间': r.print_time.strftime('%H:%M') if r.print_time else '',
+                '开始时间': r.print_time.strftime('%H:%M') if r.print_time else '',
+                '结束时间': r.end_time.strftime('%H:%M') if r.end_time else '',
+                '预计耗时(分钟)': r.estimated_duration or '-',
+                '打印模型名称': r.model_name or '未指定',
                 '状态': status_map.get(r.status, r.status),
+                '审批人': r.approver_name or '未审批',
                 '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
             } for r in printer_reservations]
             
@@ -446,12 +466,12 @@ async def export_reservations(
         )
 
 @router.post("/reservations/batch-approve")
-async def approve_reservation(
+async def batch_approve_reservation(
     data: dict,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_admin)
 ):
-    """审批预约"""
+    """批量审批预约"""
     if "reservation_ids" not in data or not isinstance(data["reservation_ids"], list):
         raise HTTPException(status_code=400, detail="Invalid reservation_ids")
     
@@ -470,12 +490,15 @@ async def approve_reservation(
         status = "rejected"
     
     try:
-        db.query(model_map[data["type"]]).filter(
+        # 需要单独处理每个预约记录，以便记录审批人姓名
+        reservations = db.query(model_map[data["type"]]).filter(
             model_map[data["type"]].reservation_id.in_(data["reservation_ids"])
-        ).update(
-            {"status": status},
-            synchronize_session=False
-        )
+        ).all()
+        
+        for reservation in reservations:
+            reservation.status = status
+            reservation.approver_name = current_user.name  # 记录审批人姓名
+        
         db.commit()
         return {"message": "Successfully updated reservations"}
     except Exception as e:
@@ -540,22 +563,21 @@ async def get_user_import_template():
 
 @router.get("/users")
 async def get_users(db: Session = Depends(get_db)):
-    """获取所有用户"""
+    """获取用户列表（排除系统管理员）"""
     try:
-        users = db.query(models.User).all()
-        result = []
-        for user in users:
-            result.append({
-                "username": user.username,
-                "name": user.name,
-                "department": user.department,
-                "role": user.role
-                # 暂时移除 created_at 字段
-            })
-        print(f"Found {len(result)} users")  # 调试信息
-        return result
+        users = db.query(models.User).filter(
+            models.User.is_system_admin == False  # 排除系统管理员
+        ).all()
+        
+        return [{
+            "user_id": user.user_id,
+            "username": user.username,
+            "name": user.name,
+            "role": user.role,
+            "department": user.department
+        } for user in users]
     except Exception as e:
-        print(f"Error getting users: {str(e)}")  # 调试信息
+        print(f"Error getting users: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取用户列表失败: {str(e)}"
@@ -654,18 +676,27 @@ async def delete_user(
     username: str,
     db: Session = Depends(get_db)
 ):
-    """删除用户"""
+    """删除用户（不能删除系统管理员）"""
     try:
         user = db.query(models.User).filter(models.User.username == username).first()
         if not user:
             raise HTTPException(status_code=404, detail="用户不存在")
-        
+            
+        if user.is_system_admin:
+            raise HTTPException(status_code=403, detail="不能删除系统管理员")
+            
         db.delete(user)
         db.commit()
         return {"message": "用户删除成功"}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        print(f"Error deleting user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除用户失败: {str(e)}"
+        )
 
 @router.get("/reservations/list")
 async def list_reservations(
@@ -716,18 +747,11 @@ async def list_reservations(
         device_reservations = device_reservations.all()
         printer_reservations = printer_reservations.all()
 
-        # 添加调试日志
-        for res in venue_reservations:
-            print(f"Venue reservation data: {res.__dict__}")
-
         # 转换为响应格式
         result = []
         
         # 添加场地预约
         for res in venue_reservations:
-            # 添加调试日志
-            print(f"Venue devices_needed: {res.devices_needed}")
-            
             result.append({
                 "type": "venue",
                 "reservation_id": res.reservation_id,
@@ -746,7 +770,8 @@ async def list_reservations(
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
-                }
+                },
+                "approver_name": res.approver_name  # 添加审批人信息
             })
         
         # 添加设备预约
@@ -758,15 +783,17 @@ async def list_reservations(
                 "borrow_time": res.borrow_time.strftime('%Y-%m-%d %H:%M'),
                 "return_time": res.return_time.strftime('%Y-%m-%d %H:%M') if res.return_time else None,
                 "status": res.status,
+                "usage_type": res.usage_type,  # 显示使用类型
+                "usage_type_text": "现场使用" if res.usage_type == "onsite" else "带走使用",  # 添加使用类型文本
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
-                }
+                },
+                "approver_name": res.approver_name  # 添加审批人信息
             })
         
-        # 修改打印机预约部分
+        # 添加打印机预约
         for res in printer_reservations:
-            print(f"Printer reservation print_time: {res.print_time}")  # 添加调试日志
             result.append({
                 "type": "printer",
                 "reservation_id": res.reservation_id,
@@ -777,7 +804,8 @@ async def list_reservations(
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
-                }
+                },
+                "approver_name": res.approver_name  # 添加审批人信息
             })
         
         # 按日期排序
@@ -965,4 +993,65 @@ async def get_statistics(
         raise HTTPException(
             status_code=500,
             detail=f"获取统计数据失败: {str(e)}"
+        )
+
+@router.post("/users/{username}/toggle-admin")
+async def toggle_admin_role(
+    username: str, 
+    db: Session = Depends(get_db)
+):
+    """切换用户的管理员角色（不能修改系统管理员）"""
+    try:
+        print(f"Attempting to toggle admin role for user: {username}")  # 调试日志
+        
+        # 查找用户
+        user = db.query(models.User).filter(models.User.username == username).first()
+        if not user:
+            print(f"User not found: {username}")  # 调试日志
+            raise HTTPException(status_code=404, detail="用户不存在")
+            
+        # 检查是否是系统管理员
+        if user.is_system_admin:
+            print(f"Cannot modify system admin: {username}")  # 调试日志
+            raise HTTPException(status_code=403, detail="不能修改系统管理员的角色")
+            
+        # 保存原始角色，提取基本角色（student/teacher）
+        original_role = user.role
+        base_role = "student" if username.isdigit() or original_role == "student" else "teacher"
+        
+        # 切换角色
+        if original_role == "admin":
+            # 如果是管理员，恢复为基本角色
+            user.role = base_role
+            print(f"Changing role from admin to {base_role} for user: {username}")  # 调试日志
+        else:
+            # 如果不是管理员，设为管理员
+            user.role = "admin"
+            print(f"Changing role to admin for user: {username}")  # 调试日志
+            
+        try:
+            db.commit()
+            print(f"Successfully updated role for user: {username}")  # 调试日志
+            return {
+                "message": "角色切换成功",
+                "username": user.username,
+                "name": user.name,
+                "new_role": user.role,
+                "previous_role": original_role
+            }
+        except Exception as commit_error:
+            db.rollback()
+            print(f"Database commit error: {str(commit_error)}")  # 调试日志
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"数据库更新失败: {str(commit_error)}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in toggle_admin_role: {str(e)}")  # 调试日志
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"角色切换失败: {str(e)}"
         ) 

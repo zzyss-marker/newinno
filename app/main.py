@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, reservations, admin, management
 from .database import engine
 from .models import models
+from .db.init_db import init_db
 
-# 确保创建所有数据库表
-print("Creating database tables...")  # 调试信息
-models.Base.metadata.create_all(bind=engine)
-print("Database tables created")  # 调试信息
+# 初始化数据库
+print("Initializing database...")
+init_db()
+print("Database initialization completed")
 
 app = FastAPI()
 

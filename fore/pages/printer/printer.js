@@ -11,7 +11,10 @@ Page({
     printers: [],
     selectedPrinter: null,
     date: '',
-    time: '',
+    startTime: '',
+    endTime: '',
+    duration: '',
+    modelName: '',
     minDate: '',
     showForm: false
   },
@@ -122,7 +125,10 @@ Page({
     this.setData({
       showForm: false,
       date: '',
-      time: ''
+      startTime: '',
+      endTime: '',
+      duration: '',
+      modelName: ''
     })
   },
 
@@ -132,37 +138,82 @@ Page({
     })
   },
 
-  handleTimeChange(e) {
+  handleStartTimeChange(e) {
     this.setData({
-      time: e.detail.value
+      startTime: e.detail.value
+    })
+  },
+
+  handleEndTimeChange(e) {
+    this.setData({
+      endTime: e.detail.value
+    })
+    
+    // 如果开始时间和结束时间都已设置，自动计算持续时间
+    if (this.data.startTime && this.data.endTime) {
+      const start = new Date(`2000-01-01T${this.data.startTime}:00`)
+      const end = new Date(`2000-01-01T${this.data.endTime}:00`)
+      
+      // 如果结束时间早于开始时间，假设跨越了一天
+      if (end < start) {
+        end.setDate(end.getDate() + 1)
+      }
+      
+      const durationMinutes = Math.round((end - start) / 60000)
+      
+      this.setData({
+        duration: durationMinutes.toString()
+      })
+    }
+  },
+
+  handleDurationChange(e) {
+    this.setData({
+      duration: e.detail.value
+    })
+  },
+
+  handleModelNameChange(e) {
+    this.setData({
+      modelName: e.detail.value
     })
   },
 
   async handleSubmit() {
-    const { selectedPrinter, date, time } = this.data
+    const { selectedPrinter, date, startTime, endTime, duration, modelName } = this.data
     
-    if (!selectedPrinter || !date || !time) {
+    if (!selectedPrinter || !date || !startTime || !endTime) {
       wx.showToast({
-        title: '请填写完整信息',
+        title: '请填写必要信息（日期、开始和结束时间）',
         icon: 'none'
       })
       return
     }
 
     try {
+      wx.showLoading({
+        title: '提交中...',
+        mask: true
+      })
+      
       // 格式化日期和时间
-      const formattedDateTime = `${date}T${time}:00`
+      const formattedStartTime = `${date}T${startTime}:00`
+      const formattedEndTime = `${date}T${endTime}:00`
 
       const requestData = {
         printer_name: selectedPrinter.id,
         reservation_date: date,
-        print_time: formattedDateTime
+        print_time: formattedStartTime,
+        end_time: formattedEndTime,
+        estimated_duration: duration ? parseInt(duration) : undefined,
+        model_name: modelName
       }
 
       console.log('预约请求数据:', requestData)
 
       await post('/reservations/printer', requestData)
 
+      wx.hideLoading()
       wx.showToast({
         title: '预约成功，等待审核',
         icon: 'success'
@@ -172,6 +223,7 @@ Page({
         wx.navigateBack()
       }, 1500)
     } catch (error) {
+      wx.hideLoading()
       console.error('预约失败:', error)
       wx.showToast({
         title: error.message || '预约失败',

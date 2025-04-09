@@ -79,7 +79,8 @@ def export_reservations_excel(
                 "设备需求": '、'.join(devices_needed) if devices_needed else '无',
                 "预约人": f"{str(res.user.name)}({str(res.user.username)})",
                 "所属部门": str(res.user.department),
-                "状态": str(format_reservation_status(res.status))
+                "状态": str(format_reservation_status(res.status)),
+                "审批人": str(res.approver_name) if res.approver_name else "未审批"
             })
         
         device_data = []
@@ -87,13 +88,15 @@ def export_reservations_excel(
             device_data.append({
                 "预约类型": "设备预约",
                 "设备名称": str(format_device_name(res.device_name)),
+                "使用方式": "现场使用" if getattr(res, 'usage_type', None) == 'onsite' else "带走使用",
                 "借用时间": res.borrow_time.strftime("%Y-%m-%d %H:%M"),
-                "预计归还时间": res.return_time.strftime("%Y-%m-%d %H:%M"),
+                "预计归还时间": res.return_time.strftime("%Y-%m-%d %H:%M") if res.return_time else ("不适用" if getattr(res, 'usage_type', None) == 'onsite' else "未归还"),
                 "实际归还时间": res.actual_return_time.strftime("%Y-%m-%d %H:%M") if res.actual_return_time else "未归还",
                 "借用原因": str(res.reason),
                 "预约人": f"{str(res.user.name)}({str(res.user.username)})",
                 "所属部门": str(res.user.department),
-                "状态": str(format_reservation_status(res.status))
+                "状态": str(format_reservation_status(res.status)),
+                "审批人": str(res.approver_name) if res.approver_name else "未审批"
             })
         
         printer_data = []
@@ -105,7 +108,8 @@ def export_reservations_excel(
                 "打印时间": res.print_time.strftime("%H:%M"),
                 "预约人": f"{str(res.user.name)}({str(res.user.username)})",
                 "所属部门": str(res.user.department),
-                "状态": str(format_reservation_status(res.status))
+                "状态": str(format_reservation_status(res.status)),
+                "审批人": str(res.approver_name) if res.approver_name else "未审批"
             })
 
         # 创建DataFrame
@@ -115,7 +119,7 @@ def export_reservations_excel(
             # 设置场地预约的列顺序
             venue_columns = [
                 "预约类型", "场地类型", "预约日期", "时间段", 
-                "用途", "设备需求", "预约人", "所属部门", "状态"
+                "用途", "设备需求", "预约人", "所属部门", "状态", "审批人"
             ]
             venue_df = venue_df.reindex(columns=venue_columns)
             dfs.append(("场地预约", venue_df))
@@ -124,8 +128,8 @@ def export_reservations_excel(
             device_df = pd.DataFrame(device_data)
             # 设置设备预约的列顺序
             device_columns = [
-                "预约类型", "设备名称", "借用时间", "预计归还时间", 
-                "实际归还时间", "借用原因", "预约人", "所属部门", "状态"
+                "预约类型", "设备名称", "使用方式", "借用时间", "预计归还时间", 
+                "实际归还时间", "借用原因", "预约人", "所属部门", "状态", "审批人"
             ]
             device_df = device_df.reindex(columns=device_columns)
             dfs.append(("设备预约", device_df))
@@ -135,7 +139,7 @@ def export_reservations_excel(
             # 设置打印机预约的列顺序
             printer_columns = [
                 "预约类型", "打印机", "预约日期", "打印时间",
-                "预约人", "所属部门", "状态"
+                "预约人", "所属部门", "状态", "审批人"
             ]
             printer_df = printer_df.reindex(columns=printer_columns)
             dfs.append(("3D打印机预约", printer_df))

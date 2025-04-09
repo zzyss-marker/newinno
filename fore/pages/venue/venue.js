@@ -25,8 +25,8 @@ Page({
   onLoad(options) {
     const { id, name, type } = options
     
-    // 根据场地类型决定是否显示设备选项
-    const showDevices = type === '讲座厅'
+    // 所有场地类型都显示设备选项
+    const showDevices = true
     
     this.setData({
       venueId: id,
@@ -48,20 +48,42 @@ Page({
 
   onDateChange(e) {
     const date = e.detail.value;
+    
+    // 存储当前选择的时间段
+    const currentBusinessTime = this.data.selectedBusinessTime;
+    
     this.setData({
-      date: date,
-      selectedBusinessTime: '' // 日期变更时重置时间段选择
+      date: date
+      // 不再重置时间段选择
+      // selectedBusinessTime: '' 
     });
     
     // 获取该日期已占用的时间段
-    this.getOccupiedTimeSlots(date);
+    this.getOccupiedTimeSlots(date).then(() => {
+      // 获取时间段后检查已选时间段是否可用
+      if (currentBusinessTime) {
+        const timeStillAvailable = this.data.businessTimes.find(
+          time => time.id === currentBusinessTime && !time.disabled
+        );
+        
+        if (!timeStillAvailable) {
+          // 如果之前选择的时间段在新日期不可用，则重置选择
+          this.setData({ selectedBusinessTime: '' });
+          wx.removeStorageSync('selectedVenueBusinessTime');
+          wx.showToast({
+            title: '已选时间段在该日期不可用，请重新选择',
+            icon: 'none'
+          });
+        }
+      }
+    });
   },
 
   /**
    * 获取指定日期已占用的时间段
    */
   async getOccupiedTimeSlots(date) {
-    if (!date || !this.data.venueType) return;
+    if (!date || !this.data.venueType) return Promise.resolve();
     
     // 将场地类型转换为后端需要的格式
     let backendVenueType = this.data.venueType;
@@ -95,6 +117,7 @@ Page({
       
       console.log('已占用时间段:', occupiedTimes);
       wx.hideLoading();
+      return Promise.resolve();
     } catch (error) {
       console.error('获取已占用时间段失败:', error);
       wx.hideLoading();
@@ -102,6 +125,7 @@ Page({
         title: '获取时间段信息失败',
         icon: 'none'
       });
+      return Promise.reject(error);
     }
   },
 
@@ -136,10 +160,13 @@ Page({
     
     // 使用id作为值，而不是访问不存在的value属性
     this.setData({
-      selectedBusinessTime: time.id
+      selectedBusinessTime: time.id,
+      businessTime: time.name // 同时保存时间段名称，用于显示
     });
     
     console.log('设置selectedBusinessTime为:', time.id);
+    // 立即保存选中的时间段到本地，防止丢失
+    wx.setStorageSync('selectedVenueBusinessTime', time.id);
   },
 
   onDevicesChange(e) {
@@ -159,12 +186,20 @@ Page({
       this.setData({ deviceOptions })
     }
 
+    console.log('选择的设备:', selectedDevices);
     this.setData({ selectedDevices })
   },
 
   async handleSubmit(e) {
     const { purpose } = e.detail.value
-    const { venueId, venueName, venueType, date, selectedBusinessTime, selectedDevices } = this.data
+    let { venueId, venueName, venueType, date, selectedBusinessTime, selectedDevices } = this.data
+    
+    // 尝试从本地存储获取时间段，以防丢失
+    if (!selectedBusinessTime) {
+      selectedBusinessTime = wx.getStorageSync('selectedVenueBusinessTime');
+      console.log('从本地存储恢复selectedBusinessTime:', selectedBusinessTime);
+      this.setData({ selectedBusinessTime });
+    }
 
     console.log('提交前表单数据:', {
       venueId, 
@@ -190,14 +225,14 @@ Page({
     }
 
     try {
-      // 只有讲座厅才包含设备需求
-      const devices_needed = venueType === '讲座厅' ? {
+      // 构建设备需求对象，无论场地类型如何都包含设备需求
+      const devices_needed = {
         screen: Boolean(selectedDevices.screen),
         laptop: Boolean(selectedDevices.laptop),
         mic_handheld: Boolean(selectedDevices.mic_handheld),
         mic_gooseneck: Boolean(selectedDevices.mic_gooseneck),
         projector: Boolean(selectedDevices.projector)
-      } : {}
+      }
 
       // 转换场地类型为后端需要的格式
       let backendVenueType = venueType

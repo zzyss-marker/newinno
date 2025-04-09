@@ -2,31 +2,57 @@
 <view class="container">
   <form bindsubmit="handleSubmit">
     <view class="form-group">
-      <view class="label">设备名称</view>
-      <view class="value">{{deviceName}}</view>
-    </view>
-
-    <view class="form-group">
-      <view class="label">借用时间</view>
-      <picker mode="multiSelector" value="{{dateTimeIndex}}" range="{{dateTimeArray}}" bindchange="onDateTimeChange" bindcolumnchange="onColumnChange">
-        <view class="picker {{borrowTime ? '' : 'placeholder'}}">
-          {{borrowTime || '点击选择借用时间'}}
+      <view class="form-item">
+        <text class="label">设备名称</text>
+        <view class="value-container">
+          <text class="value">{{deviceName}}</text>
         </view>
-      </picker>
-    </view>
+      </view>
 
-    <view class="form-group">
-      <view class="label">预计归还时间</view>
-      <picker mode="multiSelector" value="{{returnDateTimeIndex}}" range="{{dateTimeArray}}" bindchange="onReturnDateTimeChange" bindcolumnchange="onReturnColumnChange">
-        <view class="picker {{returnTime ? '' : 'placeholder'}}">
-          {{returnTime || '请选择归还时间'}}
+      <view class="form-item">
+        <text class="label">使用方式</text>
+        <view class="radio-container">
+          <radio-group bindchange="onUsageTypeChange">
+            <label class="radio-item">
+              <radio value="onsite" checked="{{usageType === 'onsite'}}" />
+              <text>现场使用</text>
+            </label>
+            <label class="radio-item">
+              <radio value="takeaway" checked="{{usageType === 'takeaway'}}" />
+              <text>带走使用</text>
+            </label>
+          </radio-group>
         </view>
-      </picker>
-    </view>
+      </view>
 
-    <view class="form-group">
-      <view class="label">借用原因</view>
-      <textarea name="reason" placeholder="请输入借用原因" />
+      <view class="form-item">
+        <text class="label">借用时间</text>
+        <picker mode="multiSelector" value="{{dateTimeIndex}}" range="{{dateTimeArray}}" bindchange="onDateTimeChange" bindcolumnchange="onColumnChange">
+          <view class="picker {{borrowTime ? '' : 'placeholder'}}">
+            <text wx:if="{{borrowTime}}">{{borrowTime}}</text>
+            <text wx:else class="placeholder-text">点击选择借用时间</text>
+            <view class="picker-arrow"></view>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item" wx:if="{{usageType === 'takeaway'}}">
+        <text class="label">预计归还时间</text>
+        <picker mode="multiSelector" value="{{returnDateTimeIndex}}" range="{{dateTimeArray}}" bindchange="onReturnDateTimeChange" bindcolumnchange="onReturnColumnChange">
+          <view class="picker {{returnTime ? '' : 'placeholder'}}">
+            <text wx:if="{{returnTime}}">{{returnTime}}</text>
+            <text wx:else class="placeholder-text">请选择归还时间</text>
+            <view class="picker-arrow"></view>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="label">借用原因</text>
+        <view class="textarea-container">
+          <textarea name="reason" placeholder="请输入借用原因" placeholder-class="placeholder-text" />
+        </view>
+      </view>
     </view>
 
     <button class="submit-btn" form-type="submit" type="primary">提交预约</button>

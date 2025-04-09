@@ -35,6 +35,7 @@
                             <th>姓名</th>
                             <th>学院</th>
                             <th>角色</th>
+                            <th>管理员权限</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -76,9 +77,12 @@ window.setButtonLoading = function(button, loading) {
     if (loading) {
         button.classList.add('loading');
         button.disabled = true;
+        button.setAttribute('data-original-text', button.textContent);
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 处理中...';
     } else {
         button.classList.remove('loading');
         button.disabled = false;
+        button.innerHTML = button.getAttribute('data-original-text') || button.innerHTML.replace('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 处理中...', '');
     }
 };
 
@@ -146,17 +150,29 @@ async function loadUsers() {
         
         const users = await response.json();
         const tbody = document.getElementById('userList');
-        tbody.innerHTML = users.map(user => `
-            <tr>
-                <td>${user.username || ''}</td>
-                <td>${user.name || ''}</td>
-                <td>${user.department || ''}</td>
-                <td>${getRoleText(user.role) || ''}</td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">删除</button>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = users.map(user => {
+            const isAdmin = user.role === 'admin';
+            return `
+                <tr>
+                    <td>${user.username || ''}</td>
+                    <td>${user.name || ''}</td>
+                    <td>${user.department || ''}</td>
+                    <td>${getRoleText(user.role) || ''}</td>
+                    <td>
+                        <button 
+                            class="btn btn-sm ${isAdmin ? 'btn-success' : 'btn-outline-secondary'}" 
+                            onclick="toggleAdminRole('${user.username}', ${isAdmin})"
+                            data-original-text="${isAdmin ? '取消管理员' : '设为管理员'}"
+                        >
+                            ${isAdmin ? '取消管理员' : '设为管理员'}
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">删除</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     } catch (error) {
         console.error('加载用户列表失败：', error);
         alert('加载用户列表失败：' + error.message);
@@ -172,6 +188,38 @@ function getRoleText(role) {
         'admin': '管理员'
     };
     return roleMap[role] || role;
+}
+
+async function toggleAdminRole(username, isCurrentlyAdmin) {
+    if (!confirm(`确定要${isCurrentlyAdmin ? '取消' : '设置'}该用户的管理员权限吗？`)) {
+        return;
+    }
+    
+    try {
+        const button = event.target;
+        setButtonLoading(button, true);
+        
+        const response = await fetch(`/api/admin/users/${username}/toggle-admin`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '操作失败');
+        }
+        
+        const result = await response.json();
+        alert(result.message || '操作成功');
+        
+        // 重新加载用户列表
+        loadUsers();
+    } catch (error) {
+        console.error('修改管理员权限失败:', error);
+        alert('修改管理员权限失败: ' + error.message);
+    }
 }
 
 async function deleteUser(username) {

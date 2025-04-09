@@ -10,6 +10,16 @@
                 <h4 class="mb-0">管理员登录</h4>
             </div>
             <div class="card-body">
+                {% with messages = get_flashed_messages() %}
+                  {% if messages %}
+                    <div class="alert alert-danger">
+                      {% for message in messages %}
+                        {{ message }}
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
+                
                 <form method="post">
                     <div class="form-group">
                         <label for="username">用户名</label>
@@ -21,6 +31,12 @@
                     </div>
                     <button type="submit" class="btn btn-primary">登录</button>
                 </form>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        注意：只有拥有管理员权限的用户才能登录管理系统
+                    </small>
+                </div>
             </div>
         </div>
     </div>

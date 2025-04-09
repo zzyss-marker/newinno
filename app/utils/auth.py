@@ -58,10 +58,17 @@ async def get_current_user(
 async def get_current_admin(
     current_user: models.User = Depends(get_current_user)
 ) -> models.User:
-    """验证当前用户是否为管理员"""
+    """获取当前管理员用户"""
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="请先登录"
+        )
+        
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="需要管理员权限"
+            detail="没有管理员权限"
         )
+        
     return current_user 

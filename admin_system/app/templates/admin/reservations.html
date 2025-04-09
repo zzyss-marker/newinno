@@ -7,30 +7,56 @@
     <h2 class="mb-4">预约记录管理</h2>
     
     <div class="card mb-4">
-        <div class="card-header">
+        <div class="card-header bg-light">
             <h5 class="mb-0">筛选条件</h5>
         </div>
         <div class="card-body">
-            <form id="filterForm" class="row">
-                <div class="col-md-4">
+            <form id="filterForm" class="row g-3">
+                <div class="col-md-3">
                     <div class="form-group">
                         <label for="startDate">开始日期</label>
                         <input type="date" class="form-control" id="startDate">
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="form-group">
                         <label for="endDate">结束日期</label>
                         <input type="date" class="form-control" id="endDate">
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="form-group">
-                        <label>&nbsp;</label>
-                        <div>
-                            <button type="submit" class="btn btn-primary">查询</button>
-                            <button type="button" class="btn btn-secondary" onclick="exportReservations()">导出</button>
-                        </div>
+                        <label for="reservationType">预约类型</label>
+                        <select class="form-control" id="reservationType">
+                            <option value="">全部类型</option>
+                            <option value="venue">场地预约</option>
+                            <option value="device">设备预约</option>
+                            <option value="printer">打印机预约</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="reservationStatus">状态</label>
+                        <select class="form-control" id="reservationStatus">
+                            <option value="">全部状态</option>
+                            <option value="pending">待审批</option>
+                            <option value="approved">已通过</option>
+                            <option value="rejected">已拒绝</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-12 mt-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> 查询
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="exportReservations()">
+                            <i class="fas fa-file-export"></i> 导出
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="resetFilters()">
+                            <i class="fas fa-redo"></i> 重置
+                        </button>
                     </div>
                 </div>
             </form>
@@ -38,25 +64,33 @@
     </div>
 
     <div class="card">
-        <div class="card-header">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">预约列表</h5>
+            <div id="reservation-count" class="badge bg-info text-white">加载中...</div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table">
-                    <thead>
+                <table class="table table-striped table-hover">
+                    <thead class="thead-light sticky-top bg-light">
                         <tr>
-                            <th>预约类型</th>
-                            <th>申请人</th>
-                            <th>学院</th>
-                            <th>预约日期</th>
-                            <th>详细信息</th>
-                            <th>状态</th>
-                            <th>操作</th>
+                            <th width="10%">预约类型</th>
+                            <th width="12%">申请人</th>
+                            <th width="12%">学院</th>
+                            <th width="12%">预约日期</th>
+                            <th width="34%">详细信息</th>
+                            <th width="10%">状态</th>
+                            <th width="10%">操作</th>
                         </tr>
                     </thead>
                     <tbody id="reservationList">
-                        <!-- 数据将通过JavaScript动态加载 -->
+                        <tr>
+                            <td colspan="7" class="text-center p-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">加载中...</span>
+                                </div>
+                                <p class="mt-2">正在加载预约记录...</p>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -75,11 +109,31 @@ document.getElementById('filterForm').onsubmit = async function(e) {
 async function loadReservations() {
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
+    const reservationType = document.getElementById('reservationType').value;
+    const reservationStatus = document.getElementById('reservationStatus').value;
     
-    setTableLoading('reservationList', true);
+    // 更新记录数量显示
+    document.getElementById('reservation-count').textContent = '加载中...';
+    
+    // 显示加载中状态
+    const tbody = document.getElementById('reservationList');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center p-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <p class="mt-2">正在加载预约记录...</p>
+            </td>
+        </tr>
+    `;
     
     try {
-        const response = await fetch(`/api/reservations?start_date=${startDate}&end_date=${endDate}`);
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        
+        const response = await fetch(`/api/reservations?${params.toString()}`);
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || '获取数据失败');
@@ -90,66 +144,87 @@ async function loadReservations() {
             throw new Error('返回数据格式错误');
         }
         
-        const tbody = document.getElementById('reservationList');
-        tbody.innerHTML = data.map(record => {
-            let details = '';
-            switch(record.type) {
-                case 'venue':
-                    let devicesHtml = '';
-                    if (record.devices_needed) {
-                        const deviceList = [];
-                        if (record.devices_needed.screen) deviceList.push('大屏');
-                        if (record.devices_needed.laptop) deviceList.push('笔记本');
-                        if (record.devices_needed.mic_handheld) deviceList.push('手持麦');
-                        if (record.devices_needed.mic_gooseneck) deviceList.push('鹅颈麦');
-                        if (record.devices_needed.projector) deviceList.push('投屏器');
-                        devicesHtml = deviceList.length > 0 ? 
-                            `<br>所需设备: ${deviceList.join(', ')}` : '';
-                    }
-                    details = `
-                        场地类型: ${getVenueType(record.venue_type)}<br>
-                        时间段: ${getBusinessTime(record.business_time)}<br>
-                        用途: ${record.purpose || ''}${devicesHtml}
-                    `;
-                    break;
-                case 'device':
-                    details = `
-                        设备名称: ${getDeviceName(record.device_name)}<br>
-                        借用时间: ${formatDateTime(record.borrow_time)}<br>
-                        归还时间: ${formatDateTime(record.return_time)}
-                    `;
-                    break;
-                case 'printer':
-                    details = `
-                        打印机: ${record.printer_name}<br>
-                        预约日期: ${formatDate(record.reservation_date)}<br>
-                        打印时间: ${formatDateTime(record.print_time)}
-                    `;
-                    break;
-            }
+        // 客户端筛选
+        let filteredData = data;
+        if (reservationType) {
+            filteredData = filteredData.filter(record => record.type === reservationType);
+        }
+        if (reservationStatus) {
+            filteredData = filteredData.filter(record => record.status === reservationStatus);
+        }
+        
+        // 更新记录数量显示
+        document.getElementById('reservation-count').textContent = `共 ${filteredData.length} 条记录`;
+        
+        if (filteredData.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center p-4">
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            没有找到匹配的预约记录
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = filteredData.map(record => {
+            // 获取申请人信息
+            const userName = record.user?.name || `用户(ID:${record.user_id})`;
+            const userDept = record.user?.department || '未知学院';
+            
+            // 获取预约时间
+            const reservationDate = formatDate(record.reservation_date || record.borrow_time);
+            
+            // 获取详细信息
+            const details = getDetailsHtml(record);
+            
+            // 获取状态徽章
+            const statusBadge = `
+                <span class="badge badge-${getStatusBadgeClass(record.status)}">
+                    ${getStatusText(record.status)}
+                </span>
+            `;
+            
+            // 获取操作按钮
+            const actions = `
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-danger" onclick="deleteReservation('${record.type}', ${record.id || record.reservation_id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
             
             return `
                 <tr>
-                    <td>${getReservationType(record.type)}</td>
-                    <td>${record.user?.name || ''}</td>
-                    <td>${record.user?.department || ''}</td>
-                    <td>${formatDate(record.reservation_date || record.borrow_time)}</td>
+                    <td><span class="badge badge-${getReservationTypeClass(record.type)}">${getReservationType(record.type)}</span></td>
+                    <td>${userName}</td>
+                    <td>${userDept}</td>
+                    <td>${reservationDate}</td>
                     <td>${details}</td>
-                    <td>
-                        <span class="badge badge-${getStatusBadgeClass(record.status)}">
-                            ${getStatusText(record.status)}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteReservation('${record.type}', ${record.reservation_id})">删除</button>
-                    </td>
+                    <td>${statusBadge}</td>
+                    <td>${actions}</td>
                 </tr>
             `;
         }).join('');
     } catch (error) {
-        handleApiError(error);
-    } finally {
-        setTableLoading('reservationList', false);
+        console.error('加载预约记录失败:', error);
+        
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center p-4">
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        加载失败: ${error.message || '未知错误'}
+                    </div>
+                </td>
+            </tr>
+        `;
+        
+        // 更新记录数量显示为错误状态
+        document.getElementById('reservation-count').textContent = '加载失败';
     }
 }
 
@@ -159,30 +234,42 @@ function getDetailsHtml(record) {
             let devicesHtml = '';
             if (record.devices_needed) {
                 const deviceList = [];
-                if (record.devices_needed.screen) deviceList.push('大屏');
-                if (record.devices_needed.laptop) deviceList.push('笔记本');
-                if (record.devices_needed.mic_handheld) deviceList.push('手持麦');
-                if (record.devices_needed.mic_gooseneck) deviceList.push('鹅颈麦');
-                if (record.devices_needed.projector) deviceList.push('投屏器');
+                if (record.devices_needed.screen) deviceList.push('<span class="badge badge-device">大屏</span>');
+                if (record.devices_needed.laptop) deviceList.push('<span class="badge badge-device">笔记本</span>');
+                if (record.devices_needed.mic_handheld) deviceList.push('<span class="badge badge-device">手持麦</span>');
+                if (record.devices_needed.mic_gooseneck) deviceList.push('<span class="badge badge-device">鹅颈麦</span>');
+                if (record.devices_needed.projector) deviceList.push('<span class="badge badge-device">投屏器</span>');
                 devicesHtml = deviceList.length > 0 ? 
-                    `<br>所需设备: ${deviceList.join(', ')}` : '';
+                    `<div class="device-list">${deviceList.join('')}</div>` : '';
             }
             return `
-                场地类型: ${record.venue_type}<br>
-                时间段: ${record.business_time}<br>
-                用途: ${record.purpose || ''}${devicesHtml}
+                <div class="reservation-details">
+                    <div>
+                        <strong>场地类型:</strong> ${getVenueType(record.venue_type)}
+                        <span class="time-text">${getBusinessTime(record.business_time)}</span>
+                    </div>
+                    <div class="text-wrap"><strong>用途:</strong> ${record.purpose || '未提供'}</div>
+                    ${devicesHtml}
+                </div>
             `;
         case 'printer':
             return `
-                打印机: ${record.printer_name}<br>
-                预约日期: ${formatDate(record.reservation_date)}<br>
-                打印时间: ${formatDateTime(record.print_time)}
+                <div class="reservation-details">
+                    <div><strong>打印机:</strong> ${record.printer_name}</div>
+                </div>
             `;
         case 'device':
             return `
-                设备名称: ${getDeviceName(record.device_name)}<br>
-                借用时间: ${formatDateTime(record.borrow_time)}<br>
-                归还时间: ${formatDateTime(record.return_time)}
+                <div class="reservation-details">
+                    <div>
+                        <strong>设备名称:</strong> ${getDeviceName(record.device_name)}
+                        <span class="badge badge-${record.usage_type === 'onsite' ? 'info' : 'warning'}">
+                            ${record.usage_type === 'onsite' ? '现场使用' : '带走使用'}
+                        </span>
+                    </div>
+                    <div><strong>借用时间:</strong> ${formatDateTime(record.borrow_time)}</div>
+                    <div><strong>归还时间:</strong> ${formatDateTime(record.return_time) || (record.usage_type === 'onsite' ? '不适用' : '未指定')}</div>
+                </div>
             `;
         default:
             return '';
@@ -213,6 +300,21 @@ function formatDateTime(timeStr) {
     }
 }
 
+function formatTime(timeStr) {
+    if (!timeStr) return '';
+    try {
+        const date = new Date(timeStr);
+        if (isNaN(date.getTime())) return '';
+        return date.toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('时间格式化错误:', error);
+        return '';
+    }
+}
+
 function getReservationType(type) {
     const typeMap = {
         'venue': '场地预约',
@@ -222,12 +324,21 @@ function getReservationType(type) {
     return typeMap[type] || type;
 }
 
+function getReservationTypeClass(type) {
+    const typeClassMap = {
+        'venue': 'primary',
+        'device': 'success',
+        'printer': 'warning'
+    };
+    return typeClassMap[type] || 'secondary';
+}
+
 function getStatusBadgeClass(status) {
     const statusMap = {
-        'pending': 'warning',
-        'approved': 'success',
-        'rejected': 'danger',
-        'returned': 'info'
+        'pending': 'warning',   // 待审批 - 黄色
+        'approved': 'success',  // 已通过 - 绿色
+        'rejected': 'danger',   // 已拒绝 - 红色
+        'returned': 'info'      // 已归还 - 蓝绿色
     };
     return statusMap[status] || 'secondary';
 }
@@ -271,12 +382,19 @@ function getDeviceName(name) {
 }
 
 async function deleteReservation(type, id) {
-    if (!confirm('确定要删除此预约记录吗？')) {
+    if (!type || !id) {
+        alert('缺少参数，无法删除');
+        return;
+    }
+
+    if (!confirm(`确定要删除这条${getReservationType(type)}记录吗？此操作不可恢复！`)) {
         return;
     }
     
-    const button = event.target;
-    setButtonLoading(button, true);
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 删除中...';
     
     try {
         const response = await fetch(`/api/reservations/${type}/${id}`, {
@@ -291,13 +409,26 @@ async function deleteReservation(type, id) {
             throw new Error(error.error || '删除失败');
         }
         
-        await loadReservations();
-        alert('删除成功');
+        // 显示成功消息
+        const row = button.closest('tr');
+        row.style.backgroundColor = '#ffefef';
+        row.style.transition = 'all 0.5s ease';
+        
+        setTimeout(() => {
+            row.style.opacity = '0';
+            row.style.height = '0';
+            setTimeout(() => {
+                // 重新加载数据
+                loadReservations();
+            }, 500);
+        }, 500);
     } catch (error) {
         console.error('删除失败：', error);
         alert('删除失败：' + error.message);
-    } finally {
-        setButtonLoading(button, false);
+        
+        // 恢复按钮状态
+        button.disabled = false;
+        button.innerHTML = originalContent;
     }
 }
 
@@ -308,8 +439,14 @@ async function exportReservations() {
     try {
         const startDate = document.getElementById('startDate').value;
         const endDate = document.getElementById('endDate').value;
+        const reservationType = document.getElementById('reservationType').value;
         
-        const response = await fetch(`/api/export/reservations?start_date=${startDate}&end_date=${endDate}`, {
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        if (reservationType) params.append('type', reservationType);
+        
+        const response = await fetch(`/api/export/reservations?${params.toString()}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -349,6 +486,151 @@ function handleApiError(error) {
     }
 }
 
+function resetFilters() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('reservationType').value = '';
+    document.getElementById('reservationStatus').value = '';
+    loadReservations();
+}
+
 loadReservations();
 </script>
+
+<style>
+.reservation-details {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin: 0.5rem 0;
+}
+
+.text-wrap {
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* 优化徽章样式 */
+.badge {
+    font-size: 90%;
+    font-weight: normal;
+    padding: 0.35em 0.65em;
+    border-radius: 0.25rem;
+    display: inline-block;
+    margin-right: 0.3rem;
+    margin-bottom: 0.2rem;
+}
+
+/* 恢复预约类型颜色 */
+.badge-primary {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.badge-success {
+    background-color: #198754;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #fd7e14;
+    color: white;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* 恢复状态颜色 */
+.badge-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.badge-info {
+    background-color: #0dcaf0;
+    color: #212529;
+}
+
+/* 为详细信息添加动画效果 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.reservation-details {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 表格悬停效果 */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* 固定表头样式 */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* 表格按钮样式 */
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+/* 优化时间和使用方式文本 */
+.time-text, .usage-text {
+    margin-left: 0.5rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+/* 设备列表样式 */
+.device-list {
+    margin-top: 0.5rem;
+}
+
+/* 增加表格间距 */
+.table td, .table th {
+    padding: 0.9rem 0.65rem;
+    vertical-align: middle;
+}
+
+/* 表格行样式 */
+.table tbody tr {
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+/* 表头样式 */
+.thead-light th {
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+/* 设备标签样式 */
+.badge-device {
+    background-color: #6c757d;
+    color: white;
+    opacity: 0.85;
+}
+
+/* 表格行间距 */
+.table > tbody > tr > td {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* 增强表格分隔线 */
+.table tbody tr {
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+/* 表头粗体 */
+.table th {
+    font-weight: 600;
+}
+</style>
 {% endblock %} 

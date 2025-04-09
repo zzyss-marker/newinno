@@ -85,7 +85,7 @@ Page({
           
           this.setData({
             user: userInfo,
-            isAdmin: userInfo.role === 'admin' || userInfo.role === 'teacher'
+            isAdmin: userInfo.role === 'admin'  // 只有管理员角色才显示管理功能
           })
         } catch (error) {
           console.error('获取用户信息失败:', error)

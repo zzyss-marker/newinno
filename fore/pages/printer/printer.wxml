@@ -22,21 +22,52 @@
     </view>
 
     <view class="form-group">
-      <view class="label">预约日期</view>
-      <picker mode="date" value="{{date}}" start="{{minDate}}" bindchange="handleDateChange">
-        <view class="picker {{date ? '' : 'placeholder'}}">
-          {{date || '请选择日期'}}
-        </view>
-      </picker>
-    </view>
+      <view class="form-item">
+        <text class="label">预约日期</text>
+        <picker mode="date" value="{{date}}" start="{{minDate}}" bindchange="handleDateChange">
+          <view class="picker {{date ? '' : 'placeholder'}}">
+            <text wx:if="{{date}}">{{date}}</text>
+            <text wx:else class="placeholder-text">请选择日期</text>
+            <view class="picker-arrow"></view>
+          </view>
+        </picker>
+      </view>
 
-    <view class="form-group">
-      <view class="label">预约时间</view>
-      <picker mode="time" value="{{time}}" bindchange="handleTimeChange">
-        <view class="picker {{time ? '' : 'placeholder'}}">
-          {{time || '请选择时间'}}
+      <view class="form-item">
+        <text class="label">开始时间</text>
+        <picker mode="time" value="{{startTime}}" bindchange="handleStartTimeChange">
+          <view class="picker {{startTime ? '' : 'placeholder'}}">
+            <text wx:if="{{startTime}}">{{startTime}}</text>
+            <text wx:else class="placeholder-text">请选择开始时间</text>
+            <view class="picker-arrow"></view>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="label">结束时间</text>
+        <picker mode="time" value="{{endTime}}" bindchange="handleEndTimeChange">
+          <view class="picker {{endTime ? '' : 'placeholder'}}">
+            <text wx:if="{{endTime}}">{{endTime}}</text>
+            <text wx:else class="placeholder-text">请选择结束时间</text>
+            <view class="picker-arrow"></view>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="label">预计打印耗时(分钟)</text>
+        <view class="input-container">
+          <input type="number" value="{{duration}}" bindinput="handleDurationChange" placeholder="请输入预计打印耗时" placeholder-class="placeholder-text" />
         </view>
-      </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="label">打印模型名称</text>
+        <view class="input-container">
+          <input type="text" value="{{modelName}}" bindinput="handleModelNameChange" placeholder="请输入模型名称" placeholder-class="placeholder-text" />
+        </view>
+      </view>
     </view>
 
     <button class="submit-btn" type="primary" bindtap="handleSubmit">提交预约</button>

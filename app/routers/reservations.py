@@ -54,7 +54,8 @@ async def create_venue_reservation(
         db.refresh(db_reservation)
         
         return {
-            "id": db_reservation.reservation_id,
+            "id": db_reservation.reservation_id,  # 添加id字段
+            "reservation_id": db_reservation.reservation_id,
             "user_id": db_reservation.user_id,
             "user_name": current_user.name,
             "user_department": current_user.department,
@@ -81,22 +82,69 @@ async def create_device_reservation(
 ):
     """创建设备预约"""
     try:
-        # 创建预约记录
+        # 打印请求数据进行调试
+        print(f"接收到设备预约请求: {reservation}")
+        print(f"Usage type: {reservation.usage_type}")
+        print(f"Return time: {reservation.return_time}")
+
+        # 处理现场使用情况 (on-site usage)
+        return_time = None
+        
+        # 只有带走使用时才需要解析归还时间
+        if reservation.usage_type == "takeaway" and reservation.return_time:
+            try:
+                return_time = datetime.strptime(reservation.return_time, "%Y-%m-%dT%H:%M:%S")
+                print(f"解析归还时间: {return_time}")
+            except Exception as e:
+                print(f"归还时间解析错误: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail=f"无效的归还时间格式: {str(e)}"
+                )
+        
+        # 解析借用时间
+        try:
+            borrow_time = datetime.strptime(reservation.borrow_time, "%Y-%m-%dT%H:%M:%S")
+        except Exception as e:
+            print(f"借用时间解析错误: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"无效的借用时间格式: {str(e)}"
+            )
+        
+        # 创建预约记录 - 只指定必要的字段，让数据库自动生成reservation_id
         db_reservation = models.DeviceReservation(
             user_id=current_user.user_id,
             device_name=reservation.device_name,
-            borrow_time=datetime.strptime(reservation.borrow_time, "%Y-%m-%dT%H:%M:%S"),
-            return_time=datetime.strptime(reservation.return_time, "%Y-%m-%dT%H:%M:%S"),
+            borrow_time=borrow_time,
+            return_time=return_time,  # 对于现场使用，这里是None
             reason=reservation.reason,
+            usage_type=reservation.usage_type,
             status="pending"
         )
         
+        # 打印创建的预约记录，但不打印内部状态
+        print(f"创建的预约记录: 用户ID={db_reservation.user_id}, 设备名称={db_reservation.device_name}, 借用时间={db_reservation.borrow_time}, 使用类型={db_reservation.usage_type}")
+        
+        # 显式开始事务
+        db.begin_nested()
         db.add(db_reservation)
-        db.commit()
+        try:
+            db.commit()
+        except Exception as commit_error:
+            db.rollback()
+            print(f"提交事务失败: {str(commit_error)}")
+            raise
+        
         db.refresh(db_reservation)
         
+        # 打印提交后的记录ID
+        print(f"提交后的预约记录ID: {db_reservation.reservation_id}")
+        
+        # 返回响应，使用正确的字段名称
         return {
-            "id": db_reservation.reservation_id,
+            "id": db_reservation.reservation_id,  # 添加id字段
+            "reservation_id": db_reservation.reservation_id,
             "user_id": db_reservation.user_id,
             "user_name": current_user.name,
             "user_department": current_user.department,
@@ -104,14 +152,20 @@ async def create_device_reservation(
             "created_at": db_reservation.created_at,
             "device_name": db_reservation.device_name,
             "borrow_time": str(db_reservation.borrow_time),
-            "return_time": str(db_reservation.return_time),
-            "reason": db_reservation.reason
+            "return_time": str(db_reservation.return_time) if db_reservation.return_time else None,
+            "reason": db_reservation.reason,
+            "usage_type": db_reservation.usage_type
         }
     except Exception as e:
         db.rollback()
+        print(f"设备预约失败: {str(e)}")
+        # 添加更详细的错误信息
+        error_detail = f"设备预约失败: {str(e)}\n"
+        if "IntegrityError" in str(e):
+            error_detail += "数据库完整性错误，可能是必填字段缺失或唯一性约束被违反。"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail=error_detail
         )
 
 @router.post("/printer", response_model=PrinterReservation)
@@ -122,12 +176,34 @@ async def create_printer_reservation(
 ):
     """创建打印机预约"""
     try:
+        # 解析日期和时间
+        reservation_date = datetime.strptime(reservation.reservation_date, "%Y-%m-%d").date()
+        print_start_time = datetime.strptime(reservation.print_time, "%Y-%m-%dT%H:%M:%S")
+        print_end_time = datetime.strptime(reservation.end_time, "%Y-%m-%dT%H:%M:%S")
+        
+        # 验证开始时间必须早于结束时间
+        if print_start_time >= print_end_time:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="开始时间必须早于结束时间"
+            )
+        
+        # 计算实际打印时长（如果未提供预计时长）
+        estimated_duration = reservation.estimated_duration
+        if not estimated_duration:
+            # 计算分钟差
+            duration_minutes = int((print_end_time - print_start_time).total_seconds() / 60)
+            estimated_duration = duration_minutes
+        
         # 创建预约记录
         db_reservation = models.PrinterReservation(
             user_id=current_user.user_id,
             printer_name=reservation.printer_name,
-            reservation_date=datetime.strptime(reservation.reservation_date, "%Y-%m-%d").date(),
-            print_time=datetime.strptime(reservation.print_time, "%Y-%m-%dT%H:%M:%S"),
+            reservation_date=reservation_date,
+            print_time=print_start_time,
+            end_time=print_end_time,
+            estimated_duration=estimated_duration,
+            model_name=reservation.model_name,
             status="pending"
         )
         
@@ -137,6 +213,7 @@ async def create_printer_reservation(
         
         return {
             "id": db_reservation.reservation_id,
+            "reservation_id": db_reservation.reservation_id,
             "user_id": db_reservation.user_id,
             "user_name": current_user.name,
             "user_department": current_user.department,
@@ -144,13 +221,20 @@ async def create_printer_reservation(
             "created_at": db_reservation.created_at,
             "printer_name": db_reservation.printer_name,
             "reservation_date": str(db_reservation.reservation_date),
-            "print_time": str(db_reservation.print_time)
+            "print_time": str(db_reservation.print_time),
+            "end_time": str(db_reservation.end_time),
+            "estimated_duration": db_reservation.estimated_duration,
+            "model_name": db_reservation.model_name
         }
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
+        print(f"打印机预约失败: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail=f"创建打印机预约失败: {str(e)}"
         )
 
 @router.get("/my-reservations")
@@ -180,6 +264,7 @@ async def get_my_reservations(
         for res in venue_reservations:
             result.append({
                 "type": "venue",
+                "id": res.reservation_id,  # 添加id字段
                 "reservation_id": res.reservation_id,
                 "venue_type": res.venue_type,
                 "reservation_date": res.reservation_date.strftime('%Y-%m-%d'),
@@ -193,6 +278,7 @@ async def get_my_reservations(
         for res in device_reservations:
             result.append({
                 "type": "device",
+                "id": res.reservation_id,  # 添加id字段
                 "reservation_id": res.reservation_id,
                 "device_name": res.device_name,
                 "borrow_time": res.borrow_time.strftime('%Y-%m-%d %H:%M'),
@@ -204,10 +290,14 @@ async def get_my_reservations(
         for res in printer_reservations:
             result.append({
                 "type": "printer",
+                "id": res.reservation_id,
                 "reservation_id": res.reservation_id,
                 "printer_name": res.printer_name,
                 "reservation_date": res.reservation_date.strftime('%Y-%m-%d'),
                 "print_time": res.print_time.strftime('%H:%M') if res.print_time else None,
+                "end_time": res.end_time.strftime('%H:%M') if res.end_time else None,
+                "estimated_duration": res.estimated_duration,
+                "model_name": res.model_name or "未指定",
                 "status": res.status
             })
         
@@ -269,6 +359,7 @@ async def get_occupied_time_slots(
         reservation_date = datetime.strptime(date, "%Y-%m-%d").date()
         
         # 查询该日期该场地类型的所有预约，只考虑待审批和已通过的预约
+        # 已拒绝的预约不会阻塞时间段
         reservations = db.query(models.VenueReservation).filter(
             models.VenueReservation.venue_type == venue_type,
             models.VenueReservation.reservation_date == reservation_date,

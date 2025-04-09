@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required
-from ..models import Admin
+from ..models import User
 from .. import db
 
 bp = Blueprint('auth', __name__)
@@ -10,12 +10,17 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user = Admin.query.filter_by(username=username).first()
+        
+        # Find the user by username
+        user = User.query.filter_by(username=username).first()
 
-        if user and user.verify_password(password):
+        # Check if user exists, has admin role, and password is correct
+        if user and user.role == 'admin' and user.verify_password(password):
             login_user(user)
             return redirect(url_for('admin.index'))
-        flash('用户名或密码错误')
+        else:
+            flash('登录失败: 用户名不存在、密码错误或您没有管理员权限')
+            
     return render_template('auth/login.html')
 
 @bp.route('/logout')

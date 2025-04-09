@@ -34,6 +34,10 @@ class PrinterReservationResponse(BaseModel):
     printer_name: str
     reservation_date: str
     print_time: str
+    end_time: str
+    estimated_duration: Optional[int] = None
+    model_name: Optional[str] = None
+    approver_name: Optional[str] = None
 
 # 设备预约响应模型
 class DeviceReservationResponse(BaseModel):
@@ -45,9 +49,10 @@ class DeviceReservationResponse(BaseModel):
     created_at: datetime
     device_name: str
     borrow_time: str
-    return_time: str
+    return_time: Optional[str]
     reason: str
     type: str = "device"
+    usage_type: str = "takeaway"  # 'onsite' or 'takeaway'
 
 # 场地预约响应模型
 class VenueReservationResponse(BaseModel):
@@ -103,14 +108,18 @@ class VenueReservationCreate(BaseModel):
 class DeviceReservationCreate(BaseModel):
     device_name: str
     borrow_time: str
-    return_time: str
+    return_time: Optional[str]  # Optional for on-site usage
     reason: str
+    usage_type: str = "takeaway"  # 'onsite' or 'takeaway'
 
 # 打印机预约创建请求模型
 class PrinterReservationCreate(BaseModel):
     printer_name: str
     reservation_date: str
-    print_time: str
+    print_time: str  # 开始时间
+    end_time: str    # 结束时间
+    estimated_duration: Optional[int] = None  # 预计打印耗时（分钟）
+    model_name: Optional[str] = None  # 打印模型名称
 
 # 场地预约响应模型
 class VenueReservation(VenueReservationResponse):

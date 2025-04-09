@@ -55,6 +55,7 @@ class User(Base):
     password = Column(String(255))
     role = Column(String(50))  # student, teacher, admin
     department = Column(String(255))
+    is_system_admin = Column(Boolean, default=False)  # 系统管理员标记
 
     # 关联关系
     venue_reservations = relationship("VenueReservation", back_populates="user")
@@ -73,21 +74,24 @@ class VenueReservation(Base):
     status = Column(String, default="pending")
     created_at = Column(DateTime, default=datetime.now)
     devices_needed = Column(JSON)
+    approver_name = Column(String, nullable=True)
     
     user = relationship("User", back_populates="venue_reservations")
 
 class DeviceReservation(Base):
     __tablename__ = "device_reservations"
 
-    reservation_id = Column(Integer, primary_key=True, index=True)
+    reservation_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
     device_name = Column(String(50), nullable=False)
     borrow_time = Column(DateTime, nullable=False)
-    return_time = Column(DateTime, nullable=False)
+    return_time = Column(DateTime, nullable=True)  # Changed to nullable for on-site usage
     actual_return_time = Column(DateTime, nullable=True)
     reason = Column(Text)
     status = Column(String(50), default="pending")
     created_at = Column(DateTime, server_default=func.now())
+    usage_type = Column(String(50), default="takeaway")  # 'onsite' or 'takeaway'
+    approver_name = Column(String, nullable=True)
     
     user = relationship("User", back_populates="device_reservations")
 
@@ -98,9 +102,13 @@ class PrinterReservation(Base):
     user_id = Column(Integer, ForeignKey("users.user_id"))
     printer_name = Column(String(50), nullable=False)
     reservation_date = Column(Date, nullable=False)
-    print_time = Column(DateTime, nullable=False)
+    print_time = Column(DateTime, nullable=False)  # 保留原有字段，但改为开始时间
+    end_time = Column(DateTime, nullable=False)    # 新增结束时间
+    estimated_duration = Column(Integer, nullable=True)  # 预计打印耗时（分钟）
+    model_name = Column(String(100), nullable=True)  # 打印模型名称
     status = Column(String(50), default="pending")
     created_at = Column(DateTime, default=func.now())
+    approver_name = Column(String, nullable=True)
 
     user = relationship("User", back_populates="printer_reservations")
 

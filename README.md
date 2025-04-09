@@ -1,5 +1,13 @@
 # 创新实验室预约系统
 
+ToDOList
+
+* [X] 管理员授权
+* [X] 设备预约、3D打印机预约的表单升级
+* [X] 设备和场地管理移除默认的设备和场地
+* [X] 管理系统的预约记录视觉升级，表单的提交界面升级
+* [ ] 设备和3D打印机借用和归还的好坏检测
+
 locust -f locustfile.py --host=http://localhost:8001
 
 一个基于FastAPI和微信小程序的实验室预约管理系统。(需求在docs/command.md里面)
@@ -11,6 +19,7 @@ locust -f locustfile.py --host=http://localhost:8001
 ```
 project/
 ├── app/                    # 主应用
+│   ├── db/                # 数据库创建脚本
 │   ├── models/            # 数据库模型
 │   ├── routers/           # API路由
 │   ├── utils/             # 工具函数
@@ -118,6 +127,7 @@ python run.py
 
    - 电动螺丝刀
    - 万用表
+   - 支持现场使用和带走使用两种模式
 4. 3D打印机预约
 
    - 支持多台打印机预约
@@ -127,6 +137,7 @@ python run.py
    - 设备管理
    - 用户管理
    - 数据导出
+   - 预约记录显示审批人姓名
 
 ## 开发说明
 
