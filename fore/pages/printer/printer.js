@@ -15,6 +15,7 @@ Page({
     endTime: '',
     duration: '',
     modelName: '',
+    teacherName: '',
     minDate: '',
     showForm: false
   },
@@ -128,7 +129,8 @@ Page({
       startTime: '',
       endTime: '',
       duration: '',
-      modelName: ''
+      modelName: '',
+      teacherName: ''
     })
   },
 
@@ -179,8 +181,14 @@ Page({
     })
   },
 
+  handleTeacherNameChange(e) {
+    this.setData({
+      teacherName: e.detail.value
+    })
+  },
+
   async handleSubmit() {
-    const { selectedPrinter, date, startTime, endTime, duration, modelName } = this.data
+    const { selectedPrinter, date, startTime, endTime, duration, modelName, teacherName } = this.data
     
     if (!selectedPrinter || !date || !startTime || !endTime) {
       wx.showToast({
@@ -205,8 +213,9 @@ Page({
         reservation_date: date,
         print_time: formattedStartTime,
         end_time: formattedEndTime,
-        estimated_duration: duration ? parseInt(duration) : undefined,
-        model_name: modelName
+        estimated_duration: duration ? parseInt(duration) : null,
+        model_name: modelName || null,
+        teacher_name: teacherName || null
       }
 
       console.log('预约请求数据:', requestData)

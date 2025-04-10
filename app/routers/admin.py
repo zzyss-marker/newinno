@@ -78,7 +78,10 @@ async def get_pending_reservations(
                 "device_name": r.device_name,
                 "borrow_time": str(r.borrow_time),
                 "return_time": str(r.return_time),
-                "reason": r.reason
+                "reason": r.reason,
+                "teacher_name": r.teacher_name,  # 添加指导老师信息
+                "device_condition": r.device_condition,  # 添加设备状态
+                "return_note": r.return_note  # 添加归还备注
             } for r in device_reservations],
             "printer_reservations": [{
                 "id": r.reservation_id,
@@ -93,6 +96,7 @@ async def get_pending_reservations(
                 "end_time": str(r.end_time) if r.end_time else None,
                 "estimated_duration": r.estimated_duration,
                 "model_name": r.model_name,
+                "teacher_name": r.teacher_name,  # 添加指导老师信息
                 "approver_name": r.approver_name
             } for r in printer_reservations]
         }
@@ -147,7 +151,11 @@ async def get_approved_reservations(
                 "device_name": r.device_name,
                 "borrow_time": str(r.borrow_time),
                 "return_time": str(r.return_time),
-                "reason": r.reason
+                "reason": r.reason,
+                "teacher_name": r.teacher_name,  # 添加指导老师信息
+                "device_condition": r.device_condition,  # 添加设备状态
+                "return_note": r.return_note,  # 添加归还备注
+                "usage_type": r.usage_type  # 添加使用类型
             } for r in device_reservations],
             "printer_reservations": [{
                 "id": r.reservation_id,
@@ -162,6 +170,7 @@ async def get_approved_reservations(
                 "end_time": str(r.end_time) if r.end_time else None,
                 "estimated_duration": r.estimated_duration,
                 "model_name": r.model_name,
+                "teacher_name": r.teacher_name,  # 添加指导老师信息
                 "approver_name": r.approver_name
             } for r in printer_reservations]
         }
@@ -258,20 +267,173 @@ async def confirm_device_return(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_admin)
 ):
-    reservation = db.query(models.DeviceReservation).filter(
-        models.DeviceReservation.reservation_id == reservation_id
-    ).first()
-    
-    if not reservation:
-        raise HTTPException(status_code=404, detail="Reservation not found")
+    """确认设备归还（不修改设备状态）"""
+    try:
+        # 查找预约记录
+        db_reservation = db.query(models.DeviceReservation).filter(
+            models.DeviceReservation.reservation_id == reservation_id
+        ).first()
         
-    reservation.status = "returned"
-    reservation.actual_return_time = datetime.now()
-    # 如果之前没有审批人记录，添加当前操作员作为审批人
-    if not reservation.approver_name:
-        reservation.approver_name = current_user.name
-    db.commit()
-    return {"message": "Device return confirmed"}
+        if not db_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="预约记录不存在"
+            )
+        
+        # 更新状态
+        db_reservation.status = "returned"
+        
+        # 更新设备可用数量
+        device = db.query(models.Management).filter(
+            models.Management.device_or_venue_name == db_reservation.device_name
+        ).first()
+        
+        if device:
+            device.available_quantity += 1
+        
+        db.commit()
+        
+        return {"message": "设备归还已确认"}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"确认设备归还失败: {str(e)}"
+        )
+
+@router.post("/device-return/approve")
+async def approve_device_return(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)
+):
+    """审批设备归还"""
+    if "id" not in data or "action" not in data:
+        raise HTTPException(status_code=400, detail="缺少必要参数")
+    
+    try:
+        reservation_id = data["id"]
+        action = data["action"]  # approve 或 reject
+        
+        # 查找预约记录
+        db_reservation = db.query(models.DeviceReservation).filter(
+            models.DeviceReservation.reservation_id == reservation_id
+        ).first()
+        
+        if not db_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="预约记录不存在"
+            )
+        
+        if db_reservation.status != "return_pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"该预约当前状态为{db_reservation.status}，不能进行归还审批"
+            )
+            
+        # 更新审批状态
+        if action == "approve":
+            db_reservation.status = "returned"
+            db_reservation.return_approver = current_user.name
+            
+            # 更新设备可用数量
+            device = db.query(models.Management).filter(
+                models.Management.device_or_venue_name == db_reservation.device_name
+            ).first()
+            
+            if device:
+                device.available_quantity += 1
+                
+                # 如果设备状态为故障，更新设备状态
+                if db_reservation.device_condition == "damaged":
+                    device.status = "maintenance"
+                    
+            message = "设备归还已审批通过"
+        else:
+            # 拒绝归还，状态回到已审批
+            db_reservation.status = "approved"
+            message = "设备归还审批已拒绝"
+        
+        db.commit()
+        
+        return {"message": message}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"设备归还审批失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"设备归还审批失败: {str(e)}"
+        )
+
+@router.post("/printer-completion/approve")
+async def approve_printer_completion(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)
+):
+    """审批打印机使用完成"""
+    if "id" not in data or "action" not in data:
+        raise HTTPException(status_code=400, detail="缺少必要参数")
+    
+    try:
+        reservation_id = data["id"]
+        action = data["action"]  # approve 或 reject
+        
+        # 查找预约记录
+        db_reservation = db.query(models.PrinterReservation).filter(
+            models.PrinterReservation.reservation_id == reservation_id
+        ).first()
+        
+        if not db_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="预约记录不存在"
+            )
+        
+        if db_reservation.status != "completion_pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"该预约当前状态为{db_reservation.status}，不能进行使用完成审批"
+            )
+            
+        # 更新审批状态
+        if action == "approve":
+            db_reservation.status = "completed"
+            db_reservation.completion_approver = current_user.name
+            
+            # 如果打印机状态为故障，更新设备状态
+            if db_reservation.printer_condition == "damaged":
+                printer = db.query(models.Management).filter(
+                    models.Management.device_or_venue_name == db_reservation.printer_name
+                ).first()
+                
+                if printer:
+                    printer.status = "maintenance"
+                    
+            message = "打印机使用完成已审批通过"
+        else:
+            # 拒绝完成，状态回到已审批
+            db_reservation.status = "approved"
+            message = "打印机使用完成审批已拒绝"
+        
+        db.commit()
+        
+        return {"message": message}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"打印机使用完成审批失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"打印机使用完成审批失败: {str(e)}"
+        )
 
 @router.post("/users/import-excel")
 async def import_users_from_excel(
@@ -395,12 +557,16 @@ async def export_reservations(
                 '学号/工号': r.user.username if r.user else r.user_id,
                 '所属学院': r.user.department if r.user else '未知',
                 '设备名称': device_name_map.get(r.device_name, r.device_name),
-                '使用方式': '现场使用' if r.usage_type == 'onsite' else '带走使用',  # 显示使用方式
                 '借用时间': r.borrow_time.strftime('%Y-%m-%d %H:%M') if r.borrow_time else '',
-                '归还时间': r.return_time.strftime('%Y-%m-%d %H:%M') if r.return_time else ('不适用' if r.usage_type == 'onsite' else '未归还'),
+                '归还时间': r.return_time.strftime('%Y-%m-%d %H:%M') if r.return_time else '',
+                '实际归还时间': r.actual_return_time.strftime('%Y-%m-%d %H:%M') if r.actual_return_time else '',
                 '用途': r.reason,
+                '使用类型': '带走' if r.usage_type == 'takeaway' else '现场使用',
                 '状态': status_map.get(r.status, r.status),
-                '审批人': r.approver_name or '未审批',  # 添加审批人信息
+                '审批人': r.approver_name or '未审批',
+                '指导老师': r.teacher_name or '无',
+                '设备状态': '正常' if r.device_condition == 'normal' else '故障' if r.device_condition == 'damaged' else '未知',
+                '归还备注': r.return_note or '',
                 '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
             } for r in device_reservations]
             
@@ -411,12 +577,15 @@ async def export_reservations(
                 '所属学院': r.user.department if r.user else '未知',
                 '打印机': r.printer_name,
                 '预约日期': r.reservation_date.strftime('%Y-%m-%d') if r.reservation_date else '',
-                '开始时间': r.print_time.strftime('%H:%M') if r.print_time else '',
-                '结束时间': r.end_time.strftime('%H:%M') if r.end_time else '',
-                '预计耗时(分钟)': r.estimated_duration or '-',
-                '打印模型名称': r.model_name or '未指定',
+                '打印时间': r.print_time.strftime('%Y-%m-%d %H:%M') if r.print_time else '',
+                '结束时间': r.end_time.strftime('%Y-%m-%d %H:%M') if r.end_time else '',
+                '预计耗时': f'{r.estimated_duration}分钟' if r.estimated_duration else '未知',
+                '模型名称': r.model_name or '未指定',
                 '状态': status_map.get(r.status, r.status),
                 '审批人': r.approver_name or '未审批',
+                '指导老师': r.teacher_name or '无',
+                '打印机状态': '正常' if r.printer_condition == 'normal' else '故障' if r.printer_condition == 'damaged' else '未知',
+                '完成备注': r.completion_note or '',
                 '申请时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else ''
             } for r in printer_reservations]
             
@@ -785,11 +954,14 @@ async def list_reservations(
                 "status": res.status,
                 "usage_type": res.usage_type,  # 显示使用类型
                 "usage_type_text": "现场使用" if res.usage_type == "onsite" else "带走使用",  # 添加使用类型文本
+                "teacher_name": res.teacher_name,  # 添加指导老师信息
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
                 },
-                "approver_name": res.approver_name  # 添加审批人信息
+                "approver_name": res.approver_name,  # 添加审批人信息
+                "device_condition": res.device_condition,  # 添加设备状态信息
+                "return_note": res.return_note  # 添加归还备注信息
             })
         
         # 添加打印机预约
@@ -801,11 +973,14 @@ async def list_reservations(
                 "reservation_date": res.created_at.strftime('%Y-%m-%d'),
                 "print_time": res.print_time.strftime('%Y-%m-%d %H:%M') if res.print_time else None,
                 "status": res.status,
+                "teacher_name": res.teacher_name,  # 添加指导老师信息
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
                 },
-                "approver_name": res.approver_name  # 添加审批人信息
+                "approver_name": res.approver_name,  # 添加审批人信息
+                "printer_condition": res.printer_condition,  # 添加打印机状态信息
+                "completion_note": res.completion_note  # 添加完成备注信息
             })
         
         # 按日期排序

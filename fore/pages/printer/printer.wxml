@@ -68,6 +68,13 @@
           <input type="text" value="{{modelName}}" bindinput="handleModelNameChange" placeholder="请输入模型名称" placeholder-class="placeholder-text" />
         </view>
       </view>
+
+      <view class="form-item">
+        <text class="label">指导老师</text>
+        <view class="input-container">
+          <input type="text" value="{{teacherName}}" bindinput="handleTeacherNameChange" placeholder="请输入指导老师姓名" placeholder-class="placeholder-text" />
+        </view>
+      </view>
     </view>
 
     <button class="submit-btn" type="primary" bindtap="handleSubmit">提交预约</button>

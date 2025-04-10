@@ -13,7 +13,9 @@ from ..schemas import (
     VenueReservationCreate,
     DeviceReservationCreate,
     PrinterReservationCreate,
-    PrinterReservation
+    PrinterReservation,
+    DeviceReturnUpdate,
+    PrinterCompletionUpdate
 )
 from ..utils.auth import get_current_user
 from ..utils.validation import check_reservation_conflict
@@ -120,6 +122,7 @@ async def create_device_reservation(
             return_time=return_time,  # 对于现场使用，这里是None
             reason=reservation.reason,
             usage_type=reservation.usage_type,
+            teacher_name=reservation.teacher_name,  # 添加指导老师信息
             status="pending"
         )
         
@@ -154,7 +157,8 @@ async def create_device_reservation(
             "borrow_time": str(db_reservation.borrow_time),
             "return_time": str(db_reservation.return_time) if db_reservation.return_time else None,
             "reason": db_reservation.reason,
-            "usage_type": db_reservation.usage_type
+            "usage_type": db_reservation.usage_type,
+            "teacher_name": db_reservation.teacher_name  # 返回指导老师信息
         }
     except Exception as e:
         db.rollback()
@@ -204,6 +208,7 @@ async def create_printer_reservation(
             end_time=print_end_time,
             estimated_duration=estimated_duration,
             model_name=reservation.model_name,
+            teacher_name=reservation.teacher_name,  # 添加指导老师信息
             status="pending"
         )
         
@@ -224,7 +229,8 @@ async def create_printer_reservation(
             "print_time": str(db_reservation.print_time),
             "end_time": str(db_reservation.end_time),
             "estimated_duration": db_reservation.estimated_duration,
-            "model_name": db_reservation.model_name
+            "model_name": db_reservation.model_name,
+            "teacher_name": db_reservation.teacher_name  # 返回指导老师信息
         }
     except HTTPException:
         db.rollback()
@@ -283,7 +289,13 @@ async def get_my_reservations(
                 "device_name": res.device_name,
                 "borrow_time": res.borrow_time.strftime('%Y-%m-%d %H:%M'),
                 "return_time": res.return_time.strftime('%Y-%m-%d %H:%M') if res.return_time else None,
-                "status": res.status
+                "teacher_name": res.teacher_name,
+                "usage_type": res.usage_type,
+                "status": res.status,
+                # 无论任何状态，始终添加设备状态信息
+                "device_condition": res.device_condition,
+                "return_note": res.return_note,
+                "created_at": res.created_at.isoformat() if res.created_at else None
             })
         
         # 添加打印机预约
@@ -298,7 +310,12 @@ async def get_my_reservations(
                 "end_time": res.end_time.strftime('%H:%M') if res.end_time else None,
                 "estimated_duration": res.estimated_duration,
                 "model_name": res.model_name or "未指定",
-                "status": res.status
+                "teacher_name": res.teacher_name,
+                "status": res.status,
+                # 无论任何状态，始终添加打印机状态信息
+                "printer_condition": res.printer_condition,
+                "completion_note": res.completion_note,
+                "created_at": res.created_at.isoformat() if res.created_at else None
             })
         
         return result
@@ -378,4 +395,285 @@ async def get_occupied_time_slots(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"获取已占用时间段失败: {str(e)}"
+        ) 
+
+@router.post("/device/return")
+async def submit_device_return(
+    return_data: DeviceReturnUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """提交设备归还状态"""
+    try:
+        # 查找预约记录
+        db_reservation = db.query(models.DeviceReservation).filter(
+            models.DeviceReservation.reservation_id == return_data.id
+        ).first()
+        
+        if not db_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="预约记录不存在"
+            )
+        
+        # 验证是否是当前用户的预约
+        if db_reservation.user_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无法提交他人的设备归还"
+            )
+        
+        # 验证预约状态
+        if db_reservation.status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"该预约当前状态为{db_reservation.status}，不能提交归还"
+            )
+        
+        # 更新归还状态
+        db_reservation.device_condition = return_data.device_condition
+        db_reservation.return_note = return_data.return_note
+        db_reservation.actual_return_time = datetime.now()
+        db_reservation.status = "return_pending"  # 设置为等待归还审批
+        
+        db.commit()
+        db.refresh(db_reservation)
+        
+        return {
+            "message": "设备归还状态已提交，等待管理员审批",
+            "reservation_id": db_reservation.reservation_id,
+            "status": db_reservation.status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"设备归还提交失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"设备归还提交失败: {str(e)}"
+        )
+
+@router.post("/device/return-direct")
+async def submit_device_return_direct(
+    return_data: DeviceReturnUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """提交设备归还状态（直接完成，无需审批）"""
+    try:
+        # 查找预约记录
+        db_reservation = db.query(models.DeviceReservation).filter(
+            models.DeviceReservation.reservation_id == return_data.id
+        ).first()
+        
+        if not db_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="预约记录不存在"
+            )
+        
+        # 验证是否是当前用户的预约
+        if db_reservation.user_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无法提交他人的设备归还"
+            )
+        
+        # 验证预约状态
+        if db_reservation.status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"该预约当前状态为{db_reservation.status}，不能提交归还"
+            )
+        
+        # 确保设备状态值有效
+        valid_conditions = ["normal", "damaged"]
+        if return_data.device_condition not in valid_conditions:
+            return_data.device_condition = "normal"
+            
+        # 记录原始请求数据用于调试
+        print(f"设备归还请求数据: id={return_data.id}, condition={return_data.device_condition}, note={return_data.return_note}")
+        
+        # 更新归还状态和设备状态
+        db_reservation.device_condition = return_data.device_condition
+        db_reservation.return_note = return_data.return_note
+        db_reservation.actual_return_time = datetime.now()
+        db_reservation.status = "returned"  # 直接设置为已归还
+        
+        # 更新设备可用数量
+        device = db.query(models.Management).filter(
+            models.Management.device_or_venue_name == db_reservation.device_name
+        ).first()
+        
+        if device:
+            device.available_quantity += 1
+            
+            # 如果设备状态为故障，更新设备状态
+            if return_data.device_condition == "damaged":
+                device.status = "maintenance"
+        
+        # 提交更改
+        db.commit()
+        db.refresh(db_reservation)
+        
+        # 记录更新后的数据用于调试
+        print(f"设备归还更新后数据: id={db_reservation.reservation_id}, condition={db_reservation.device_condition}, status={db_reservation.status}")
+        
+        # 返回完整的信息
+        return {
+            "message": "设备归还成功",
+            "reservation_id": db_reservation.reservation_id,
+            "status": db_reservation.status,
+            "device_condition": db_reservation.device_condition,
+            "return_note": db_reservation.return_note
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"设备归还提交失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"设备归还提交失败: {str(e)}"
+        )
+
+@router.post("/printer/complete")
+async def submit_printer_completion(
+    completion_data: PrinterCompletionUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """提交打印机使用完成状态"""
+    try:
+        # 查找预约记录
+        db_reservation = db.query(models.PrinterReservation).filter(
+            models.PrinterReservation.reservation_id == completion_data.id
+        ).first()
+        
+        if not db_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="预约记录不存在"
+            )
+        
+        # 验证是否是当前用户的预约
+        if db_reservation.user_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无法提交他人的打印机使用完成状态"
+            )
+        
+        # 验证预约状态
+        if db_reservation.status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"该预约当前状态为{db_reservation.status}，不能提交使用完成信息"
+            )
+        
+        # 更新使用完成状态
+        db_reservation.printer_condition = completion_data.printer_condition
+        db_reservation.completion_note = completion_data.completion_note
+        db_reservation.status = "completion_pending"  # 设置为等待完成审批
+        
+        db.commit()
+        db.refresh(db_reservation)
+        
+        return {
+            "message": "打印机使用完成状态已提交，等待管理员审批",
+            "reservation_id": db_reservation.reservation_id,
+            "status": db_reservation.status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"打印机使用完成提交失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"打印机使用完成提交失败: {str(e)}"
+        )
+
+@router.post("/printer/complete-direct")
+async def submit_printer_completion_direct(
+    completion_data: PrinterCompletionUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """提交打印机使用完成状态（直接完成，无需审批）"""
+    try:
+        # 查找预约记录
+        db_reservation = db.query(models.PrinterReservation).filter(
+            models.PrinterReservation.reservation_id == completion_data.id
+        ).first()
+        
+        if not db_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="预约记录不存在"
+            )
+        
+        # 验证是否是当前用户的预约
+        if db_reservation.user_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无法提交他人的打印机使用完成状态"
+            )
+        
+        # 验证预约状态
+        if db_reservation.status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"该预约当前状态为{db_reservation.status}，不能提交使用完成信息"
+            )
+        
+        # 确保打印机状态值有效
+        valid_conditions = ["normal", "damaged"]
+        if completion_data.printer_condition not in valid_conditions:
+            completion_data.printer_condition = "normal"
+            
+        # 记录原始请求数据用于调试
+        print(f"打印机完成请求数据: id={completion_data.id}, condition={completion_data.printer_condition}, note={completion_data.completion_note}")
+        
+        # 更新使用完成状态
+        db_reservation.printer_condition = completion_data.printer_condition
+        db_reservation.completion_note = completion_data.completion_note
+        db_reservation.status = "completed"  # 直接设置为已完成
+        
+        # 如果打印机状态为故障，更新设备状态
+        if completion_data.printer_condition == "damaged":
+            printer = db.query(models.Management).filter(
+                models.Management.device_or_venue_name == db_reservation.printer_name
+            ).first()
+            
+            if printer:
+                printer.status = "maintenance"
+        
+        # 提交更改
+        db.commit()
+        db.refresh(db_reservation)
+        
+        # 记录更新后的数据用于调试
+        print(f"打印机完成更新后数据: id={db_reservation.reservation_id}, condition={db_reservation.printer_condition}, status={db_reservation.status}")
+        
+        # 返回完整的信息
+        return {
+            "message": "打印机使用完成提交成功",
+            "reservation_id": db_reservation.reservation_id,
+            "status": db_reservation.status,
+            "printer_condition": db_reservation.printer_condition,
+            "completion_note": db_reservation.completion_note
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"打印机使用完成提交失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"打印机使用完成提交失败: {str(e)}"
         ) 

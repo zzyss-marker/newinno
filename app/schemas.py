@@ -38,6 +38,10 @@ class PrinterReservationResponse(BaseModel):
     estimated_duration: Optional[int] = None
     model_name: Optional[str] = None
     approver_name: Optional[str] = None
+    teacher_name: Optional[str] = None
+    printer_condition: Optional[str] = None
+    completion_note: Optional[str] = None
+    completion_approver: Optional[str] = None
 
 # 设备预约响应模型
 class DeviceReservationResponse(BaseModel):
@@ -50,9 +54,14 @@ class DeviceReservationResponse(BaseModel):
     device_name: str
     borrow_time: str
     return_time: Optional[str]
+    actual_return_time: Optional[str] = None
     reason: str
     type: str = "device"
     usage_type: str = "takeaway"  # 'onsite' or 'takeaway'
+    teacher_name: Optional[str] = None
+    device_condition: Optional[str] = None
+    return_note: Optional[str] = None
+    return_approver: Optional[str] = None
 
 # 场地预约响应模型
 class VenueReservationResponse(BaseModel):
@@ -111,6 +120,7 @@ class DeviceReservationCreate(BaseModel):
     return_time: Optional[str]  # Optional for on-site usage
     reason: str
     usage_type: str = "takeaway"  # 'onsite' or 'takeaway'
+    teacher_name: Optional[str] = None
 
 # 打印机预约创建请求模型
 class PrinterReservationCreate(BaseModel):
@@ -120,6 +130,7 @@ class PrinterReservationCreate(BaseModel):
     end_time: str    # 结束时间
     estimated_duration: Optional[int] = None  # 预计打印耗时（分钟）
     model_name: Optional[str] = None  # 打印模型名称
+    teacher_name: Optional[str] = None
 
 # 场地预约响应模型
 class VenueReservation(VenueReservationResponse):
@@ -196,4 +207,16 @@ class Device(DeviceBase):
     id: int
 
     class Config:
-        orm_mode = True 
+        orm_mode = True
+
+# 设备归还状态更新模型
+class DeviceReturnUpdate(BaseModel):
+    id: int
+    device_condition: str  # normal, damaged
+    return_note: Optional[str] = None
+
+# 打印机使用完成状态更新模型
+class PrinterCompletionUpdate(BaseModel):
+    id: int
+    printer_condition: str  # normal, damaged
+    completion_note: Optional[str] = None 

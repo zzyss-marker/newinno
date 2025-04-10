@@ -56,8 +56,14 @@ class DeviceReservation(db.Model):
     return_time = db.Column(db.DateTime)
     actual_return_time = db.Column(db.DateTime)
     reason = db.Column(db.Text)
-    status = db.Column(db.String(50), default="pending")
+    status = db.Column(db.String(50), default="pending")  # pending, approved, rejected, returned, return_pending
     created_at = db.Column(db.DateTime, default=datetime.now)
+    usage_type = db.Column(db.String(50), default="takeaway")  # 'onsite' or 'takeaway'
+    approver_name = db.Column(db.String(100), nullable=True)
+    teacher_name = db.Column(db.String(100), nullable=True)  # 添加指导老师字段
+    device_condition = db.Column(db.String(50), nullable=True)  # 归还时设备状态: normal(正常), damaged(故障)
+    return_note = db.Column(db.Text, nullable=True)  # 归还备注信息
+    return_approver = db.Column(db.String(100), nullable=True)  # 归还审批人
     
     user = db.relationship('User', back_populates='device_reservations')
 
@@ -69,8 +75,16 @@ class PrinterReservation(db.Model):
     printer_name = db.Column(db.String(50))
     reservation_date = db.Column(db.Date)
     print_time = db.Column(db.DateTime)
-    status = db.Column(db.String(50), default="pending")
+    end_time = db.Column(db.DateTime, nullable=True)  # 结束时间
+    estimated_duration = db.Column(db.Integer, nullable=True)  # 预计打印耗时（分钟）
+    model_name = db.Column(db.String(100), nullable=True)  # 打印模型名称
+    status = db.Column(db.String(50), default="pending")  # pending, approved, rejected, completed, completion_pending
     created_at = db.Column(db.DateTime, default=datetime.now)
+    approver_name = db.Column(db.String(100), nullable=True)
+    teacher_name = db.Column(db.String(100), nullable=True)  # 添加指导老师字段
+    printer_condition = db.Column(db.String(50), nullable=True)  # 使用完成后打印机状态: normal(正常), damaged(故障)
+    completion_note = db.Column(db.Text, nullable=True)  # 使用完成备注信息
+    completion_approver = db.Column(db.String(100), nullable=True)  # 完成审批人
 
     user = db.relationship('User', back_populates='printer_reservations')
 

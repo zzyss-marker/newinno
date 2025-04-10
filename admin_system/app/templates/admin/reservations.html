@@ -7,11 +7,15 @@
     <h2 class="mb-4">预约记录管理</h2>
     
     <div class="card mb-4">
-        <div class="card-header bg-light">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">筛选条件</h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true" aria-controls="filterCollapse">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
-        <div class="card-body">
+        <div class="card-body collapse show" id="filterCollapse">
             <form id="filterForm" class="row g-3">
+                <!-- 基本筛选条件 -->
                 <div class="col-md-3">
                     <div class="form-group">
                         <label for="startDate">开始日期</label>
@@ -43,9 +47,41 @@
                             <option value="pending">待审批</option>
                             <option value="approved">已通过</option>
                             <option value="rejected">已拒绝</option>
+                            <option value="returned">已归还</option>
                         </select>
                     </div>
                 </div>
+                
+                <!-- 扩展搜索选项 -->
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="userSearch">申请人</label>
+                        <input type="text" class="form-control" id="userSearch" placeholder="输入申请人姓名">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="departmentSearch">学院</label>
+                        <input type="text" class="form-control" id="departmentSearch" placeholder="输入学院名称">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="deviceCondition">设备状态</label>
+                        <select class="form-control" id="deviceCondition">
+                            <option value="">全部状态</option>
+                            <option value="normal">正常</option>
+                            <option value="damaged">故障</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="keywordSearch">关键词搜索</label>
+                        <input type="text" class="form-control" id="keywordSearch" placeholder="设备名称/场地/备注">
+                    </div>
+                </div>
+                
                 <div class="col-12 mt-3">
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
@@ -111,6 +147,10 @@ async function loadReservations() {
     const endDate = document.getElementById('endDate').value;
     const reservationType = document.getElementById('reservationType').value;
     const reservationStatus = document.getElementById('reservationStatus').value;
+    const userSearch = document.getElementById('userSearch').value.trim().toLowerCase();
+    const departmentSearch = document.getElementById('departmentSearch').value.trim().toLowerCase();
+    const deviceCondition = document.getElementById('deviceCondition').value;
+    const keywordSearch = document.getElementById('keywordSearch').value.trim().toLowerCase();
     
     // 更新记录数量显示
     document.getElementById('reservation-count').textContent = '加载中...';
@@ -144,13 +184,64 @@ async function loadReservations() {
             throw new Error('返回数据格式错误');
         }
         
-        // 客户端筛选
+        // 客户端筛选 - 基本筛选
         let filteredData = data;
         if (reservationType) {
             filteredData = filteredData.filter(record => record.type === reservationType);
         }
         if (reservationStatus) {
             filteredData = filteredData.filter(record => record.status === reservationStatus);
+        }
+        
+        // 高级筛选
+        if (userSearch) {
+            filteredData = filteredData.filter(record => 
+                (record.user?.name || '').toLowerCase().includes(userSearch)
+            );
+        }
+        
+        if (departmentSearch) {
+            filteredData = filteredData.filter(record => 
+                (record.user?.department || '').toLowerCase().includes(departmentSearch)
+            );
+        }
+        
+        if (deviceCondition) {
+            filteredData = filteredData.filter(record => 
+                // 只针对设备类型的记录
+                (record.type === 'device' || record.type === 'printer') && 
+                // 匹配设备状态
+                ((record.type === 'device' && record.device_condition === deviceCondition) ||
+                (record.type === 'printer' && record.printer_condition === deviceCondition))
+            );
+        }
+        
+        if (keywordSearch) {
+            filteredData = filteredData.filter(record => {
+                // 搜索对应的字段
+                const searchFields = [];
+                if (record.type === 'device') {
+                    searchFields.push(
+                        record.device_name || '',
+                        record.return_note || ''
+                    );
+                } else if (record.type === 'venue') {
+                    searchFields.push(
+                        record.venue_type || '',
+                        record.purpose || ''
+                    );
+                } else if (record.type === 'printer') {
+                    searchFields.push(
+                        record.printer_name || '',
+                        record.model_name || '',
+                        record.completion_note || ''
+                    );
+                }
+                // 检查是否有任何字段包含搜索关键词
+                return searchFields.some(field => 
+                    field.toLowerCase().includes(keywordSearch)
+                );
+            });
         }
         
         // 更新记录数量显示
@@ -242,6 +333,7 @@ function getDetailsHtml(record) {
                 devicesHtml = deviceList.length > 0 ? 
                     `<div class="device-list">${deviceList.join('')}</div>` : '';
             }
+            
             return `
                 <div class="reservation-details">
                     <div>
@@ -253,12 +345,74 @@ function getDetailsHtml(record) {
                 </div>
             `;
         case 'printer':
+            // 检查打印机状态值的有效性
+            let printerCondition = 'normal';
+            if (record.printer_condition === 'damaged') {
+                printerCondition = 'damaged';
+            }
+            
+            // 增强打印机状态信息显示 - 始终显示状态框
+            let printerConditionHtml = '';
+            if (record.status === 'completed') {
+                const conditionClass = printerCondition === 'normal' ? 'success' : 'danger';
+                const conditionText = printerCondition === 'normal' ? '正常' : '故障';
+                printerConditionHtml = `
+                    <div class="condition-box ${conditionClass}-box">
+                        <strong>打印机状态:</strong> 
+                        <span class="badge badge-${conditionClass} condition-badge">${conditionText}</span>
+                        <span class="condition-value">[${record.printer_condition}]</span>
+                        ${record.completion_note ? `<div class="condition-note text-wrap"><strong>备注:</strong> ${record.completion_note}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                // 未完成显示占位状态框
+                printerConditionHtml = `
+                    <div class="condition-box pending-box">
+                        <strong>打印机状态:</strong> 
+                        <span class="badge badge-secondary condition-badge">未提交</span>
+                    </div>
+                `;
+            }
+            
             return `
                 <div class="reservation-details">
                     <div><strong>打印机:</strong> ${record.printer_name}</div>
+                    <div><strong>指导老师:</strong> ${record.teacher_name || '未指定'}</div>
+                    ${record.estimated_duration ? `<div><strong>预计耗时:</strong> ${record.estimated_duration}分钟</div>` : ''}
+                    ${record.model_name ? `<div><strong>模型名称:</strong> ${record.model_name}</div>` : ''}
+                    ${printerConditionHtml}
                 </div>
             `;
         case 'device':
+            // 检查设备状态值的有效性
+            let deviceCondition = 'normal';
+            if (record.device_condition === 'damaged') {
+                deviceCondition = 'damaged';
+            }
+            
+            // 增强设备状态信息显示 - 始终显示状态框
+            let deviceConditionHtml = '';
+            if (record.status === 'returned') {
+                const conditionClass = deviceCondition === 'normal' ? 'success' : 'danger';
+                const conditionText = deviceCondition === 'normal' ? '正常' : '故障';
+                deviceConditionHtml = `
+                    <div class="condition-box ${conditionClass}-box">
+                        <strong>设备状态:</strong> 
+                        <span class="badge badge-${conditionClass} condition-badge">${conditionText}</span>
+                        <span class="condition-value">[${record.device_condition}]</span>
+                        ${record.return_note ? `<div class="condition-note text-wrap"><strong>备注:</strong> ${record.return_note}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                // 未归还显示占位状态框
+                deviceConditionHtml = `
+                    <div class="condition-box pending-box">
+                        <strong>设备状态:</strong> 
+                        <span class="badge badge-secondary condition-badge">未归还</span>
+                    </div>
+                `;
+            }
+            
             return `
                 <div class="reservation-details">
                     <div>
@@ -268,7 +422,8 @@ function getDetailsHtml(record) {
                         </span>
                     </div>
                     <div><strong>借用时间:</strong> ${formatDateTime(record.borrow_time)}</div>
-                    <div><strong>归还时间:</strong> ${formatDateTime(record.return_time) || (record.usage_type === 'onsite' ? '不适用' : '未指定')}</div>
+                    <div><strong>指导老师:</strong> ${record.teacher_name || '未指定'}</div>
+                    ${deviceConditionHtml}
                 </div>
             `;
         default:
@@ -491,6 +646,10 @@ function resetFilters() {
     document.getElementById('endDate').value = '';
     document.getElementById('reservationType').value = '';
     document.getElementById('reservationStatus').value = '';
+    document.getElementById('userSearch').value = '';
+    document.getElementById('departmentSearch').value = '';
+    document.getElementById('deviceCondition').value = '';
+    document.getElementById('keywordSearch').value = '';
     loadReservations();
 }
 
@@ -631,6 +790,74 @@ loadReservations();
 /* 表头粗体 */
 .table th {
     font-weight: 600;
+}
+
+/* 设备状态相关样式 */
+.condition-note {
+    margin-top: 0.25rem;
+    margin-left: 1rem;
+    padding: 0.4rem 0.6rem;
+    background-color: rgba(0,0,0,.03);
+    border-left: 3px solid #dc3545;
+    font-size: 0.9rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.condition-box {
+    margin-top: 0.75rem;
+    padding: 0.65rem;
+    border-radius: 0.375rem;
+    border: 1px solid rgba(0,0,0,.155);
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+
+.success-box {
+    background-color: rgba(25, 135, 84, 0.05);
+    border-color: rgba(25, 135, 84, 0.2);
+}
+
+.danger-box {
+    background-color: rgba(220, 53, 69, 0.05);
+    border-color: rgba(220, 53, 69, 0.2);
+}
+
+.pending-box {
+    background-color: rgba(108, 117, 125, 0.05);
+    border-color: rgba(108, 117, 125, 0.2);
+}
+
+.condition-badge {
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.35em 0.65em;
+}
+
+.badge-success {
+    font-weight: 500;
+}
+
+.badge-danger {
+    font-weight: 500;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.condition-value {
+    font-size: 0.8rem;
+    color: #555;
+    margin-left: 0.5rem;
+    opacity: 0.8;
+    font-family: monospace;
+}
+
+/* 确保状态显示的一致性 */
+.badge-danger, .badge-success, .badge-secondary, .badge-warning {
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.35em 0.65em;
 }
 </style>
 {% endblock %} 

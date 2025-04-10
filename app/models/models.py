@@ -88,10 +88,14 @@ class DeviceReservation(Base):
     return_time = Column(DateTime, nullable=True)  # Changed to nullable for on-site usage
     actual_return_time = Column(DateTime, nullable=True)
     reason = Column(Text)
-    status = Column(String(50), default="pending")
+    status = Column(String(50), default="pending")  # pending, approved, rejected, returned, return_pending
     created_at = Column(DateTime, server_default=func.now())
     usage_type = Column(String(50), default="takeaway")  # 'onsite' or 'takeaway'
     approver_name = Column(String, nullable=True)
+    teacher_name = Column(String(100), nullable=True)  # 添加指导老师字段
+    device_condition = Column(String(50), nullable=True)  # 归还时设备状态: normal(正常), damaged(故障)
+    return_note = Column(Text, nullable=True)  # 归还备注信息
+    return_approver = Column(String(100), nullable=True)  # 归还审批人
     
     user = relationship("User", back_populates="device_reservations")
 
@@ -106,9 +110,13 @@ class PrinterReservation(Base):
     end_time = Column(DateTime, nullable=False)    # 新增结束时间
     estimated_duration = Column(Integer, nullable=True)  # 预计打印耗时（分钟）
     model_name = Column(String(100), nullable=True)  # 打印模型名称
-    status = Column(String(50), default="pending")
+    status = Column(String(50), default="pending")  # pending, approved, rejected, completed, completion_pending
     created_at = Column(DateTime, default=func.now())
     approver_name = Column(String, nullable=True)
+    teacher_name = Column(String(100), nullable=True)  # 添加指导老师字段
+    printer_condition = Column(String(50), nullable=True)  # 使用完成后打印机状态: normal(正常), damaged(故障)
+    completion_note = Column(Text, nullable=True)  # 使用完成备注信息
+    completion_approver = Column(String(100), nullable=True)  # 完成审批人
 
     user = relationship("User", back_populates="printer_reservations")
 

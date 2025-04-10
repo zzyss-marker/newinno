@@ -24,6 +24,7 @@ Page({
     loading: true,
     isListPage: true, // 默认显示列表页面
     usageType: 'onsite', // 默认为现场使用
+    teacherName: '',  // 添加指导老师字段
   },
 
   /**
@@ -589,74 +590,76 @@ Page({
     });
   },
 
+  // 处理指导老师输入
+  handleTeacherNameChange(e) {
+    this.setData({
+      teacherName: e.detail.value
+    });
+  },
+
   // 处理表单提交
   async handleSubmit(e) {
-    const { deviceId, deviceName, borrowTime, returnTime, usageType } = this.data;
-    const reason = e.detail.value.reason;
-
-    // 验证
-    if (!deviceId) {
+    const formData = e.detail.value;
+    
+    // 表单验证
+    if (!this.data.deviceName) {
       wx.showToast({
-        title: '设备ID不能为空',
+        title: '请选择设备',
         icon: 'none'
       });
       return;
     }
-
-    if (!borrowTime) {
+    
+    if (!this.data.borrowTime) {
       wx.showToast({
         title: '请选择借用时间',
         icon: 'none'
       });
       return;
     }
-
-    if (usageType === 'takeaway' && !returnTime) {
+    
+    if (this.data.usageType === 'takeaway' && !this.data.returnTime) {
       wx.showToast({
         title: '请选择归还时间',
         icon: 'none'
       });
       return;
     }
-
-    // 现场使用时不需要归还时间，设置为空
-    const finalReturnTime = usageType === 'onsite' ? null : returnTime;
-
-    // 验证时间
-    if (usageType === 'takeaway' && !this.validateTimeRange()) {
-      return;
-    }
-
-    if (!reason) {
+    
+    if (!formData.reason) {
       wx.showToast({
         title: '请输入借用原因',
         icon: 'none'
       });
       return;
     }
-
+    
     try {
       wx.showLoading({
-        title: '提交中...',
+        title: '提交中',
         mask: true
       });
-
-      // 格式化时间
-      const borrowTimeISO = this.formatTimeToISO(borrowTime);
-      const returnTimeISO = usageType === 'takeaway' ? this.formatTimeToISO(returnTime) : null;
-
-      const requestData = {
-        device_name: deviceId,
-        borrow_time: borrowTimeISO,
-        return_time: returnTimeISO,
-        reason: reason,
-        usage_type: usageType
+      
+      // 检查时间是否有效
+      if (!this.validateTimeRange()) {
+        wx.hideLoading();
+        return;
+      }
+      
+      // 组装请求数据
+      const reservation = {
+        device_name: this.data.deviceName,
+        borrow_time: this.formatTimeToISO(this.data.borrowTime),
+        return_time: this.data.usageType === 'takeaway' ? this.formatTimeToISO(this.data.returnTime) : null,
+        reason: formData.reason,
+        usage_type: this.data.usageType,
+        teacher_name: this.data.teacherName || null  // 添加指导老师信息
       };
 
-      console.log('预约请求数据:', requestData);
+      console.log('预约请求数据:', reservation);
 
       // 提交预约
-      await post('/reservations/device', requestData);
+      await post('/reservations/device', reservation);
 
       wx.hideLoading();
       wx.showToast({
