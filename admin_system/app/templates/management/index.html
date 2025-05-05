@@ -17,9 +17,6 @@
                 <thead>
                     <tr>
                         <th>名称</th>
-                        <th>总数量</th>
-                        <th>可用数量</th>
-                        <th>状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -27,9 +24,6 @@
                     {% for venue in venues %}
                     <tr>
                         <td>{{ venue.device_or_venue_name }}</td>
-                        <td>{{ venue.quantity }}</td>
-                        <td>{{ venue.available_quantity }}</td>
-                        <td>{{ venue.status }}</td>
                         <td>
                             <a href="{{ url_for('admin.edit_management', id=venue.management_id) }}" class="btn btn-sm btn-info">编辑</a>
                             <form action="{{ url_for('admin.delete_management', id=venue.management_id) }}" method="POST" style="display: inline;">
@@ -52,9 +46,6 @@
                 <thead>
                     <tr>
                         <th>名称</th>
-                        <th>总数量</th>
-                        <th>可用数量</th>
-                        <th>状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -62,9 +53,6 @@
                     {% for device in devices %}
                     <tr>
                         <td>{{ device.device_or_venue_name }}</td>
-                        <td>{{ device.quantity }}</td>
-                        <td>{{ device.available_quantity }}</td>
-                        <td>{{ device.status }}</td>
                         <td>
                             <a href="{{ url_for('admin.edit_management', id=device.management_id) }}" class="btn btn-sm btn-info">编辑</a>
                             <form action="{{ url_for('admin.delete_management', id=device.management_id) }}" method="POST" style="display: inline;">

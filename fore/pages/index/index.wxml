@@ -1,4 +1,21 @@
 <view class="container">
+  <!-- 搜索框 -->
+  <view class="search-container">
+    <view class="search-box">
+      <icon type="search" size="18" color="#999"></icon>
+      <input 
+        class="search-input" 
+        placeholder="搜索场地或设备" 
+        value="{{searchText}}"
+        bindinput="onSearchInput"
+        confirm-type="search"
+      />
+      <view class="clear-icon" bindtap="clearSearch" wx:if="{{searchText}}">
+        <icon type="clear" size="18" color="#999"></icon>
+      </view>
+    </view>
+  </view>
+
   <!-- 管理员审批入口 -->
   <view class="section" wx:if="{{isAdmin}}">
     <view class="section-title">管理功能</view>
@@ -9,46 +26,84 @@
     </view>
   </view>
 
-  <view class="section">
-    <view class="section-title">场地预约</view>
-    <view class="button-group">
-      <!-- 静态场地按钮 -->
-      <button class="btn" bindtap="goToVenue" data-type="讲座厅">讲座厅</button>
-      <button class="btn" bindtap="goToVenue" data-type="研讨室">研讨室</button>
-      <button class="btn" bindtap="goToVenue" data-type="会议室">会议室</button>
-      
-      <!-- 动态场地按钮 - 只显示非标准类型 -->
-      <block wx:if="{{venues.length > 0}}">
-        <block wx:for="{{venues}}" wx:key="id">
-          <block wx:if="{{item.type === 'custom_venue'}}">
-            <button class="btn" bindtap="goToVenue" data-type="{{item.name}}" data-name="{{item.name}}">{{item.name}}</button>
+  <!-- 场地预约部分 -->
+  <view class="section venue-section {{isVenueSectionExpanded ? 'expanded' : 'collapsed'}}">
+    <view class="section-header" bindtap="toggleVenueSection">
+      <view class="section-title">场地预约</view>
+      <view class="toggle-btn">
+        <text class="toggle-icon">{{isVenueSectionExpanded ? '收起' : '展开'}}</text>
+        <view class="arrow {{isVenueSectionExpanded ? 'up' : 'down'}}"></view>
+      </view>
+    </view>
+    
+    <view class="venue-content">
+      <view class="button-group">
+        <!-- 动态场地按钮 -->
+        <block wx:if="{{filteredVenues.length > 0}}">
+          <block wx:for="{{filteredVenues}}" wx:key="id">
+            <button class="btn" bindtap="goToVenue" data-type="{{item.type}}" data-name="{{item.name}}" data-id="{{item.id}}">{{item.name}}</button>
           </block>
         </block>
-      </block>
+        <block wx:else>
+          <view class="no-data">暂无可用场地</view>
+        </block>
+      </view>
     </view>
   </view>
 
-  <view class="section">
-    <view class="section-title">设备预约</view>
-    <view class="button-group">
-      <!-- 静态设备按钮 -->
-      <button class="btn" bindtap="goToDevice" data-device="electric_screwdriver">电动螺丝刀</button>
-      <button class="btn" bindtap="goToDevice" data-device="multimeter">万用表</button>
-      
-      <!-- 动态设备按钮 -->
-      <block wx:if="{{devices.length > 0}}">
-        <block wx:for="{{devices}}" wx:key="id">
-          <!-- 只显示不在默认设备中的设备 -->
-          <block wx:if="{{item.name !== '电动螺丝刀' && item.name !== '万用表'}}">
+  <!-- 设备预约部分 -->
+  <view class="section device-section {{isDeviceSectionExpanded ? 'expanded' : 'collapsed'}}">
+    <view class="section-header" bindtap="toggleDeviceSection">
+      <view class="section-title">设备预约</view>
+      <view class="toggle-btn">
+        <text class="toggle-icon">{{isDeviceSectionExpanded ? '收起' : '展开'}}</text>
+        <view class="arrow {{isDeviceSectionExpanded ? 'up' : 'down'}}"></view>
+      </view>
+    </view>
+    
+    <view class="device-content">
+      <view class="button-group">
+        <!-- 动态设备按钮 -->
+        <block wx:if="{{filteredDevices.length > 0}}">
+          <block wx:for="{{filteredDevices}}" wx:key="id">
             <button class="btn" bindtap="goToDevice" data-device="{{item.id}}">{{item.name}}</button>
           </block>
         </block>
-      </block>
+        <block wx:else>
+          <view class="no-data">暂无可用设备</view>
+        </block>
+      </view>
     </view>
   </view>
 
+  <!-- 3D打印机预约部分 -->
   <view class="section">
     <view class="section-title">3D打印机预约</view>
     <button class="btn" bindtap="goToPrinter">预约打印机</button>
+  </view>
+
+  <!-- 搜索结果为空时的提示 -->
+  <view class="no-results" wx:if="{{showSearchResults && filteredVenues.length === 0 && filteredDevices.length === 0}}">
+    <icon type="info" size="40" color="#999"></icon>
+    <text>未找到"{{searchText}}"相关的场地或设备</text>
+  </view>
+  
+  <!-- 页脚信息，解决内容少时的留白问题 -->
+  <view class="footer">
+    <view class="footer-info">
+      <view class="footer-line"></view>
+      <text class="footer-text">创新工坊预约系统</text>
+      <view class="footer-line"></view>
+    </view>
+    <view class="tips-container">
+      <view class="tip-item">
+        <icon type="info" size="16" color="#007AFF"></icon>
+        <text>预约场地或设备前请先登录</text>
+      </view>
+      <view class="tip-item">
+        <icon type="success" size="16" color="#007AFF"></icon>
+        <text>预约成功后可在个人中心查看</text>
+      </view>
+    </view>
   </view>
 </view> 

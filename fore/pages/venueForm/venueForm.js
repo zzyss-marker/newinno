@@ -82,18 +82,14 @@ Page({
   async getOccupiedTimeSlots(date) {
     if (!date || !this.data.venueType) return;
     
-    // 将场地类型转换为后端需要的格式
-    let backendVenueType = this.data.venueType;
-    if (this.data.venueType === '会议室') backendVenueType = 'meeting_room';
-    else if (this.data.venueType === '讲座厅') backendVenueType = 'lecture_hall';
-    else if (this.data.venueType === '研讨室') backendVenueType = 'seminar_room';
-    else if (this.data.venueType === '创新工坊') backendVenueType = 'innovation_space';
+    // 直接使用原始场地类型，不进行转换
+    let venueType = this.data.venueType;
     
     this.setData({ loading: true });
     try {
       const response = await get('reservations/venue/occupied-times', {
         data: {
-          venue_type: backendVenueType,
+          venue_type: venueType,
           date: date
         }
       });
@@ -186,33 +182,21 @@ Page({
     // 准备提交的数据
     const selectedTime = this.data.businessTimes[selectedTimeIndex];
     
-    // 转换场地类型为后端需要的格式
-    let backendVenueType = venueType;
-    if (venueType === '会议室') backendVenueType = 'meeting_room';
-    else if (venueType === '讲座厅') backendVenueType = 'lecture_hall';
-    else if (venueType === '研讨室') backendVenueType = 'seminar_room';
-    else if (venueType === '创新工坊') backendVenueType = 'innovation_space';
-    
+    // 直接使用原始场地类型，不进行转换
     const formData = {
       venue_id: venueId,
       venue_name: venueName,
-      venue_type: backendVenueType,
+      venue_type: venueType,
       reservation_date: date,
       business_time: selectedTime.id,
       purpose: purpose,
-      devices_needed: {}
-    };
-    
-    // 如果是讲座厅且有设备选择，添加设备信息
-    if (venueType === '讲座厅' && selectedDevices && selectedDevices.length > 0) {
-      const devices_needed = {
+      devices_needed: {
         screen: selectedDevices.includes('screen'),
         projector: selectedDevices.includes('projector'),
         mic: selectedDevices.includes('mic'),
         laptop: selectedDevices.includes('laptop')
-      };
-      formData.devices_needed = devices_needed;
-    }
+      }
+    };
     
     console.log('准备提交的场地预约数据:', formData);
     

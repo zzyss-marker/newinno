@@ -453,13 +453,13 @@ def add_management():
     if request.method == 'POST':
         name = request.form.get('name')
         category = request.form.get('category')
-        quantity = int(request.form.get('quantity'))
         
+        # 使用默认值1填充数量字段 - 确保没有从表单获取quantity
         item = Management(
             device_or_venue_name=name,
             category=category,
-            quantity=quantity,
-            available_quantity=quantity,
+            quantity=1,  # 硬编码为1，不从表单获取
+            available_quantity=1,  # 硬编码为1，不从表单获取
             status='available'
         )
         
@@ -476,10 +476,8 @@ def edit_management(id):
     item = Management.query.get_or_404(id)
     
     if request.method == 'POST':
+        # 只更新名称，其他字段保持不变
         item.device_or_venue_name = request.form.get('name')
-        item.quantity = int(request.form.get('quantity'))
-        item.available_quantity = int(request.form.get('available_quantity'))
-        item.status = request.form.get('status')
         
         db.session.commit()
         flash('更新成功！', 'success')

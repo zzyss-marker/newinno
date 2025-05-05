@@ -16,7 +16,7 @@ async def check_reservation_conflict(
     query = db.query(model)
     
     if isinstance(model, VenueReservation):
-        # 检查场地是否可用
+        # 检查场地是否可用 - 直接使用venue_type作为场地名称
         venue = db.query(Management).filter(
             Management.device_or_venue_name == venue_type,
             Management.category == "venue"

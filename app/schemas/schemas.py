@@ -40,13 +40,6 @@ class VenueReservationCreate(BaseModel):
     purpose: str
     devices_needed: DevicesNeeded
 
-    @validator('venue_type')
-    def validate_venue_type(cls, v):
-        valid_types = ['lecture', 'seminar', 'meeting_room']
-        if v not in valid_types:
-            raise ValueError(f"Invalid venue type. Must be one of: {valid_types}")
-        return v
-
     @validator('business_time')
     def validate_business_time(cls, v):
         valid_times = ['morning', 'afternoon', 'evening']

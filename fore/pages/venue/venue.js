@@ -85,18 +85,14 @@ Page({
   async getOccupiedTimeSlots(date) {
     if (!date || !this.data.venueType) return Promise.resolve();
     
-    // 将场地类型转换为后端需要的格式
-    let backendVenueType = this.data.venueType;
-    if (this.data.venueType === '会议室') backendVenueType = 'meeting_room';
-    else if (this.data.venueType === '讲座厅') backendVenueType = 'lecture_hall';
-    else if (this.data.venueType === '研讨室') backendVenueType = 'seminar_room';
-    else if (this.data.venueType === '创新工坊') backendVenueType = 'innovation_space';
+    // 直接使用原始场地类型，不进行转换
+    let venueType = this.data.venueType;
     
     wx.showLoading({ title: '加载中' });
     try {
       const response = await get('reservations/venue/occupied-times', {
         data: {
-          venue_type: backendVenueType,
+          venue_type: venueType,
           date: date
         }
       });
@@ -257,18 +253,11 @@ Page({
         projector: Boolean(selectedDevices.projector)
       }
 
-      // 转换场地类型为后端需要的格式
-      let backendVenueType = venueType
-      if (venueType === '会议室') backendVenueType = 'meeting_room'
-      else if (venueType === '讲座厅') backendVenueType = 'lecture_hall'
-      else if (venueType === '研讨室') backendVenueType = 'seminar_room'
-      else if (venueType === '创新工坊') backendVenueType = 'innovation_space'
-      // 其他类型保持原样
-
+      // 直接使用原始场地名称，不进行转换
       const data = {
         venue_id: venueId,
         venue_name: venueName,
-        venue_type: backendVenueType, // 使用转换后的类型
+        venue_type: venueType, // 直接使用管理系统中的名称
         reservation_date: date,
         business_time: selectedBusinessTime,
         purpose: purpose,
@@ -305,27 +294,17 @@ Page({
       const venues = await getAvailableVenues()
       
       if (venues && Array.isArray(venues)) {
-        // 处理场地数据
+        // 处理场地数据 - 直接使用名称，不使用类型
         const processedVenues = venues.map(venue => {
-          // 确保场地类型是中文
-          let displayType = venue.type
-          
-          // 如果是英文ID，转换为对应的中文名称
-          if (venue.type === 'meeting_room' || venue.type === 'meeting') displayType = '会议室'
-          else if (venue.type === 'lecture_hall' || venue.type === 'lecture') displayType = '讲座厅'
-          else if (venue.type === 'seminar_room' || venue.type === 'seminar') displayType = '研讨室'
-          else if (venue.type === 'innovation_space' || venue.type === 'innovation') displayType = '创新工坊'
-          // 其他类型保持原样，不设置默认值
-          
           return {
             id: venue.id || '',
             name: venue.name || '',
-            type: displayType,
+            type: venue.name || '', // 直接使用场地名称作为类型
             status: venue.status || '可用',
             available_quantity: venue.available_quantity || 1,
             quantity: venue.quantity || 1
           }
-        }).filter(venue => venue.name && venue.type) // 过滤掉没有名称或类型的场地
+        }).filter(venue => venue.name) // 过滤掉没有名称的场地
         
         // 提取所有场地类型
         const types = [...new Set(processedVenues.map(venue => venue.type))]
@@ -341,12 +320,9 @@ Page({
       } else {
         // 使用静态数据
         const staticVenues = [
-          { id: 'meeting_room_a', name: '会议室A', type: '会议室', status: '可用' },
-          { id: 'meeting_room_b', name: '会议室B', type: '会议室', status: '可用' },
+          { id: 'meeting_room_a', name: '会议室', type: '会议室', status: '可用' },
           { id: 'lecture_hall', name: '讲座厅', type: '讲座厅', status: '可用' },
-          { id: 'seminar_room', name: '研讨室A', type: '研讨室', status: '可用' },
-          { id: 'seminar_room_b', name: '研讨室B', type: '研讨室', status: '可用' },
-          { id: 'innovation_space', name: '创新工坊', type: '创新工坊', status: '可用' }
+          { id: 'seminar_room', name: '研讨室', type: '研讨室', status: '可用' }
         ]
         
         const types = [...new Set(staticVenues.map(venue => venue.type))]

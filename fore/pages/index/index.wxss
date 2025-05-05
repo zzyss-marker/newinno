@@ -94,4 +94,177 @@
 
 .btn:active::after {
   transform: translateX(100%);
+}
+
+/* 搜索框样式 */
+.search-container {
+  position: sticky;
+  top: 0;
+  padding: 24rpx 24rpx 12rpx;
+  z-index: 100;
+  background-color: rgba(240, 242, 246, 0.95);
+  backdrop-filter: blur(10px);
+  margin-bottom: 16rpx;
+  border-radius: 0 0 24rpx 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+  padding: 16rpx 24rpx;
+  border-radius: 40rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.search-box:focus-within {
+  box-shadow: 0 4rpx 12rpx rgba(0, 122, 255, 0.2);
+  border: 1rpx solid rgba(0, 122, 255, 0.3);
+}
+
+.search-input {
+  flex: 1;
+  height: 60rpx;
+  line-height: 60rpx;
+  font-size: 28rpx;
+  margin: 0 20rpx;
+  color: #333;
+}
+
+.clear-icon {
+  padding: 8rpx;
+}
+
+/* 设备和场地区域展开收起样式 */
+.device-section, .venue-section {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  padding-right: 24rpx;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  font-size: 24rpx;
+  color: #666;
+  background-color: rgba(0, 122, 255, 0.1);
+  padding: 6rpx 16rpx;
+  border-radius: 24rpx;
+  transition: all 0.3s ease;
+}
+
+.toggle-btn:active {
+  background-color: rgba(0, 122, 255, 0.2);
+}
+
+.toggle-icon {
+  margin-right: 8rpx;
+}
+
+.arrow {
+  width: 16rpx;
+  height: 16rpx;
+  border-right: 2rpx solid #666;
+  border-bottom: 2rpx solid #666;
+  transition: transform 0.3s ease;
+}
+
+.arrow.down {
+  transform: rotate(45deg);
+}
+
+.arrow.up {
+  transform: rotate(-135deg);
+}
+
+/* 收起状态下只显示部分内容 */
+.device-section.collapsed .device-content,
+.venue-section.collapsed .venue-content {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.device-section.expanded .device-content,
+.venue-section.expanded .venue-content {
+  max-height: 2000rpx; /* 足够大的高度 */
+  opacity: 1;
+  transition: all 0.5s ease;
+}
+
+.device-content, .venue-content {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+/* 搜索结果为空的提示 */
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx 0;
+  color: #999;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.no-results icon {
+  margin-bottom: 24rpx;
+}
+
+/* 页脚样式 - 解决留白问题 */
+.footer {
+  margin-top: 40rpx;
+  padding: 40rpx 0;
+}
+
+.footer-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30rpx;
+}
+
+.footer-line {
+  width: 100rpx;
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.3), transparent);
+}
+
+.footer-text {
+  margin: 0 24rpx;
+  font-size: 26rpx;
+  color: #888;
+}
+
+.tips-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  padding: 0 40rpx;
+}
+
+.tip-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.tip-item text {
+  font-size: 26rpx;
+  color: #666;
 } 

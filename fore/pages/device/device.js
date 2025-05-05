@@ -42,50 +42,30 @@ Page({
         isListPage: false
       });
       
-      // 检查是否是数字ID（动态设备）或字符串ID（静态设备）
-      if (!isNaN(options.device)) {
-        // 动态设备，需要从API获取设备信息
-        try {
-          const devices = await getAvailableDevices();
-          const device = devices.find(d => d.id === options.device || d.id === parseInt(options.device));
-          if (device) {
-            this.setData({
-              deviceId: device.id,
-              deviceName: device.name
-            });
-          } else {
-            wx.showToast({
-              title: '设备不存在',
-              icon: 'none'
-            });
-            setTimeout(() => {
-              wx.navigateBack();
-            }, 1500);
-          }
-        } catch (error) {
-          console.error('获取设备信息失败:', error);
-          wx.showToast({
-            title: '获取设备信息失败',
-            icon: 'none'
-          });
-        }
-      } else {
-        // 静态设备，从配置中获取
-        const device = config.devices.find(d => d.id === options.device)
+      // 从API获取设备信息
+      try {
+        const devices = await getAvailableDevices();
+        const device = devices.find(d => d.id === options.device || d.id === parseInt(options.device));
         if (device) {
           this.setData({
             deviceId: device.id,
             deviceName: device.name
-          })
+          });
         } else {
           wx.showToast({
             title: '设备不存在',
             icon: 'none'
-          })
+          });
           setTimeout(() => {
-            wx.navigateBack()
-          }, 1500)
+            wx.navigateBack();
+          }, 1500);
         }
+      } catch (error) {
+        console.error('获取设备信息失败:', error);
+        wx.showToast({
+          title: '获取设备信息失败',
+          icon: 'none'
+        });
       }
       
       // 初始化时间选择器数据

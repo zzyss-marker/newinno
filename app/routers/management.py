@@ -26,7 +26,14 @@ async def add_device(
     current_user: models.User = Depends(get_current_user)
 ):
     """添加新设备或场地"""
-    db_device = models.Management(**device.dict())
+    # 创建设备/场地，设置默认数量为1
+    device_data = device.dict()
+    db_device = models.Management(
+        **device_data,
+        quantity=1,
+        available_quantity=1,
+        status="available"
+    )
     db.add(db_device)
     db.commit()
     db.refresh(db_device)
@@ -39,15 +46,16 @@ async def update_device(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """更新设备或场地信息"""
+    """更新设备或场地信息 - 只更新名称"""
     db_device = db.query(models.Management).filter(
         models.Management.management_id == device_id
     ).first()
     if not db_device:
         raise HTTPException(status_code=404, detail="Device not found")
     
-    for key, value in device.dict(exclude_unset=True).items():
-        setattr(db_device, key, value)
+    # 只更新名称
+    if device.device_or_venue_name:
+        db_device.device_or_venue_name = device.device_or_venue_name
     
     db.commit()
     db.refresh(db_device)
@@ -251,37 +259,11 @@ async def update_device_quantity(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """更新设备数量"""
-    device = db.query(models.Management).filter(
-        models.Management.management_id == device_id
-    ).first()
-    
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-    
-    # 计算新的可用数量
-    diff = quantity - device.quantity
-    new_available = device.available_quantity + diff
-    
-    if new_available < 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Cannot reduce quantity below current borrowed amount"
-        )
-    
-    device.quantity = quantity
-    device.available_quantity = new_available
-    
-    try:
-        db.commit()
-        db.refresh(device)
-        return device
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating quantity: {str(e)}"
-        )
+    """更新设备数量 - 该功能已停用，总是返回400错误"""
+    raise HTTPException(
+        status_code=400, 
+        detail="Quantity updates are disabled by system configuration"
+    )
 
 @router.put("/devices/{device_id}/available", response_model=Management)
 async def update_available_quantity(
@@ -290,38 +272,11 @@ async def update_available_quantity(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """更新可用数量"""
-    device = db.query(models.Management).filter(
-        models.Management.management_id == device_id
-    ).first()
-    
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-    
-    if available_quantity > device.quantity:
-        raise HTTPException(
-            status_code=400,
-            detail="Available quantity cannot exceed total quantity"
-        )
-    
-    if available_quantity < 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Available quantity cannot be negative"
-        )
-    
-    device.available_quantity = available_quantity
-    
-    try:
-        db.commit()
-        db.refresh(device)
-        return device
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating available quantity: {str(e)}"
-        )
+    """更新可用数量 - 该功能已停用，总是返回400错误"""
+    raise HTTPException(
+        status_code=400,
+        detail="Available quantity updates are disabled by system configuration"
+    )
 
 @router.get("/users", response_model=List[UserInfo])
 async def get_users(

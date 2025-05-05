@@ -10,7 +10,13 @@ Page({
     printers: config.printers, // 打印机保持不变
     isAdmin: false,
     user: null,
-    loading: true
+    loading: true,
+    searchText: '', // 搜索文本
+    filteredVenues: [], // 过滤后的场地列表
+    filteredDevices: [], // 过滤后的设备列表
+    isDeviceSectionExpanded: false, // 设备区域是否展开，默认收起
+    isVenueSectionExpanded: true, // 场地区域是否展开，默认展开
+    showSearchResults: false // 是否显示搜索结果
   },
 
   onLoad() {
@@ -44,12 +50,10 @@ Page({
       const availableVenues = venues.filter(venue => venue.status === '可用')
       
       this.setData({
-        venues: availableVenues.map(venue => ({
-          id: venue.id,
-          name: venue.name,
-          type: this.getVenueType(venue.name)
-        })),
-        devices: filteredDevices
+        venues: availableVenues,
+        devices: filteredDevices,
+        filteredVenues: availableVenues,
+        filteredDevices: filteredDevices
       })
     } catch (error) {
       console.error('获取设备和场地数据失败:', error)
@@ -122,19 +126,11 @@ Page({
 
   // 前往场地预约页面
   async goToVenue(e) {
-    const { type, name } = e.currentTarget.dataset
+    const { type, name, id } = e.currentTarget.dataset
     
-    // 如果有name参数，说明是自定义场地
-    if (name) {
-      wx.navigateTo({
-        url: `/pages/venue/venue?id=${name}&name=${name}&type=${type}`
-      })
-      return
-    }
-    
-    // 标准场地类型直接使用中文类型名
+    // 直接使用场地名称作为类型，前往预约页面
     wx.navigateTo({
-      url: `/pages/venue/venue?type=${type}`
+      url: `/pages/venue/venue?id=${id}&name=${name}&type=${name}`
     })
   },
 
@@ -142,15 +138,7 @@ Page({
   async goToDevice(e) {
     const { device } = e.currentTarget.dataset
     
-    // 如果是预定义的设备ID（字符串），直接使用
-    if (typeof device === 'string' && !device.startsWith('device')) {
-      wx.navigateTo({
-        url: `/pages/device/device?device=${device}`
-      })
-      return
-    }
-    
-    // 否则作为动态设备ID处理
+    // 统一处理设备ID，直接导航到设备预约页面
     wx.navigateTo({
       url: `/pages/device/device?device=${device}`
     })
@@ -197,5 +185,62 @@ Page({
     wx.navigateTo({
       url: '/pages/printer/printer'
     })
+  },
+
+  // 搜索框内容变化处理函数
+  onSearchInput: function(e) {
+    const searchText = e.detail.value.trim().toLowerCase();
+    this.setData({ searchText });
+    
+    if (searchText === '') {
+      // 如果搜索框为空，恢复原始数据
+      this.setData({
+        filteredVenues: this.data.venues,
+        filteredDevices: this.data.devices,
+        showSearchResults: false
+      });
+      return;
+    }
+    
+    // 过滤场地
+    const filteredVenues = this.data.venues.filter(venue => 
+      venue.name.toLowerCase().includes(searchText)
+    );
+    
+    // 过滤设备
+    const filteredDevices = this.data.devices.filter(device => 
+      device.name.toLowerCase().includes(searchText)
+    );
+    
+    this.setData({
+      filteredVenues,
+      filteredDevices,
+      showSearchResults: true,
+      isDeviceSectionExpanded: true // 搜索时展开设备区域
+    });
+  },
+
+  // 清除搜索内容
+  clearSearch: function() {
+    this.setData({
+      searchText: '',
+      filteredVenues: this.data.venues,
+      filteredDevices: this.data.devices,
+      showSearchResults: false
+    });
+  },
+
+  // 切换设备区域的展开/收起状态
+  toggleDeviceSection: function() {
+    this.setData({
+      isDeviceSectionExpanded: !this.data.isDeviceSectionExpanded
+    });
+  },
+  
+  // 切换场地区域的展开/收起状态
+  toggleVenueSection: function() {
+    this.setData({
+      isVenueSectionExpanded: !this.data.isVenueSectionExpanded
+    });
   }
 }) 

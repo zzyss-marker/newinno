@@ -151,20 +151,21 @@ class PrinterReservation(PrinterReservationResponse):
 class ManagementBase(BaseModel):
     device_or_venue_name: str
     category: str  # venue, device, printer
-    quantity: int
-    available_quantity: int
-    status: str = "available"
 
-class ManagementCreate(ManagementBase):
-    pass
+class ManagementCreate(BaseModel):
+    device_or_venue_name: str
+    category: str  # venue, device, printer
 
 class ManagementUpdate(BaseModel):
-    quantity: Optional[int] = None
-    available_quantity: Optional[int] = None
-    status: Optional[str] = None
+    device_or_venue_name: Optional[str] = None
 
-class Management(ManagementBase):
+class Management(BaseModel):
     management_id: int
+    device_or_venue_name: str
+    category: str  # venue, device, printer
+    quantity: int
+    available_quantity: int
+    status: str
     
     class Config:
         orm_mode = True

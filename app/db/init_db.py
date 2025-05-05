@@ -65,9 +65,49 @@ def init_db():
                 "quantity": 5,
                 "available_quantity": 5,
                 "status": "available"
+            },
+            {
+                "device_or_venue_name": "电动螺丝刀",
+                "category": "device",
+                "quantity": 10,
+                "available_quantity": 5,
+                "status": "available"
+            },
+            {
+                "device_or_venue_name": "万用表",
+                "category": "device",
+                "quantity": 5,
+                "available_quantity": 3,
+                "status": "available"
             }
         ]
         
+        # 添加初始场地数据
+        venues = [
+            {
+                "device_or_venue_name": "讲座厅",
+                "category": "venue",
+                "quantity": 1,
+                "available_quantity": 1,
+                "status": "available"
+            },
+            {
+                "device_or_venue_name": "研讨室",
+                "category": "venue",
+                "quantity": 1,
+                "available_quantity": 1,
+                "status": "available"
+            },
+            {
+                "device_or_venue_name": "会议室",
+                "category": "venue",
+                "quantity": 1,
+                "available_quantity": 1,
+                "status": "available"
+            }
+        ]
+        
+        # 添加设备数据
         for device in devices:
             db_device = db.query(Management).filter(
                 Management.device_or_venue_name == device["device_or_venue_name"]
@@ -76,6 +116,16 @@ def init_db():
             if not db_device:
                 db_device = Management(**device)
                 db.add(db_device)
+        
+        # 添加场地数据
+        for venue in venues:
+            db_venue = db.query(Management).filter(
+                Management.device_or_venue_name == venue["device_or_venue_name"]
+            ).first()
+            
+            if not db_venue:
+                db_venue = Management(**venue)
+                db.add(db_venue)
         
         # 初始化打印机数据
         printers = [
