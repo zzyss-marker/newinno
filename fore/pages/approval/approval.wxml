@@ -12,6 +12,20 @@
       <view class="tab-line" wx:if="{{currentTab === item.key}}"></view>
     </view>
   </view>
+  
+  <!-- 预约类型标签栏 -->
+  <view class="type-tabs">
+    <view 
+      wx:for="{{typeTabs}}" 
+      wx:key="key"
+      class="type-tab-item {{reservationType === item.key ? 'active' : ''}} {{isLoading ? 'disabled' : ''}}"
+      bindtap="switchType"
+      data-type="{{item.key}}"
+    >
+      <view class="type-tab-text">{{item.name}}</view>
+      <view class="type-tab-line" wx:if="{{reservationType === item.key}}"></view>
+    </view>
+  </view>
 
   <!-- 预约列表 -->
   <view class="records-list">

@@ -27,6 +27,28 @@
             <h5 class="mb-0">用户列表</h5>
         </div>
         <div class="card-body">
+            <!-- 添加搜索功能 -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="搜索用户（姓名、用户名、学院）">
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                                <i class="fas fa-search"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="btn-group float-right">
+                        <button class="btn btn-primary" type="button" id="filterAll">全部</button>
+                        <button class="btn btn-outline-primary" type="button" id="filterStudent">学生</button>
+                        <button class="btn btn-outline-primary" type="button" id="filterTeacher">教师</button>
+                        <button class="btn btn-outline-primary" type="button" id="filterAdmin">管理员</button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="table-responsive">
                 <table class="table">
                     <thead>
@@ -85,6 +107,12 @@ window.setButtonLoading = function(button, loading) {
         button.innerHTML = button.getAttribute('data-original-text') || button.innerHTML.replace('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 处理中...', '');
     }
 };
+
+// 存储所有用户数据
+let allUsers = [];
+// 当前筛选条件
+let currentFilter = 'all';
+let currentSearchTerm = '';
 
 document.getElementById('importForm').onsubmit = async function(e) {
     e.preventDefault();
@@ -148,37 +176,65 @@ async function loadUsers() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const users = await response.json();
-        const tbody = document.getElementById('userList');
-        tbody.innerHTML = users.map(user => {
-            const isAdmin = user.role === 'admin';
-            return `
-                <tr>
-                    <td>${user.username || ''}</td>
-                    <td>${user.name || ''}</td>
-                    <td>${user.department || ''}</td>
-                    <td>${getRoleText(user.role) || ''}</td>
-                    <td>
-                        <button 
-                            class="btn btn-sm ${isAdmin ? 'btn-success' : 'btn-outline-secondary'}" 
-                            onclick="toggleAdminRole('${user.username}', ${isAdmin})"
-                            data-original-text="${isAdmin ? '取消管理员' : '设为管理员'}"
-                        >
-                            ${isAdmin ? '取消管理员' : '设为管理员'}
-                        </button>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">删除</button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        // 保存所有用户数据
+        allUsers = await response.json();
+        
+        // 应用当前筛选和搜索
+        filterAndDisplayUsers();
     } catch (error) {
         console.error('加载用户列表失败：', error);
         alert('加载用户列表失败：' + error.message);
     } finally {
         setTableLoading('userList', false);
     }
+}
+
+function filterAndDisplayUsers() {
+    // 首先按角色筛选
+    let filteredUsers = allUsers;
+    if (currentFilter !== 'all') {
+        filteredUsers = allUsers.filter(user => user.role === currentFilter);
+    }
+    
+    // 然后应用搜索条件
+    if (currentSearchTerm) {
+        const searchLower = currentSearchTerm.toLowerCase();
+        filteredUsers = filteredUsers.filter(user => 
+            (user.username && user.username.toLowerCase().includes(searchLower)) ||
+            (user.name && user.name.toLowerCase().includes(searchLower)) ||
+            (user.department && user.department.toLowerCase().includes(searchLower))
+        );
+    }
+    
+    // 显示筛选后的用户列表
+    displayUsers(filteredUsers);
+}
+
+function displayUsers(users) {
+    const tbody = document.getElementById('userList');
+    tbody.innerHTML = users.map(user => {
+        const isAdmin = user.role === 'admin';
+        return `
+            <tr>
+                <td>${user.username || ''}</td>
+                <td>${user.name || ''}</td>
+                <td>${user.department || ''}</td>
+                <td>${getRoleText(user.role) || ''}</td>
+                <td>
+                    <button 
+                        class="btn btn-sm ${isAdmin ? 'btn-success' : 'btn-outline-secondary'}" 
+                        onclick="toggleAdminRole('${user.username}', ${isAdmin})"
+                        data-original-text="${isAdmin ? '取消管理员' : '设为管理员'}"
+                    >
+                        ${isAdmin ? '取消管理员' : '设为管理员'}
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">删除</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function getRoleText(role) {
@@ -246,11 +302,6 @@ async function deleteUser(username) {
     }
 }
 
-// 页面加载时获取用户列表
-document.addEventListener('DOMContentLoaded', function() {
-    loadUsers();
-});
-
 // 添加下载模板的函数
 async function downloadTemplate() {
     try {
@@ -292,6 +343,63 @@ async function downloadTemplate() {
         console.error('下载模板失败：', error);
         alert('下载模板失败：' + error.message);
     }
+}
+
+// 页面加载时获取用户列表
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+    
+    // 搜索功能
+    document.getElementById('searchButton').addEventListener('click', function() {
+        currentSearchTerm = document.getElementById('searchInput').value.trim();
+        filterAndDisplayUsers();
+    });
+    
+    // 回车键搜索
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            currentSearchTerm = this.value.trim();
+            filterAndDisplayUsers();
+        }
+    });
+    
+    // 角色筛选功能
+    document.getElementById('filterAll').addEventListener('click', function() {
+        setActiveFilter(this);
+        currentFilter = 'all';
+        filterAndDisplayUsers();
+    });
+    
+    document.getElementById('filterStudent').addEventListener('click', function() {
+        setActiveFilter(this);
+        currentFilter = 'student';
+        filterAndDisplayUsers();
+    });
+    
+    document.getElementById('filterTeacher').addEventListener('click', function() {
+        setActiveFilter(this);
+        currentFilter = 'teacher';
+        filterAndDisplayUsers();
+    });
+    
+    document.getElementById('filterAdmin').addEventListener('click', function() {
+        setActiveFilter(this);
+        currentFilter = 'admin';
+        filterAndDisplayUsers();
+    });
+});
+
+// 设置当前激活的筛选按钮
+function setActiveFilter(button) {
+    // 移除所有按钮的 active 类
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    });
+    
+    // 给当前按钮添加 active 类
+    button.classList.remove('btn-outline-primary');
+    button.classList.add('btn-primary');
 }
 </script>
 {% endblock %} 

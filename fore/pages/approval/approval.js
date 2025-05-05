@@ -9,6 +9,7 @@ const deviceNameMap = {
 Page({
   data: {
     currentTab: 'pending',
+    reservationType: 'all', // 新增：预约类型筛选，默认为全部
     pendingList: [],
     approvedList: [],
     rejectedList: [],
@@ -17,6 +18,12 @@ Page({
       { key: 'pending', name: '待审批' },
       { key: 'approved', name: '已通过' },
       { key: 'rejected', name: '已拒绝' }
+    ],
+    typeTabs: [
+      { key: 'all', name: '全部' },
+      { key: 'venue', name: '场地预约' },
+      { key: 'device', name: '设备预约' },
+      { key: 'printer', name: '打印预约' }
     ],
     deviceNameMap: deviceNameMap
   },
@@ -47,7 +54,7 @@ Page({
   },
 
   async loadData() {
-    const { currentTab } = this.data
+    const { currentTab, reservationType } = this.data
     
     this.setData({ isLoading: true })
     
@@ -82,11 +89,16 @@ Page({
       ]
 
       // 根据当前标签筛选数据
-      const filteredList = currentTab === 'pending' 
+      let filteredList = currentTab === 'pending' 
         ? formattedList.filter(item => item.status === 'pending')
         : currentTab === 'approved'
           ? formattedList.filter(item => item.status === 'approved')
           : formattedList.filter(item => item.status === 'rejected')
+      
+      // 根据预约类型进一步筛选
+      if (reservationType !== 'all') {
+        filteredList = filteredList.filter(item => item.type === reservationType)
+      }
 
       this.setData({
         pendingList: filteredList
@@ -113,6 +125,19 @@ Page({
     
     this.setData({ 
       currentTab: tab,
+      pendingList: [] // 清空列表，等待新数据加载
+    })
+    
+    this.loadData()
+  },
+  
+  // 新增：切换预约类型
+  switchType(e) {
+    const type = e.currentTarget.dataset.type
+    if (type === this.data.reservationType) return
+    
+    this.setData({ 
+      reservationType: type,
       pendingList: [] // 清空列表，等待新数据加载
     })
     

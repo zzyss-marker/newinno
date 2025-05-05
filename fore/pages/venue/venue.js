@@ -170,24 +170,47 @@ Page({
   },
 
   onDevicesChange(e) {
-    const selectedDevices = {}
-    e.detail.value.forEach(deviceId => {
-      selectedDevices[deviceId] = true
-    })
-
-    // 如果选择了笔记本，自动选中投屏器
-    if (selectedDevices.laptop && !selectedDevices.projector) {
-      selectedDevices.projector = true
-      // 更新复选框状态
-      const deviceOptions = this.data.deviceOptions.map(item => ({
-        ...item,
-        checked: item.id === 'projector' ? true : item.checked
-      }))
-      this.setData({ deviceOptions })
+    // 当前用户通过UI操作选择的设备ID列表
+    const currentSelection = e.detail.value
+    
+    // 检查是否新选中了笔记本
+    const hadLaptop = this.data.selectedDevices.laptop
+    const hasLaptopNow = currentSelection.includes('laptop')
+    const newlySelectedLaptop = !hadLaptop && hasLaptopNow
+    
+    // 创建最终的设备选择对象 (复制当前选中状态)
+    const finalSelection = [...currentSelection]
+    
+    // 如果选择了笔记本，确保投屏器也被选中
+    if (hasLaptopNow && !finalSelection.includes('projector')) {
+      finalSelection.push('projector')
     }
-
-    console.log('选择的设备:', selectedDevices);
-    this.setData({ selectedDevices })
+    
+    // 将最终选择转换为对象形式
+    const selectedDevices = {}
+    this.data.deviceOptions.forEach(device => {
+      selectedDevices[device.id] = finalSelection.includes(device.id)
+    })
+    
+    // 如果新选中了笔记本，更新UI显示投屏器为选中状态
+    if (newlySelectedLaptop || (hasLaptopNow && !currentSelection.includes('projector'))) {
+      // 更新复选框状态，确保投屏器显示为选中
+      const updatedDeviceOptions = this.data.deviceOptions.map(item => ({
+        ...item,
+        checked: item.id === 'projector' ? true : 
+                (finalSelection.includes(item.id) ? true : false)
+      }))
+      
+      this.setData({ 
+        deviceOptions: updatedDeviceOptions,
+        selectedDevices
+      })
+    } else {
+      // 没有特殊情况，直接更新选择状态
+      this.setData({ selectedDevices })
+    }
+    
+    console.log('最终选择的设备:', selectedDevices)
   },
 
   async handleSubmit(e) {
