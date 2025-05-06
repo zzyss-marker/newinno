@@ -5,8 +5,10 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f7f7f7;
-  background-image: linear-gradient(to bottom, rgba(235, 245, 255, 0.5), rgba(245, 250, 255, 0.8));
+  background-color: #fdfaf5; /* A warmer, softer background */
+  /* background-image: url('/images/subtle_paw_pattern.png'); Removed */
+  /* background-repeat: repeat; Removed */
+  /* background-size: 100px 100px; Removed */
 }
 
 /* 欢迎头部 */
@@ -37,11 +39,23 @@
   height: 70rpx;
 }
 
+.welcome-title-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10rpx;
+}
+
+/* .title-cat-icon { Removed
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 10rpx;
+} */
+
 .welcome-title {
   font-size: 36rpx;
   color: #333333;
   font-weight: 500;
-  margin-bottom: 10rpx;
 }
 
 .welcome-subtitle {
@@ -65,11 +79,13 @@
   margin-bottom: 30rpx;
   align-items: flex-start;
   animation: fadeIn 0.3s ease-out;
+  box-sizing: border-box;
 }
 
 /* 调整用户消息的布局方向 */
 .user-wrapper {
   flex-direction: row-reverse;
+  padding-right: 25rpx;
 }
 
 /* 头像容器 */
@@ -118,8 +134,24 @@
 .assistant-message {
   background: #ffffff;
   color: #333333;
+  border-radius: 20rpx;
   border-top-left-radius: 4rpx;
   border-left: 4rpx solid #1AAD19;
+  position: relative;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.assistant-message::after {
+  content: '';
+  position: absolute;
+  left: -13rpx;
+  top: 15rpx;
+  width: 0;
+  height: 0;
+  border-top: 8rpx solid transparent;
+  border-bottom: 8rpx solid transparent;
+  border-right: 14rpx solid #ffffff;
+  filter: drop-shadow(-2px 2px 1.5px rgba(0,0,0,0.04));
 }
 
 /* 消息内容 */
@@ -207,6 +239,14 @@
   color: inherit;
 }
 
+.send-button:not([disabled]) .send-icon {
+  color: white; /* Text color for "发送" when active */
+}
+
+.send-button[disabled] .send-icon {
+  color: #999999; /* Or its original inactive color */
+}
+
 /* 发送中状态 */
 .sending-dots {
   display: flex;
@@ -248,30 +288,52 @@
 }
 
 .loading-dots {
-  display: flex;
+  display: none;
+}
+
+.loading text {
+  color: #888;
+  font-size: 24rpx;
   margin-left: 10rpx;
 }
 
-.loading-dot {
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
+.cat-loader {
+  position: relative;
+  width: 50rpx;
+  height: 35rpx;
+}
+
+.cat-face {
+  width: 30rpx;
+  height: 22rpx;
   background-color: #1AAD19;
-  margin: 0 6rpx;
-  opacity: 0.6;
-  animation: loadingDot 1.4s infinite ease-in-out;
+  border-radius: 50% 50% 30% 30%;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-.loading-dot:nth-child(1) {
-  animation-delay: 0s;
+.cat-ear {
+  width: 12rpx;
+  height: 20rpx;
+  background-color: #1AAD19;
+  position: absolute;
+  top: 0;
+  border-radius: 10rpx 10rpx 0 0;
 }
 
-.loading-dot:nth-child(2) {
-  animation-delay: 0.2s;
+.cat-ear.left {
+  left: 6rpx;
+  transform: rotate(-30deg);
+  animation: twitch-left 1.8s infinite ease-in-out;
 }
 
-.loading-dot:nth-child(3) {
-  animation-delay: 0.4s;
+.cat-ear.right {
+  right: 6rpx;
+  transform: rotate(30deg);
+  animation: twitch-right 1.8s infinite ease-in-out;
+  animation-delay: 0.15s;
 }
 
 /* 日期分隔线 */
@@ -305,13 +367,20 @@
   }
 }
 
-@keyframes loadingDot {
-  0%, 80%, 100% {
-    transform: scale(0.6);
-  }
-  40% {
-    transform: scale(1.0);
-  }
+@keyframes twitch-left {
+  0%, 100% { transform: rotate(-30deg) translateY(0); }
+  20% { transform: rotate(-35deg) translateY(-2rpx); }
+  40% { transform: rotate(-28deg) translateY(0); }
+  60% { transform: rotate(-33deg) translateY(-1rpx); }
+  80% { transform: rotate(-30deg) translateY(0); }
+}
+
+@keyframes twitch-right {
+  0%, 100% { transform: rotate(30deg) translateY(0); }
+  20% { transform: rotate(35deg) translateY(-2rpx); }
+  40% { transform: rotate(28deg) translateY(0); }
+  60% { transform: rotate(33deg) translateY(-1rpx); }
+  80% { transform: rotate(30deg) translateY(0); }
 }
 
 @keyframes sendingDot {

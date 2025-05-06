@@ -13,10 +13,12 @@
     <!-- 添加欢迎头部 -->
     <view class="welcome-header">
       <view class="ai-avatar">
-        <image src="/images/ai_selected.png" mode="aspectFit"></image>
+        <image src="/images/new_cat_avatar.png" mode="aspectFit"></image>
       </view>
-      <view class="welcome-title">创新工坊AI助手</view>
-      <view class="welcome-subtitle">您可以询问关于场地和设备的问题，我会尽力提供帮助</view>
+      <view class="welcome-title-container">
+         <view class="welcome-title">创新工坊小喵</view>
+      </view>
+      <view class="welcome-subtitle">有关场地和设备的问题尽管问我喵，我会尽力帮你哒！</view>
     </view>
     
     <!-- 消息列表 -->
@@ -26,7 +28,7 @@
         <view class="avatar-container {{item.role === 'user' ? 'user-avatar' : 'assistant-avatar'}}">
           <image 
             class="avatar-image" 
-            src="{{item.role === 'user' ? '/images/user_selected.png' : '/images/ai_selected.png'}}" 
+            src="{{item.role === 'user' ? '/images/user_selected.png' : '/images/new_cat_avatar.png'}}" 
             mode="aspectFit">
           </image>
         </view>
@@ -43,12 +45,12 @@
     
     <!-- 加载指示器 -->
     <view class="loading" wx:if="{{isLoading}}">
-      <text>AI思考中</text>
-      <view class="loading-dots">
-        <view class="loading-dot"></view>
-        <view class="loading-dot"></view>
-        <view class="loading-dot"></view>
+      <view class="cat-loader">
+        <view class="cat-ear left"></view>
+        <view class="cat-ear right"></view>
+        <view class="cat-face"></view>
       </view>
+      <text>AI喵喵思考中...</text>
     </view>
   </scroll-view>
 

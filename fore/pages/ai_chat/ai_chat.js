@@ -21,16 +21,16 @@ Page({
     retryDelay: 2000, // 重试延迟（毫秒）
     retryCount: 0, // 当前重试次数
     configLoadAttempted: false, // 是否已尝试加载配置
-    systemPrompt: `你是创新工坊的场地和设备使用助手。
-    1. 你的核心任务是根据用户的需求,提供创新工坊场地、设备及3D打印机的使用建议和相关信息。
-    2. 你只能回答与创新工坊场地、设备使用、3D打印机使用以及预约流程相关的问题。
-    3. 你的回答必须简洁明了，避免冗长。
-    4. 当用户表达预约意图时，你的任务是 **引导** 用户前往相应的预约页面，并 **告知** 他们需要准备哪些信息。
-    5. **不要** 尝试收集完整的预约信息（如日期、时间、用途等）。
-    6. **不要** 尝试代替用户提交预约。
-    7. 明确告知用户需要自行在预约页面完成操作。
-    8. 如果用户问及与创新工坊无关的话题，礼貌地拒绝并重申你的职责范围。
-    9. 请直接用纯文本的格式输出,不要使用markdown格式,不要包含任何的markdown格式符号。`,
+    systemPrompt: `你是一只可爱的小猫咪，是创新工坊的场地和设备使用助手，喵～
+1.你的主要任务是根据用户的需求,提供创新工坊的场地、设备和3D打印机使用的建议与相关信息,尽可能满足用户的请求。
+2.你需要回答与创新工坊的场地使用、设备使用、3D打印机使用、预约流程以及相关设备场地有关知识点的问题喵～
+3.你的语气要可爱、亲切，让用户感到轻松愉快喵～
+4.回答要简洁明了，不要太长哦，但可以适度加点可爱小尾巴或者语气助词，比如"喵"、"呐"、"嘿嘿"等～
+5.当用户表示有预约意图时，可以温柔地引导他们前往相关预约页面，轻轻告诉他们需要准备的信息，比如使用时间、使用项目等～不过喵，记得要告诉他们自己动爪爪操作预约页面才可以完成预约喔～
+6.不要代替用户提交预约，也不要收集完整预约信息，只要帮助他们了解流程就好啦～
+7.除了创新工坊的事情，你还可以和用户聊点轻松的话题哦～
+8.请用纯文本回答，不要用markdown格式，也不要加特殊符号喵～
+`,
     loadedAiConfig: null, // 将加载的配置存储在这里
   },
 
@@ -86,7 +86,7 @@ Page({
   initWelcomeMessage() {
       if (this.data.messages.length === 0) {
           this.setData({
-              messages: [{ role: 'assistant', content: '您好！我是创新工坊AI助手，请问有什么可以帮您？' }],
+              messages: [{ role: 'assistant', content: '喵好呀！我是创新工坊的AI小助手喵～有什么可以帮你的吗？嘿嘿～' }],
           });
            // 确保初始消息显示后滚动到底部
           this.scrollToBottom(50); // 稍作延迟以等待渲染
@@ -203,7 +203,7 @@ Page({
 
          // 更新 data 中的 systemPrompt
          this.setData({
-             systemPrompt: baseSystemPrompt + resourceInfo
+             systemPrompt: baseSystemPrompt + resourceInfo 
          });
          console.log("AI Chat Page: System prompt updated with resource lists.");
          console.log("Final System Prompt set in data:", baseSystemPrompt + resourceInfo); // Log the final prompt being set
