@@ -197,4 +197,39 @@ async def batch_create_accounts(
         return {"message": "账号创建成功"}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/debug_token", tags=["auth"])
+async def debug_token(current_user: models.User = Depends(get_current_user)):
+    """
+    调试端点：验证当前用户的token并返回用户信息
+    用于前端调试认证问题
+    """
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的认证Token"
+        )
+    
+    # 检查current_user是字典还是模型对象
+    if isinstance(current_user, dict):
+        # 如果是字典，直接使用
+        user_info = {
+            "user_id": current_user.get("user_id") or current_user.get("username"),
+            "username": current_user.get("username"),
+            "name": current_user.get("name"),
+            "role": current_user.get("role")
+        }
+    else:
+        # 如果是模型对象，使用属性访问
+        user_info = {
+            "user_id": getattr(current_user, "user_id", None) or current_user.username,
+            "username": current_user.username,
+            "name": current_user.name,
+            "role": current_user.role
+        }
+    
+    return {
+        "message": "认证成功",
+        "user_info": user_info
+    } 

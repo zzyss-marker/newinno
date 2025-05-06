@@ -1,0 +1,86 @@
+<!--pages/ai_chat/ai_chat.wxml-->
+<view class="chat-container">
+  <!-- 消息列表区域 -->
+  <scroll-view
+    scroll-y
+    class="messages-area"
+    scroll-into-view="{{scrollToView}}"
+    scroll-with-animation="true"
+    enhanced="true"
+    show-scrollbar="false"
+    bounces="true"
+  >
+    <!-- 添加欢迎头部 -->
+    <view class="welcome-header">
+      <view class="ai-avatar">
+        <image src="/images/ai_selected.png" mode="aspectFit"></image>
+      </view>
+      <view class="welcome-title">创新工坊AI助手</view>
+      <view class="welcome-subtitle">您可以询问关于场地和设备的问题，我会尽力提供帮助</view>
+    </view>
+    
+    <!-- 消息列表 -->
+    <block wx:for="{{messages}}" wx:key="index">
+      <view id="msg-{{index}}" class="message-wrapper {{item.role === 'user' ? 'user-wrapper' : 'assistant-wrapper'}}">
+        <!-- 用户头像 -->
+        <view class="avatar-container {{item.role === 'user' ? 'user-avatar' : 'assistant-avatar'}}">
+          <image 
+            class="avatar-image" 
+            src="{{item.role === 'user' ? '/images/user_selected.png' : '/images/ai_selected.png'}}" 
+            mode="aspectFit">
+          </image>
+        </view>
+        
+        <!-- 消息气泡 -->
+        <view class="message {{item.role === 'user' ? 'user-message' : 'assistant-message'}}">
+          <text class="message-content">{{item.content}}</text>
+        </view>
+      </view>
+    </block>
+    
+    <!-- 占位视图，用于滚动到底部 -->
+    <view id="msg-{{messages.length}}" style="height: 20rpx;"></view>
+    
+    <!-- 加载指示器 -->
+    <view class="loading" wx:if="{{isLoading}}">
+      <text>AI思考中</text>
+      <view class="loading-dots">
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 输入区域 -->
+  <view class="input-area">
+    <view class="textarea-container {{inputFocus ? 'focused' : ''}}">
+      <textarea
+        class="input-textarea"
+        value="{{inputValue}}"
+        bindinput="onInput"
+        bindfocus="onInputFocus"
+        bindblur="onInputBlur"
+        placeholder="请输入您的问题..."
+        auto-height="true"
+        maxlength="1000"
+        show-confirm-bar="{{false}}"
+        disable-default-padding="{{true}}"
+        cursor-spacing="20"
+        adjust-position="{{true}}"
+      />
+    </view>
+    <button
+      class="send-button"
+      hover-class="send-button-hover"
+      bindtap="sendMessage"
+    >
+      <text wx:if="{{!isLoading}}" class="send-icon">发送</text>
+      <view wx:else class="sending-dots">
+        <view class="sending-dot"></view>
+        <view class="sending-dot"></view>
+        <view class="sending-dot"></view>
+      </view>
+    </button>
+  </view>
+</view> 

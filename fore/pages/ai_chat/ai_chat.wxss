@@ -1,0 +1,324 @@
+/* pages/ai_chat/ai_chat.wxss */
+
+/* 整体容器 */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f7f7f7;
+  background-image: linear-gradient(to bottom, rgba(235, 245, 255, 0.5), rgba(245, 250, 255, 0.8));
+}
+
+/* 欢迎头部 */
+.welcome-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx 30rpx;
+  margin-bottom: 20rpx;
+}
+
+.ai-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  background-color: #f0f9f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(26, 173, 25, 0.15);
+  margin-bottom: 20rpx;
+  border: 2rpx solid rgba(26, 173, 25, 0.2);
+}
+
+.ai-avatar image {
+  width: 70rpx;
+  height: 70rpx;
+}
+
+.welcome-title {
+  font-size: 36rpx;
+  color: #333333;
+  font-weight: 500;
+  margin-bottom: 10rpx;
+}
+
+.welcome-subtitle {
+  font-size: 26rpx;
+  color: #666666;
+  text-align: center;
+  padding: 0 40rpx;
+}
+
+/* 消息区域 */
+.messages-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20rpx 20rpx 120rpx;
+  scroll-behavior: smooth;
+}
+
+/* 消息容器 */
+.message-wrapper {
+  display: flex;
+  margin-bottom: 30rpx;
+  align-items: flex-start;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 调整用户消息的布局方向 */
+.user-wrapper {
+  flex-direction: row-reverse;
+}
+
+/* 头像容器 */
+.avatar-container {
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 35rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  margin-left: 16rpx;
+  background-color: #e6f5ff;
+}
+
+.assistant-avatar {
+  margin-right: 16rpx;
+  background-color: #f0f9f0;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+}
+
+/* 消息气泡基本样式 */
+.message {
+  padding: 20rpx 24rpx;
+  border-radius: 20rpx;
+  max-width: calc(80% - 90rpx);
+  word-wrap: break-word;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  position: relative;
+  line-height: 1.5;
+}
+
+/* 用户消息 */
+.user-message {
+  background: linear-gradient(135deg, #1AAD19, #28be27);
+  color: white;
+  border-top-right-radius: 4rpx;
+}
+
+/* 助手消息 */
+.assistant-message {
+  background: #ffffff;
+  color: #333333;
+  border-top-left-radius: 4rpx;
+  border-left: 4rpx solid #1AAD19;
+}
+
+/* 消息内容 */
+.message-content {
+  font-size: 28rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 输入区域 */
+.input-area {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 16rpx 20rpx;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-top: 1rpx solid rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.03);
+}
+
+/* textarea容器 */
+.textarea-container {
+  flex: 1;
+  background-color: #ffffff;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 20rpx;
+  padding: 15rpx 20rpx;
+  margin-right: 16rpx;
+  max-height: 200rpx;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+/* 聚焦状态 */
+.textarea-container.focused {
+  border-color: #1AAD19;
+  box-shadow: 0 0 0 2rpx rgba(26, 173, 25, 0.2);
+}
+
+/* 文本输入域 */
+.input-textarea {
+  width: 100%;
+  min-height: 40rpx;
+  max-height: 160rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+/* 发送按钮 - 默认状态（禁用） */
+.send-button {
+  width: 100rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  background: #e0e0e0;
+  color: #999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+/* 发送按钮 - 启用状态 */
+.send-button:not([disabled]) {
+  background: linear-gradient(135deg, #1aad19, #2eba28);
+  color: white;
+  box-shadow: 0 2rpx 8rpx rgba(26, 173, 25, 0.3);
+}
+
+.send-button-hover:not([disabled]) {
+  opacity: 0.85;
+  transform: scale(0.95);
+}
+
+.send-icon {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: inherit;
+}
+
+/* 发送中状态 */
+.sending-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sending-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background-color: white;
+  margin: 0 4rpx;
+  opacity: 0.7;
+  animation: sendingDot 1.4s infinite ease-in-out;
+}
+
+.sending-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.sending-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.sending-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* AI思考状态 */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16rpx;
+  color: #888;
+  font-size: 24rpx;
+  margin: 20rpx 0;
+}
+
+.loading-dots {
+  display: flex;
+  margin-left: 10rpx;
+}
+
+.loading-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background-color: #1AAD19;
+  margin: 0 6rpx;
+  opacity: 0.6;
+  animation: loadingDot 1.4s infinite ease-in-out;
+}
+
+.loading-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* 日期分隔线 */
+.date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 30rpx 0;
+  color: #999;
+  font-size: 24rpx;
+}
+
+.date-divider::before,
+.date-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 0 20rpx;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes loadingDot {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+  }
+  40% {
+    transform: scale(1.0);
+  }
+}
+
+@keyframes sendingDot {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+  }
+  40% {
+    transform: scale(1.0);
+  }
+}
