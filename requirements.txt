@@ -21,3 +21,4 @@ click
 itsdangerous
 jinja2
 markupsafe
+httpx

@@ -70,4 +70,7 @@ const config = {
   deviceTypes: ['工具', '仪器', '开发板', '展示设备', '音频设备', '其他']
 }
 
-export default config 
+// 支持CommonJS
+module.exports = config;
+// 支持ES模块
+export default config; 

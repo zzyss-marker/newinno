@@ -9,7 +9,8 @@
     "pages/records/detail/detail",
     "pages/approval/approval",
     "pages/approval/detail/detail",
-    "pages/venueForm/venueForm"
+    "pages/venueForm/venueForm",
+    "pages/ai_chat/ai_chat"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -27,6 +28,12 @@
         "text": "首页",
         "iconPath": "images/home.png",
         "selectedIconPath": "images/home_selected.png"
+      },
+      {
+        "pagePath": "pages/ai_chat/ai_chat",
+        "text": "AI助手",
+        "iconPath": "images/ai.png",
+        "selectedIconPath": "images/ai_selected.png"
       },
       {
         "pagePath": "pages/my/my",
