@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container">
     <h2 class="mb-4">预约记录管理</h2>
-    
+
     <div class="card mb-4">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">筛选条件</h5>
@@ -51,7 +51,7 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <!-- 扩展搜索选项 -->
                 <div class="col-md-3">
                     <div class="form-group">
@@ -81,7 +81,7 @@
                         <input type="text" class="form-control" id="keywordSearch" placeholder="设备名称/场地/备注">
                     </div>
                 </div>
-                
+
                 <div class="col-12 mt-3">
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
@@ -109,18 +109,22 @@
                 <table class="table table-striped table-hover">
                     <thead class="thead-light sticky-top bg-light">
                         <tr>
-                            <th width="10%">预约类型</th>
-                            <th width="12%">申请人</th>
-                            <th width="12%">学院</th>
-                            <th width="12%">预约日期</th>
-                            <th width="34%">详细信息</th>
-                            <th width="10%">状态</th>
-                            <th width="10%">操作</th>
+                            <th width="8%">预约类型</th>
+                            <th width="8%">申请人</th>
+                            <th width="8%">学院</th>
+                            <th width="10%">申请时间</th>
+                            <th width="10%">借用时间</th>
+                            <th width="10%">归还时间</th>
+                            <th width="8%">使用类型</th>
+                            <th width="8%">指导老师</th>
+                            <th width="20%">详细信息</th>
+                            <th width="5%">状态</th>
+                            <th width="5%">操作</th>
                         </tr>
                     </thead>
                     <tbody id="reservationList">
                         <tr>
-                            <td colspan="7" class="text-center p-5">
+                            <td colspan="11" class="text-center p-5">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">加载中...</span>
                                 </div>
@@ -151,15 +155,15 @@ async function loadReservations() {
     const departmentSearch = document.getElementById('departmentSearch').value.trim().toLowerCase();
     const deviceCondition = document.getElementById('deviceCondition').value;
     const keywordSearch = document.getElementById('keywordSearch').value.trim().toLowerCase();
-    
+
     // 更新记录数量显示
     document.getElementById('reservation-count').textContent = '加载中...';
-    
+
     // 显示加载中状态
     const tbody = document.getElementById('reservationList');
     tbody.innerHTML = `
         <tr>
-            <td colspan="7" class="text-center p-5">
+            <td colspan="11" class="text-center p-5">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">加载中...</span>
                 </div>
@@ -167,23 +171,76 @@ async function loadReservations() {
             </td>
         </tr>
     `;
-    
+
     try {
         const params = new URLSearchParams();
         if (startDate) params.append('start_date', startDate);
         if (endDate) params.append('end_date', endDate);
-        
+
         const response = await fetch(`/api/reservations?${params.toString()}`);
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || '获取数据失败');
         }
-        
+
         const data = await response.json();
         if (!Array.isArray(data)) {
             throw new Error('返回数据格式错误');
         }
-        
+
+        // 调试信息：查看API返回的数据结构
+        console.log('API返回的预约记录数据:', data);
+        if (data.length > 0) {
+            console.log('第一条记录示例:', data[0]);
+
+            // 检查不同类型预约的日期字段
+            const venueRecord = data.find(r => r.type === 'venue');
+            const deviceRecord = data.find(r => r.type === 'device');
+            const printerRecord = data.find(r => r.type === 'printer');
+
+            if (venueRecord) {
+                console.log('场地预约日期字段:', {
+                    type: venueRecord.type,
+                    reservation_date: venueRecord.reservation_date,
+                    created_at: venueRecord.created_at
+                });
+            }
+
+            if (deviceRecord) {
+                console.log('设备预约完整数据:', deviceRecord);
+                console.log('设备预约字段:', {
+                    type: deviceRecord.type,
+                    borrow_time: deviceRecord.borrow_time,
+                    created_at: deviceRecord.created_at,
+                    reason: deviceRecord.reason,
+                    device_name: deviceRecord.device_name,
+                    usage_type: deviceRecord.usage_type,
+                    teacher_name: deviceRecord.teacher_name,
+                    return_time: deviceRecord.return_time,
+                    status: deviceRecord.status
+                });
+
+                // 检查所有设备预约记录的reason字段
+                const deviceRecords = data.filter(r => r.type === 'device');
+                console.log('所有设备预约记录的reason字段:');
+                deviceRecords.forEach((record, index) => {
+                    console.log(`设备预约${index+1}:`, {
+                        device_name: record.device_name,
+                        reason: record.reason
+                    });
+                });
+            }
+
+            if (printerRecord) {
+                console.log('打印机预约日期字段:', {
+                    type: printerRecord.type,
+                    reservation_date: printerRecord.reservation_date,
+                    print_time: printerRecord.print_time,
+                    created_at: printerRecord.created_at
+                });
+            }
+        }
+
         // 客户端筛选 - 基本筛选
         let filteredData = data;
         if (reservationType) {
@@ -192,30 +249,30 @@ async function loadReservations() {
         if (reservationStatus) {
             filteredData = filteredData.filter(record => record.status === reservationStatus);
         }
-        
+
         // 高级筛选
         if (userSearch) {
-            filteredData = filteredData.filter(record => 
+            filteredData = filteredData.filter(record =>
                 (record.user?.name || '').toLowerCase().includes(userSearch)
             );
         }
-        
+
         if (departmentSearch) {
-            filteredData = filteredData.filter(record => 
+            filteredData = filteredData.filter(record =>
                 (record.user?.department || '').toLowerCase().includes(departmentSearch)
             );
         }
-        
+
         if (deviceCondition) {
-            filteredData = filteredData.filter(record => 
+            filteredData = filteredData.filter(record =>
                 // 只针对设备类型的记录
-                (record.type === 'device' || record.type === 'printer') && 
+                (record.type === 'device' || record.type === 'printer') &&
                 // 匹配设备状态
                 ((record.type === 'device' && record.device_condition === deviceCondition) ||
                 (record.type === 'printer' && record.printer_condition === deviceCondition))
             );
         }
-        
+
         if (keywordSearch) {
             filteredData = filteredData.filter(record => {
                 // 搜索对应的字段
@@ -238,19 +295,19 @@ async function loadReservations() {
                     );
                 }
                 // 检查是否有任何字段包含搜索关键词
-                return searchFields.some(field => 
+                return searchFields.some(field =>
                     field.toLowerCase().includes(keywordSearch)
                 );
             });
         }
-        
+
         // 更新记录数量显示
         document.getElementById('reservation-count').textContent = `共 ${filteredData.length} 条记录`;
-        
+
         if (filteredData.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center p-4">
+                    <td colspan="11" class="text-center p-4">
                         <div class="alert alert-info mb-0">
                             <i class="fas fa-info-circle me-2"></i>
                             没有找到匹配的预约记录
@@ -260,25 +317,30 @@ async function loadReservations() {
             `;
             return;
         }
-        
+
         tbody.innerHTML = filteredData.map(record => {
             // 获取申请人信息
             const userName = record.user?.name || `用户(ID:${record.user_id})`;
             const userDept = record.user?.department || '未知学院';
-            
-            // 获取预约时间
-            const reservationDate = formatDate(record.reservation_date || record.borrow_time);
-            
+
+            // 获取申请时间（记录创建时间）
+            const reservationDate = formatDate(record.created_at);
+
             // 获取详细信息
-            const details = getDetailsHtml(record);
-            
+            let details = getDetailsHtml(record);
+
+            // 对于设备预约，确保显示借用原因
+            if (record.type === 'device') {
+                console.log('设备预约借用原因:', record.reason);
+            }
+
             // 获取状态徽章
             const statusBadge = `
                 <span class="badge badge-${getStatusBadgeClass(record.status)}">
                     ${getStatusText(record.status)}
                 </span>
             `;
-            
+
             // 获取操作按钮
             const actions = `
                 <div class="btn-group btn-group-sm" role="group">
@@ -287,13 +349,54 @@ async function loadReservations() {
                     </button>
                 </div>
             `;
-            
+
+            // 获取预约日期/借用时间
+            let bookingDate = '';
+            if (record.type === 'venue') {
+                bookingDate = formatDate(record.reservation_date);
+            } else if (record.type === 'device') {
+                bookingDate = formatDateTime(record.borrow_time);
+            } else if (record.type === 'printer') {
+                bookingDate = formatDateTime(record.print_time);
+            }
+
+            // 获取归还时间
+            let returnTime = '';
+            if (record.type === 'device' && record.return_time) {
+                returnTime = formatDateTime(record.return_time);
+            } else if (record.type === 'printer' && record.end_time) {
+                returnTime = formatDateTime(record.end_time);
+            }
+
+            // 获取使用类型
+            let usageType = '';
+            if (record.type === 'device') {
+                usageType = `<span class="badge badge-${record.usage_type === 'onsite' ? 'info' : 'warning'}">
+                    ${record.usage_type === 'onsite' ? '现场使用' : '带走使用'}
+                </span>`;
+            } else if (record.type === 'venue') {
+                usageType = `<span class="badge badge-info">
+                    ${getBusinessTime(record.business_time)}
+                </span>`;
+            } else if (record.type === 'printer') {
+                usageType = `<span class="badge badge-info">
+                    打印使用
+                </span>`;
+            }
+
+            // 获取指导老师
+            const teacherName = record.teacher_name || '未指定';
+
             return `
                 <tr>
                     <td><span class="badge badge-${getReservationTypeClass(record.type)}">${getReservationType(record.type)}</span></td>
                     <td>${userName}</td>
                     <td>${userDept}</td>
                     <td>${reservationDate}</td>
+                    <td>${bookingDate}</td>
+                    <td>${returnTime}</td>
+                    <td>${usageType}</td>
+                    <td>${teacherName}</td>
                     <td>${details}</td>
                     <td>${statusBadge}</td>
                     <td>${actions}</td>
@@ -302,10 +405,10 @@ async function loadReservations() {
         }).join('');
     } catch (error) {
         console.error('加载预约记录失败:', error);
-        
+
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center p-4">
+                <td colspan="11" class="text-center p-4">
                     <div class="alert alert-danger mb-0">
                         <i class="fas fa-exclamation-triangle me-2"></i>
                         加载失败: ${error.message || '未知错误'}
@@ -313,7 +416,7 @@ async function loadReservations() {
                 </td>
             </tr>
         `;
-        
+
         // 更新记录数量显示为错误状态
         document.getElementById('reservation-count').textContent = '加载失败';
     }
@@ -330,15 +433,14 @@ function getDetailsHtml(record) {
                 if (record.devices_needed.mic_handheld) deviceList.push('<span class="badge badge-device">手持麦</span>');
                 if (record.devices_needed.mic_gooseneck) deviceList.push('<span class="badge badge-device">鹅颈麦</span>');
                 if (record.devices_needed.projector) deviceList.push('<span class="badge badge-device">投屏器</span>');
-                devicesHtml = deviceList.length > 0 ? 
+                devicesHtml = deviceList.length > 0 ?
                     `<div class="device-list">${deviceList.join('')}</div>` : '';
             }
-            
+
             return `
                 <div class="reservation-details">
                     <div>
                         <strong>场地类型:</strong> ${getVenueType(record.venue_type)}
-                        <span class="time-text">${getBusinessTime(record.business_time)}</span>
                     </div>
                     <div class="text-wrap"><strong>用途:</strong> ${record.purpose || '未提供'}</div>
                     ${devicesHtml}
@@ -350,7 +452,7 @@ function getDetailsHtml(record) {
             if (record.printer_condition === 'damaged') {
                 printerCondition = 'damaged';
             }
-            
+
             // 增强打印机状态信息显示 - 始终显示状态框
             let printerConditionHtml = '';
             if (record.status === 'completed') {
@@ -358,7 +460,7 @@ function getDetailsHtml(record) {
                 const conditionText = printerCondition === 'normal' ? '正常' : '故障';
                 printerConditionHtml = `
                     <div class="condition-box ${conditionClass}-box">
-                        <strong>打印机状态:</strong> 
+                        <strong>打印机状态:</strong>
                         <span class="badge badge-${conditionClass} condition-badge">${conditionText}</span>
                         <span class="condition-value">[${record.printer_condition}]</span>
                         ${record.completion_note ? `<div class="condition-note text-wrap"><strong>备注:</strong> ${record.completion_note}</div>` : ''}
@@ -368,16 +470,15 @@ function getDetailsHtml(record) {
                 // 未完成显示占位状态框
                 printerConditionHtml = `
                     <div class="condition-box pending-box">
-                        <strong>打印机状态:</strong> 
+                        <strong>打印机状态:</strong>
                         <span class="badge badge-secondary condition-badge">未提交</span>
                     </div>
                 `;
             }
-            
+
             return `
                 <div class="reservation-details">
                     <div><strong>打印机:</strong> ${record.printer_name}</div>
-                    <div><strong>指导老师:</strong> ${record.teacher_name || '未指定'}</div>
                     ${record.estimated_duration ? `<div><strong>预计耗时:</strong> ${record.estimated_duration}分钟</div>` : ''}
                     ${record.model_name ? `<div><strong>模型名称:</strong> ${record.model_name}</div>` : ''}
                     ${printerConditionHtml}
@@ -389,7 +490,7 @@ function getDetailsHtml(record) {
             if (record.device_condition === 'damaged') {
                 deviceCondition = 'damaged';
             }
-            
+
             // 增强设备状态信息显示 - 始终显示状态框
             let deviceConditionHtml = '';
             if (record.status === 'returned') {
@@ -397,7 +498,7 @@ function getDetailsHtml(record) {
                 const conditionText = deviceCondition === 'normal' ? '正常' : '故障';
                 deviceConditionHtml = `
                     <div class="condition-box ${conditionClass}-box">
-                        <strong>设备状态:</strong> 
+                        <strong>设备状态:</strong>
                         <span class="badge badge-${conditionClass} condition-badge">${conditionText}</span>
                         <span class="condition-value">[${record.device_condition}]</span>
                         ${record.return_note ? `<div class="condition-note text-wrap"><strong>备注:</strong> ${record.return_note}</div>` : ''}
@@ -407,22 +508,18 @@ function getDetailsHtml(record) {
                 // 未归还显示占位状态框
                 deviceConditionHtml = `
                     <div class="condition-box pending-box">
-                        <strong>设备状态:</strong> 
+                        <strong>设备状态:</strong>
                         <span class="badge badge-secondary condition-badge">未归还</span>
                     </div>
                 `;
             }
-            
+
             return `
                 <div class="reservation-details">
                     <div>
                         <strong>设备名称:</strong> ${getDeviceName(record.device_name)}
-                        <span class="badge badge-${record.usage_type === 'onsite' ? 'info' : 'warning'}">
-                            ${record.usage_type === 'onsite' ? '现场使用' : '带走使用'}
-                        </span>
                     </div>
-                    <div><strong>借用时间:</strong> ${formatDateTime(record.borrow_time)}</div>
-                    <div><strong>指导老师:</strong> ${record.teacher_name || '未指定'}</div>
+                    <div><strong>借用原因:</strong> ${record.reason || '(无借用原因)'}</div>
                     ${deviceConditionHtml}
                 </div>
             `;
@@ -545,12 +642,12 @@ async function deleteReservation(type, id) {
     if (!confirm(`确定要删除这条${getReservationType(type)}记录吗？此操作不可恢复！`)) {
         return;
     }
-    
+
     const button = event.target.closest('button');
     const originalContent = button.innerHTML;
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 删除中...';
-    
+
     try {
         const response = await fetch(`/api/reservations/${type}/${id}`, {
             method: 'DELETE',
@@ -558,17 +655,17 @@ async function deleteReservation(type, id) {
                 'Accept': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || '删除失败');
         }
-        
+
         // 显示成功消息
         const row = button.closest('tr');
         row.style.backgroundColor = '#ffefef';
         row.style.transition = 'all 0.5s ease';
-        
+
         setTimeout(() => {
             row.style.opacity = '0';
             row.style.height = '0';
@@ -580,7 +677,7 @@ async function deleteReservation(type, id) {
     } catch (error) {
         console.error('删除失败：', error);
         alert('删除失败：' + error.message);
-        
+
         // 恢复按钮状态
         button.disabled = false;
         button.innerHTML = originalContent;
@@ -590,29 +687,29 @@ async function deleteReservation(type, id) {
 async function exportReservations() {
     const button = event.target;
     setButtonLoading(button, true);
-    
+
     try {
         const startDate = document.getElementById('startDate').value;
         const endDate = document.getElementById('endDate').value;
         const reservationType = document.getElementById('reservationType').value;
-        
+
         const params = new URLSearchParams();
         if (startDate) params.append('start_date', startDate);
         if (endDate) params.append('end_date', endDate);
         if (reservationType) params.append('type', reservationType);
-        
+
         const response = await fetch(`/api/export/reservations?${params.toString()}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || '导出失败');
         }
-        
+
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -860,4 +957,4 @@ loadReservations();
     padding: 0.35em 0.65em;
 }
 </style>
-{% endblock %} 
+{% endblock %}
