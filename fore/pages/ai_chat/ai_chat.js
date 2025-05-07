@@ -875,11 +875,25 @@ Page({
       // 清除之前可能存在的预约数据缓存
       this.clearReservationCache();
 
-      // 获取最近的对话历史
-      const recentMessages = this.data.messages.slice(-15); // 获取最近15条消息，增加上下文范围
-      const allContent = recentMessages.map(msg => msg.content).join(' ');
+      // 获取最近的对话历史，但只关注最新的AI回复和用户确认
+      // 首先找到最新的AI回复，它应该包含预约信息的汇总
+      const assistantMessages = this.data.messages.filter(msg => msg.role === 'assistant');
+      const latestAssistantMessage = assistantMessages.length > 0 ? assistantMessages[assistantMessages.length - 1] : null;
 
-      console.log("预约提交 - 分析对话内容:", allContent);
+      // 如果没有找到AI回复，无法继续处理
+      if (!latestAssistantMessage) {
+        throw new Error("无法找到AI助手的回复，请重新发起预约请求");
+      }
+
+      // 使用最新的AI回复作为主要分析内容
+      const latestContent = latestAssistantMessage.content;
+
+      // 获取最近的几条消息作为辅助上下文
+      const recentMessages = this.data.messages.slice(-5);
+      const allContent = latestContent + ' ' + recentMessages.map(msg => msg.content).join(' ');
+
+      console.log("预约提交 - 分析最新AI回复:", latestContent.substring(0, 100) + "...");
+      console.log("预约提交 - 辅助上下文:", allContent.substring(0, 100) + "...");
 
       // 记录当前时间戳，用于标识本次预约请求
       const requestTimestamp = new Date().getTime();
@@ -888,24 +902,23 @@ Page({
       });
       console.log("当前预约请求时间戳:", requestTimestamp);
 
-      // 更精确地解析预约类型，使用更严格的模式匹配
+      // 更精确地解析预约类型，优先从最新的AI回复中提取
       let reservationType = '';
 
-      // 首先检查是否包含打印机相关关键词，优先识别为打印机预约
-      if (allContent.includes('printer_') ||
-          allContent.includes('打印机1') ||
-          allContent.includes('打印机2') ||
-          allContent.includes('打印机3') ||
-          (allContent.includes('打印机') && (allContent.includes('模型') || allContent.includes('打印时间')))) {
-        reservationType = 'printer';
-        console.log("根据打印机关键词识别为: 打印机预约");
+      // 首先从最新的AI回复中查找明确的预约类型标识
+      if (latestContent.match(/场地类型[：:]\s*([^,，。\n]+)/)) {
+        reservationType = 'venue';
+        console.log("从最新AI回复中识别为: 场地预约");
       }
-      // 然后检查是否有打印机名称的明确指定
-      else if (allContent.match(/打印机名称[：:]\s*([^,，。\n]+)/) || allContent.match(/打印机[：:]\s*([^,，。\n]+)/)) {
-        reservationType = 'printer';
-        console.log("根据明确指定的打印机名称识别为: 打印机预约");
+      else if (latestContent.match(/设备名称[：:]\s*([^,，。\n]+)/)) {
+        reservationType = 'device';
+        console.log("从最新AI回复中识别为: 设备预约");
       }
-      // 然后检查是否有场地类型的明确指定
+      else if (latestContent.match(/打印机名称[：:]\s*([^,，。\n]+)/) || latestContent.match(/打印机[：:]\s*([^,，。\n]+)/)) {
+        reservationType = 'printer';
+        console.log("从最新AI回复中识别为: 打印机预约");
+      }
+      // 如果最新回复中没有明确标识，再检查更广泛的上下文
       else if (allContent.match(/场地类型[：:]\s*([^,，。\n]+)/)) {
         reservationType = 'venue';
         console.log("根据明确指定的场地类型识别为: 场地预约");
@@ -915,53 +928,45 @@ Page({
         reservationType = 'device';
         console.log("根据明确指定的设备名称识别为: 设备预约");
       }
-      // 如果没有明确指定，检查是否明确提到了预约类型
+      // 如果没有明确指定，优先从最新的AI回复中检查关键词
+      else if (latestContent.includes('讲座厅') || latestContent.includes('会议室') ||
+               latestContent.includes('研讨室') || latestContent.includes('场地类型')) {
+        reservationType = 'venue';
+        console.log("从最新AI回复中关键词识别为: 场地预约");
+      }
+      else if (latestContent.includes('设备名称') || latestContent.includes('借用时间') ||
+               latestContent.includes('归还时间') || latestContent.includes('使用类型')) {
+        reservationType = 'device';
+        console.log("从最新AI回复中关键词识别为: 设备预约");
+      }
+      else if (latestContent.includes('打印机') || latestContent.includes('打印时间') ||
+               latestContent.includes('开始时间') || latestContent.includes('结束时间')) {
+        reservationType = 'printer';
+        console.log("从最新AI回复中关键词识别为: 打印机预约");
+      }
+      // 如果最新回复中没有明确指示，再检查更广泛的上下文
       else if (/场地预约|预约场地|预约.*?场地|预约.*?会议室|预约.*?讲座厅|预约.*?研讨室/.test(allContent)) {
         reservationType = 'venue';
         console.log("预约类型识别为: 场地预约");
-      } else if (/设备预约|预约设备|预约.*?设备|预约.*?工具|预约.*?仪器|借用.*?设备/.test(allContent)) {
+      }
+      else if (/设备预约|预约设备|预约.*?设备|预约.*?工具|预约.*?仪器|借用.*?设备/.test(allContent)) {
         reservationType = 'device';
         console.log("预约类型识别为: 设备预约");
-      } else if (/打印机预约|预约打印机|预约.*?打印机|预约.*?3D打印|3D打印预约/.test(allContent)) {
+      }
+      else if (/打印机预约|预约打印机|预约.*?打印机|预约.*?3D打印|3D打印预约/.test(allContent)) {
         reservationType = 'printer';
         console.log("预约类型识别为: 打印机预约");
-      }
-      // 如果没有明确提到预约类型，检查是否有特定设备或打印机的名称
-      else if (allContent.includes('3D打印机1号') || allContent.includes('3D打印机2号') ||
-                allContent.includes('3D打印机3号') || allContent.includes('打印机1') ||
-                allContent.includes('打印机2') || allContent.includes('打印机3') ||
-                allContent.includes('printer_1') || allContent.includes('printer_2') ||
-                allContent.includes('printer_3')) {
-        reservationType = 'printer';
-        console.log("根据具体打印机名称识别为: 打印机预约");
-      } else if (allContent.includes('电动螺丝刀') || allContent.includes('万用表') ||
-          allContent.includes('示波器') || allContent.includes('烙铁') ||
-          allContent.includes('Arduino') || allContent.includes('树莓派')) {
-        reservationType = 'device';
-        console.log("根据具体设备名称识别为: 设备预约");
-      }
-      // 检查是否有打印机预约的关键字段 - 优先检查打印机
-      else if (allContent.includes('打印时间') || allContent.includes('开始时间') ||
-                allContent.includes('结束时间') || allContent.includes('预计时长') ||
-                allContent.includes('模型名称') || allContent.includes('打印模型')) {
-        reservationType = 'printer';
-        console.log("根据打印机预约关键字段识别为: 打印机预约");
-      }
-      // 检查是否有设备预约的关键字段
-      else if (allContent.includes('借用时间') || allContent.includes('归还时间') ||
-          allContent.includes('使用类型') || allContent.includes('带走') ||
-          allContent.includes('现场使用')) {
-        reservationType = 'device';
-        console.log("根据设备预约关键字段识别为: 设备预约");
       }
       // 如果仍然没有识别出类型，尝试从上下文推断
       else if (/会议室|讲座厅|研讨室|场地/.test(allContent)) {
         reservationType = 'venue';
         console.log("从上下文推断预约类型为: 场地预约");
-      } else if (/设备|工具|仪器/.test(allContent)) {
+      }
+      else if (/设备|工具|仪器/.test(allContent)) {
         reservationType = 'device';
         console.log("从上下文推断预约类型为: 设备预约");
-      } else if (/打印机|3D打印/.test(allContent)) {
+      }
+      else if (/打印机|3D打印/.test(allContent)) {
         reservationType = 'printer';
         console.log("从上下文推断预约类型为: 打印机预约");
       }
@@ -970,11 +975,24 @@ Page({
         throw new Error("无法确定预约类型，请先与AI助手明确讨论您想预约的具体类型（场地、设备或打印机）");
       }
 
-      // 从对话历史中提取预约信息
-      const reservationData = this.extractReservationData('', recentMessages, reservationType);
+      // 从最新的AI回复中提取预约信息，而不是从整个对话历史
+      // 创建一个只包含最新AI回复的消息数组
+      const latestMessageArray = [{ role: 'assistant', content: latestContent }];
+
+      // 从最新AI回复中提取预约信息
+      const reservationData = this.extractReservationData('', latestMessageArray, reservationType);
 
       if (!reservationData) {
-        throw new Error("无法提取完整的预约信息，请确保您已提供所有必要信息");
+        // 如果从最新回复中无法提取完整信息，尝试使用更广泛的上下文
+        console.log("从最新AI回复中无法提取完整信息，尝试使用更广泛的上下文");
+        const fallbackData = this.extractReservationData('', recentMessages, reservationType);
+
+        if (!fallbackData) {
+          throw new Error("无法提取完整的预约信息，请确保您已提供所有必要信息");
+        }
+
+        console.log("从更广泛上下文提取到的预约数据:", fallbackData);
+        return fallbackData;
       }
 
       console.log(`提取到的${reservationType}预约数据:`, reservationData);
@@ -1194,13 +1212,21 @@ Page({
     this._lastExtractedData = null;
     this._lastReservationType = null;
 
-    // 获取最新的AI消息内容（最后3条）
-    const recentAIMessages = messages.filter(msg => msg.role === 'assistant').slice(-3);
-    const latestAIContent = recentAIMessages.map(msg => msg.content).join(' ');
-    console.log("最新AI消息内容(前100字符):", latestAIContent.substring(0, 100) + "...");
+    // 获取最新的AI消息内容
+    const recentAIMessages = messages.filter(msg => msg.role === 'assistant');
 
-    // 合并所有消息内容以便分析，但给最新的AI消息更高的权重
-    const allContent = messages.map(msg => msg.content).join(' ') + ' ' + aiContent + ' ' + latestAIContent + ' ' + latestAIContent;
+    // 如果没有AI消息，无法提取数据
+    if (recentAIMessages.length === 0) {
+      console.error("没有找到AI消息，无法提取预约数据");
+      return null;
+    }
+
+    // 使用最新的AI消息作为主要分析内容
+    const latestAIContent = recentAIMessages[recentAIMessages.length - 1].content;
+    console.log("提取数据 - 最新AI消息内容(前100字符):", latestAIContent.substring(0, 100) + "...");
+
+    // 主要从最新的AI消息中提取数据，而不是整个对话历史
+    const allContent = latestAIContent + ' ' + aiContent;
 
     try {
       // 根据预约类型提取不同的数据
