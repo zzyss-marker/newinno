@@ -19,6 +19,7 @@
     "navigationBarTextStyle": "black"
   },
   "tabBar": {
+    "custom": true,
     "color": "#999999",
     "selectedColor": "#1AAD19",
     "backgroundColor": "#ffffff",
@@ -43,5 +44,7 @@
       }
     ]
   },
-  "usingComponents": {}
-} 
+  "usingComponents": {
+    "ai-tab-bar": "/components/ai-tab-bar/ai-tab-bar"
+  }
+}

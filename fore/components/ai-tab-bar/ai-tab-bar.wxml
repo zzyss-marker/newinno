@@ -1,0 +1,7 @@
+<!-- components/ai-tab-bar/ai-tab-bar.wxml -->
+<view class="ai-tab-bar" wx:if="{{showAI}}">
+  <navigator url="/pages/ai_chat/ai_chat" open-type="switchTab" class="ai-tab-item">
+    <image src="/images/ai.png" mode="aspectFit" class="ai-tab-icon"></image>
+    <text class="ai-tab-text">AI助手</text>
+  </navigator>
+</view>

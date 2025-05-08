@@ -6,14 +6,14 @@ export const request = async (url, options = {}) => {
   try {
     // 获取 token
     const token = wx.getStorageSync('token')
-    
+
     // 合并 headers
     const headers = {
       ...options.header
     }
-    
-    // 如果有 token 且不是登录请求，添加 Authorization header
-    if (token && !url.includes('/token')) {
+
+    // 如果有 token 且不是登录请求或设置请求，添加 Authorization header
+    if (token && !url.includes('/token') && !url.includes('/settings/ai-feature')) {
       headers['Authorization'] = `Bearer ${token}`
     }
 
@@ -32,20 +32,23 @@ export const request = async (url, options = {}) => {
         ...options,
         header: headers,
         success: (res) => {
-          if (res.statusCode === 401) {
+          if (res.statusCode === 401 && !url.includes('/settings/ai-feature')) {
             // token过期，清除token并跳转到登录页
             wx.removeStorageSync('token')
             wx.switchTab({
               url: '/pages/my/my'
             })
             reject(new Error('登录已过期，请重新登录'))
+          } else if (res.statusCode === 401 && url.includes('/settings/ai-feature')) {
+            // 对于AI功能设置请求，即使返回401也继续处理
+            resolve({ enabled: false }) // 默认禁用AI功能
           } else if (res.statusCode >= 400) {
             let errorMessage = '请求失败'
             if (res.data.detail) {
-              errorMessage = typeof res.data.detail === 'string' 
-                ? res.data.detail 
-                : Array.isArray(res.data.detail) 
-                  ? res.data.detail[0].msg 
+              errorMessage = typeof res.data.detail === 'string'
+                ? res.data.detail
+                : Array.isArray(res.data.detail)
+                  ? res.data.detail[0].msg
                   : '请求失败'
             }
             reject({
@@ -71,7 +74,7 @@ export const request = async (url, options = {}) => {
 export const get = async (url, config = {}) => {
   // 从config中提取data对象作为查询参数
   const { data, ...restConfig } = config;
-  
+
   // 如果有查询参数，将它们添加到URL中
   let finalUrl = url;
   if (data && Object.keys(data).length > 0) {
@@ -79,12 +82,12 @@ export const get = async (url, config = {}) => {
       .filter(([_, value]) => value !== undefined && value !== null)
       .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
       .join('&');
-    
+
     if (queryParams) {
       finalUrl = `${url}${url.includes('?') ? '&' : '?'}${queryParams}`;
     }
   }
-  
+
   return request(finalUrl, {
     method: 'GET',
     ...restConfig
@@ -123,4 +126,4 @@ export default {
   put,
   getAvailableDevices,
   getAvailableVenues
-} 
+}

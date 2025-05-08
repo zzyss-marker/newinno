@@ -20,41 +20,41 @@
       </view>
       <view class="welcome-subtitle">有关场地和设备的问题尽管问我喵，我会尽力帮你哒！</view>
     </view>
-    
+
     <!-- 消息列表 -->
     <block wx:for="{{messages}}" wx:key="index">
       <view id="msg-{{index}}" class="message-wrapper {{item.role === 'user' ? 'user-wrapper' : 'assistant-wrapper'}}">
         <!-- 用户头像 -->
         <view class="avatar-container {{item.role === 'user' ? 'user-avatar' : 'assistant-avatar'}}">
-          <image 
-            class="avatar-image" 
-            src="{{item.role === 'user' ? '/images/user_selected.png' : '/images/new_cat_avatar.png'}}" 
+          <image
+            class="avatar-image"
+            src="{{item.role === 'user' ? '/images/user_selected.png' : '/images/new_cat_avatar.png'}}"
             mode="aspectFit">
           </image>
         </view>
-        
+
         <!-- 消息气泡 -->
         <view class="message {{item.role === 'user' ? 'user-message' : 'assistant-message'}}">
           <text class="message-content">{{item.content}}</text>
         </view>
       </view>
     </block>
-    
+
     <!-- 占位视图，用于滚动到底部 -->
     <view id="msg-{{messages.length}}" style="height: 20rpx;"></view>
-    
-    <!-- 加载指示器 -->
+
+    <!-- 加载指示器 - 苹果风格 -->
     <view class="loading" wx:if="{{isLoading}}">
-      <view class="cat-loader">
-        <view class="cat-ear left"></view>
-        <view class="cat-ear right"></view>
-        <view class="cat-face"></view>
+      <view class="loading-indicator">
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
       </view>
       <text>AI喵喵思考中...</text>
     </view>
   </scroll-view>
 
-  <!-- 输入区域 -->
+  <!-- 输入区域 - 使用更明显的样式 -->
   <view class="input-area">
     <view class="textarea-container {{inputFocus ? 'focused' : ''}}">
       <textarea
@@ -70,6 +70,7 @@
         disable-default-padding="{{true}}"
         cursor-spacing="20"
         adjust-position="{{true}}"
+        fixed="true"
       />
     </view>
     <button
@@ -85,4 +86,6 @@
       </view>
     </button>
   </view>
-</view> 
+
+
+</view>

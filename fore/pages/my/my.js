@@ -14,7 +14,7 @@ Page({
   /**
    * 生命周期函数--监听页面加载
    */
-  onLoad(options) {
+  onLoad() {
     this.checkLoginStatus()
   },
 
@@ -28,8 +28,54 @@ Page({
   /**
    * 生命周期函数--监听页面显示
    */
-  onShow() {
-    this.checkLoginStatus()
+  async onShow() {
+    console.log('我的页面显示 - 强制刷新用户状态');
+    // 强制刷新用户状态
+    await this.checkLoginStatus()
+
+    // 检查AI功能状态
+    this.checkAIFeatureStatus()
+
+    // 更新自定义TabBar选中状态
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      // 调用TabBar的checkAIFeatureStatus方法，确保每次切换页面时都会检测AI功能状态
+      // 传入true表示强制刷新，无论AI功能是关闭还是打开状态
+      this.getTabBar().checkAIFeatureStatus(true).then((showAI) => {
+        // 如果AI功能禁用，我的页面是第1个选项（索引为1）
+        // 如果AI功能启用，我的页面是第2个选项（索引为2）
+        const selectedIndex = showAI ? 2 : 1;
+
+        // 设置选中状态
+        this.getTabBar().setData({
+          selected: selectedIndex
+        });
+      }).catch(error => {
+        console.error('TabBar状态更新失败:', error);
+        // 即使出错也设置选中状态，使用全局状态
+        const app = getApp();
+        const showAI = app.globalData.aiFeatureEnabled;
+        const selectedIndex = showAI ? 2 : 1;
+
+        this.getTabBar().setData({
+          selected: selectedIndex
+        });
+      });
+    }
+
+    // 检查当前用户角色是否有变化
+    const app = getApp();
+    if (app.globalData.userInfo && this.data.userInfo) {
+      if (app.globalData.userInfo.role !== this.data.userInfo.role) {
+        console.log('用户角色已变更，更新UI:', app.globalData.userInfo.role);
+        this.setData({ userInfo: app.globalData.userInfo });
+      }
+    }
+  },
+
+  // 检查AI功能状态
+  checkAIFeatureStatus() {
+    const app = getApp()
+    app.checkAIFeatureStatus()
   },
 
   /**
@@ -69,19 +115,28 @@ Page({
 
   async checkLoginStatus() {
     const token = wx.getStorageSync('token')
+    const app = getApp()
+
     if (token) {
       try {
-        const userInfo = await get('/users/me')
-        this.setData({ 
-          isLoggedIn: true,
-          userInfo: userInfo
-        })
+        // 强制从服务器获取最新的用户信息
+        const userInfo = await app.checkLoginStatus(true)
+
+        if (userInfo) {
+          this.setData({
+            isLoggedIn: true,
+            userInfo: userInfo
+          })
+          console.log('我的页面更新用户状态:', userInfo.role)
+        } else {
+          this.handleLogout()
+        }
       } catch (error) {
         console.error('获取用户信息失败:', error)
         this.handleLogout()
       }
     } else {
-      this.setData({ 
+      this.setData({
         isLoggedIn: false,
         userInfo: null
       })
@@ -111,7 +166,7 @@ Page({
 
     try {
       const formData = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&grant_type=password`
-      
+
       const response = await post('/token', formData, {
         header: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -120,13 +175,21 @@ Page({
 
       // 先保存token
       wx.setStorageSync('token', response.access_token)
-      
+
       // 获取用户信息
       const userInfo = await get('/users/me')
-      this.setData({ 
+      this.setData({
         isLoggedIn: true,
         userInfo: userInfo
       })
+
+      // 获取app实例
+      const app = getApp();
+      // 更新全局用户信息
+      app.globalData.userInfo = userInfo;
+
+      // 刷新所有页面的用户权限状态
+      await app.refreshUserPermissions();
 
       wx.showToast({
         title: '登录成功',
@@ -146,12 +209,22 @@ Page({
     }
   },
 
-  handleLogout() {
+  async handleLogout() {
     wx.removeStorageSync('token')
     this.setData({
       isLoggedIn: false,
       userInfo: null
     })
+
+    // 获取app实例
+    const app = getApp();
+    // 清除全局用户信息
+    app.globalData.userInfo = null;
+
+    // 刷新所有页面的用户权限状态
+    await app.refreshUserPermissions();
+
+    console.log('用户已登出，所有页面状态已刷新');
   },
 
   goToRecords() {

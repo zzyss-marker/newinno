@@ -5,7 +5,6 @@ const aiConfig = require('../../utils/ai_config.js'); // 导入AI助手配置
 const { post, get } = require('../../utils/request.js'); // 导入请求工具
 
 // 确保config正确加载
-console.log("加载的config:", config);
 Page({
   /**
    * 页面初始数据
@@ -84,13 +83,54 @@ Page({
    * 生命周期函数--监听页面加载
    */
   onLoad: async function(options) {
-    console.log("AI Chat Page: onLoad triggered.");
+    // 检查AI功能是否启用
+    this.checkAIFeatureEnabled();
     // 初始化当前时间
     this.updateCurrentTime();
     // 设置定时器，每分钟更新一次时间
     this.timeUpdateInterval = setInterval(() => {
       this.updateCurrentTime();
     }, 60000); // 每分钟更新一次
+
+
+  },
+
+  /**
+   * 检查AI功能是否启用
+   * @param {boolean} forceRefresh 是否强制刷新
+   */
+  checkAIFeatureEnabled: async function(forceRefresh = true) {
+    const app = getApp();
+
+    // 每次检查时都重新获取AI功能状态，默认强制刷新
+    const isEnabled = await this.fetchAIFeatureStatus(forceRefresh);
+
+    if (!isEnabled) {
+      wx.showToast({
+        title: 'AI功能暂时关闭',
+        icon: 'none',
+        duration: 2000
+      });
+      // 延迟跳转，让用户看到提示
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/pages/index/index'
+        });
+      }, 1500);
+    }
+
+    return isEnabled;
+  },
+
+  /**
+   * 获取AI功能状态
+   * @param {boolean} forceRefresh 是否强制刷新
+   */
+  fetchAIFeatureStatus: function(forceRefresh = true) {
+    const app = getApp();
+    // 使用全局方法获取AI功能状态，传入forceRefresh参数
+    // 默认为true，确保每次都从服务器获取最新状态
+    return app.checkAIFeatureStatus(forceRefresh);
   },
 
   /**
@@ -124,7 +164,7 @@ Page({
     // 格式化日期时间：YYYY-MM-DDThh:mm:ss
     const formattedDateTime = `${formattedDate}T${formattedTime}`;
 
-    console.log("更新当前时间:", formattedDateTime);
+
 
     this.setData({
       currentDate: formattedDate,
@@ -168,7 +208,7 @@ Page({
       systemPrompt: basePrompt + resourceInfo + timeInfo
     });
 
-    console.log("系统提示词中的时间信息已更新");
+    // 系统提示词中的时间信息已更新
   },
 
   /**
@@ -176,10 +216,37 @@ Page({
    * 每次页面显示时都会调用，适合检查登录状态和获取配置
    */
   async onShow() {
-    console.log("AI Chat Page: onShow triggered.");
+    // 检查AI功能是否启用
+    this.checkAIFeatureEnabled();
+
+    // 更新自定义TabBar选中状态
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      // 调用TabBar的checkAIFeatureStatus方法，确保每次切换页面时都会检测AI功能状态
+      // 传入true表示强制刷新，无论AI功能是关闭还是打开状态
+      this.getTabBar().checkAIFeatureStatus(true).then((showAI) => {
+        // 如果AI功能已禁用，应该不会进入这个页面，但以防万一
+        if (!showAI) {
+          // 可以选择跳转到首页
+          wx.switchTab({
+            url: '/pages/index/index'
+          });
+          return;
+        }
+
+        // 设置选中状态
+        this.getTabBar().setData({
+          selected: 1
+        });
+      }).catch(() => {
+        // 即使出错也设置选中状态
+        this.getTabBar().setData({
+          selected: 1
+        });
+      });
+    }
+
     // 检查是否已成功加载配置，如果已加载则不再重复执行
     if (this.data.aiCredentialsReady) {
-        console.log("AI Chat Page: AI credentials already loaded, skipping initialization.");
         // 如果需要，可以在这里刷新消息或其他UI元素
         this.scrollToBottom(); // 确保滚动到底部
         return;
@@ -194,13 +261,11 @@ Page({
     this.setData({ isLoggedIn: isLoggedIn });
 
     if (isLoggedIn) {
-        console.log("AI Chat Page: User is logged in.");
         if (!this.data.configLoadAttempted) {
             this.setData({ configLoadAttempted: true }); // 标记已尝试加载
             await this.loadAiConfiguration();
         }
     } else {
-        console.warn("AI Chat Page: User not logged in. AI features disabled.");
         this.setData({ aiCredentialsReady: false }); // 确保凭证状态为 false
         this.showLoginPrompt();
     }
@@ -227,7 +292,7 @@ Page({
     } else {
       this.setData({ isLoading: true }); // 重试时仅显示加载状态
     }
-    console.log(`AI Chat Page: Attempting to load AI configuration (Attempt ${this.data.retryCount + 1})...`);
+
 
     try {
       // 调用 loadConfig 并存储结果
@@ -235,7 +300,7 @@ Page({
 
       // 检查返回的配置是否有效 (例如, 包含 deepseek apiKey)
       if (loadedConfigData && loadedConfigData.deepseek && loadedConfigData.deepseek.apiKey) {
-        console.log("AI Chat Page: AI configuration loaded successfully.", loadedConfigData);
+
 
         // 将加载的配置存储在页面数据中
         this.setData({
@@ -248,20 +313,17 @@ Page({
 
         // 配置加载成功后，获取资源列表并更新系统提示
         await this.fetchResourcesAndUpdatePrompt();
-        console.log("AI Chat Page: Finished calling fetchResourcesAndUpdatePrompt."); // Log after the call
+
 
       } else {
         throw new Error("loadConfig returned false"); // 主动抛出错误以便捕获和重试
       }
     } catch (error) {
-      console.error("AI Chat Page: Failed to load AI configuration:", error);
       const currentRetryCount = this.data.retryCount;
       if (currentRetryCount < this.data.maxRetries) {
         this.setData({ retryCount: currentRetryCount + 1 });
-        console.log(`AI Chat Page: Retrying AI config load in ${this.data.retryDelay / 1000} seconds...`);
         setTimeout(() => this.loadAiConfiguration(true), this.data.retryDelay); // 进行重试
       } else {
-        console.error(`AI Chat Page: AI config load failed after ${this.data.maxRetries + 1} attempts.`);
         this.setData({
           isLoading: false,
           aiCredentialsReady: false, // 确保凭证状态为 false
@@ -302,7 +364,7 @@ Page({
 
   // 获取资源列表并更新系统提示词
   async fetchResourcesAndUpdatePrompt() {
-     console.log("AI Chat Page: Fetching resources to update system prompt...");
+
      wx.showLoading({ title: '加载资源列表...' }); // 显示加载提示
 
      try {
@@ -322,7 +384,7 @@ Page({
                  this.getPrinterList()
              ]);
          } catch (apiError) {
-             console.error("API获取资源列表失败，将使用静态数据:", apiError);
+
              // 如果API请求失败，使用配置文件中的静态列表
              const config = require('../../config.js');
 
@@ -360,11 +422,7 @@ Page({
              }
          });
 
-         console.log("存储可用资源列表:", {
-             venues: venues.length,
-             equipment: equipment.length,
-             printers: printers.length
-         });
+
 
          // 格式化资源列表，使其更加清晰易读
          let venueNames = '暂无场地信息';
@@ -382,7 +440,7 @@ Page({
              printerNames = printers.map(p => p.name).join('、');
          }
 
-         console.log("格式化后的资源列表:", { venueNames, equipmentNames, printerNames });
+
 
          // 获取基础系统提示 (从 data 中获取初始定义的 prompt)
          let baseSystemPrompt = this.data.systemPrompt;
@@ -412,11 +470,11 @@ Page({
              systemPrompt: finalPrompt
          });
 
-         console.log("系统提示词已更新，包含资源列表和时间信息");
+
          wx.hideLoading(); // 隐藏加载提示
 
      } catch (error) {
-         console.error("AI Chat Page: Failed to fetch resources or update prompt:", error);
+
          wx.hideLoading(); // 隐藏加载提示
          wx.showToast({
              title: '资源列表加载失败',
@@ -476,9 +534,9 @@ Page({
                  systemPrompt: baseSystemPrompt + staticResourceInfo + mappingInfo + timeInfo
              });
 
-             console.log("使用静态资源列表更新系统提示词");
+
          } catch (fallbackError) {
-             console.error("使用静态资源列表失败:", fallbackError);
+
              // 如果连静态列表也失败了，只使用基础提示词
              let baseSystemPrompt = this.data.systemPrompt;
              if (baseSystemPrompt.includes('以下是当前可用的资源参考：')) {
@@ -504,11 +562,11 @@ Page({
   * 获取场地列表 - 使用系统实际API
   */
  getVenueList() {
-   console.log("AI Chat Page: getVenueList called."); // Log function entry
+
    // 从 this.data 获取配置
    const resourceApiConfig = this.data.loadedAiConfig?.resourceApi;
    if (!resourceApiConfig || !resourceApiConfig.baseUrl || !resourceApiConfig.venueListUrl) {
-       console.error("Missing resource API config for venues");
+
        return Promise.resolve([]); // 返回空数组
    }
    const token = wx.getStorageSync('token');
@@ -521,7 +579,7 @@ Page({
          'Authorization': token ? `Bearer ${token}` : ''
        },
        success: (res) => {
-         console.log("Venue List API Response:", res); // Log API success response
+
          if (res.statusCode === 200 && Array.isArray(res.data)) {
            const venues = res.data
              .filter(item => item.category === 'venue') // 确保只包含场地

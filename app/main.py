@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, reservations, admin, management, ai
+from app.routers import auth, reservations, admin, management, ai, settings
 from .database import engine
 from .models import models
 from .db.init_db import init_db
@@ -27,7 +27,8 @@ app.include_router(admin.router)  # /api/admin/*
 app.include_router(reservations.router)  # /api/reservations/*
 app.include_router(management.router)  # /api/management/*
 app.include_router(ai.router)  # /api/ai/*
+app.include_router(settings.router)  # /api/settings/*
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Reservation System API"} 
+    return {"message": "Welcome to Reservation System API"}

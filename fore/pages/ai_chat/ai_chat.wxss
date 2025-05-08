@@ -1,217 +1,233 @@
 /* pages/ai_chat/ai_chat.wxss */
 
-/* 整体容器 */
+/* 整体容器 - 苹果风格 */
 .chat-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #fdfaf5; /* A warmer, softer background */
-  /* background-image: url('/images/subtle_paw_pattern.png'); Removed */
-  /* background-repeat: repeat; Removed */
-  /* background-size: 100px 100px; Removed */
+  background-color: #F2F2F7; /* 苹果系统浅灰色背景 */
+  position: relative;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; /* 苹果系统字体 */
 }
 
-/* 欢迎头部 */
+/* 欢迎头部 - 苹果风格 */
 .welcome-header {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40rpx 30rpx;
-  margin-bottom: 20rpx;
+  padding: 40rpx 30rpx 30rpx;
+  margin-bottom: 10rpx;
 }
 
 .ai-avatar {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 60rpx;
-  background-color: #f0f9f0;
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50rpx;
+  background-color: rgba(0, 122, 255, 0.1); /* 苹果蓝色背景，低透明度 */
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 12rpx rgba(26, 173, 25, 0.15);
-  margin-bottom: 20rpx;
-  border: 2rpx solid rgba(26, 173, 25, 0.2);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 16rpx;
+  border: none;
 }
 
 .ai-avatar image {
-  width: 70rpx;
-  height: 70rpx;
+  width: 60rpx;
+  height: 60rpx;
 }
 
 .welcome-title-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 10rpx;
+  margin-bottom: 8rpx;
 }
 
-/* .title-cat-icon { Removed
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 10rpx;
-} */
-
 .welcome-title {
-  font-size: 36rpx;
-  color: #333333;
+  font-size: 32rpx;
+  color: #1C1C1E; /* 苹果深色文本 */
   font-weight: 500;
+  letter-spacing: -0.5rpx; /* 苹果风格的字间距 */
 }
 
 .welcome-subtitle {
-  font-size: 26rpx;
-  color: #666666;
+  font-size: 24rpx;
+  color: #8E8E93; /* 苹果次要文本颜色 */
   text-align: center;
   padding: 0 40rpx;
+  line-height: 1.4;
 }
 
-/* 消息区域 */
+/* 消息区域 - 苹果风格 */
 .messages-area {
   flex: 1;
   overflow-y: auto;
-  padding: 20rpx 20rpx 120rpx;
+  padding: 10rpx 24rpx 20rpx; /* 调整padding */
+  padding-bottom: calc(100rpx + 48px + env(safe-area-inset-bottom)); /* 为输入框和TabBar留出空间 */
   scroll-behavior: smooth;
+  margin-bottom: 0;
+  -webkit-overflow-scrolling: touch; /* 增强iOS滚动体验 */
+  overscroll-behavior: none; /* 防止过度滚动 */
 }
 
-/* 消息容器 */
+/* 消息容器 - 苹果风格 */
 .message-wrapper {
   display: flex;
-  margin-bottom: 30rpx;
+  margin-bottom: 24rpx;
   align-items: flex-start;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.25s ease-out;
   box-sizing: border-box;
 }
 
-/* 调整用户消息的布局方向 */
+/* 调整用户消息的布局方向 - 苹果风格 */
 .user-wrapper {
   flex-direction: row-reverse;
-  padding-right: 25rpx;
+  padding-right: 20rpx;
 }
 
-/* 头像容器 */
+/* 头像容器 - 苹果风格 */
 .avatar-container {
-  width: 70rpx;
-  height: 70rpx;
-  border-radius: 35rpx;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
   overflow: hidden;
   flex-shrink: 0;
+  box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.1); /* 轻微阴影 */
 }
 
 .user-avatar {
-  margin-left: 16rpx;
-  background-color: #e6f5ff;
+  margin-left: 12rpx;
+  background-color: rgba(0, 122, 255, 0.1); /* 苹果蓝色背景 */
 }
 
 .assistant-avatar {
-  margin-right: 16rpx;
-  background-color: #f0f9f0;
+  margin-right: 12rpx;
+  background-color: rgba(88, 86, 214, 0.1); /* 苹果紫色背景 */
 }
 
 .avatar-image {
   width: 100%;
   height: 100%;
+  object-fit: cover; /* 确保图片正确填充 */
 }
 
-/* 消息气泡基本样式 */
+/* 消息气泡基本样式 - 苹果风格 */
 .message {
-  padding: 20rpx 24rpx;
-  border-radius: 20rpx;
-  max-width: calc(80% - 90rpx);
+  padding: 16rpx 20rpx;
+  border-radius: 18rpx;
+  max-width: calc(80% - 80rpx);
   word-wrap: break-word;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  box-shadow: none; /* 移除阴影 */
   position: relative;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-/* 用户消息 */
+/* 用户消息 - 苹果风格 */
 .user-message {
-  background: linear-gradient(135deg, #1AAD19, #28be27);
+  background-color: #007AFF; /* 苹果蓝色 */
   color: white;
   border-top-right-radius: 4rpx;
 }
 
-/* 助手消息 */
+/* 助手消息 - 苹果风格 */
 .assistant-message {
-  background: #ffffff;
-  color: #333333;
-  border-radius: 20rpx;
+  background: #E9E9EB; /* 苹果灰色气泡 */
+  color: #1C1C1E; /* 苹果深色文本 */
+  border-radius: 18rpx;
   border-top-left-radius: 4rpx;
-  border-left: 4rpx solid #1AAD19;
+  border-left: none; /* 移除左边框 */
   position: relative;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
 }
 
 .assistant-message::after {
   content: '';
   position: absolute;
-  left: -13rpx;
-  top: 15rpx;
+  left: -8rpx;
+  top: 12rpx;
   width: 0;
   height: 0;
-  border-top: 8rpx solid transparent;
-  border-bottom: 8rpx solid transparent;
-  border-right: 14rpx solid #ffffff;
-  filter: drop-shadow(-2px 2px 1.5px rgba(0,0,0,0.04));
+  border-top: 6rpx solid transparent;
+  border-bottom: 6rpx solid transparent;
+  border-right: 10rpx solid #E9E9EB; /* 匹配气泡颜色 */
+  filter: none; /* 移除阴影 */
 }
 
-/* 消息内容 */
+/* 消息内容 - 苹果风格 */
 .message-content {
   font-size: 28rpx;
-  line-height: 1.6;
+  line-height: 1.4;
   white-space: pre-wrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; /* 苹果系统字体 */
+  letter-spacing: -0.2rpx; /* 苹果风格的字间距 */
 }
 
-/* 输入区域 */
+/* 输入区域 - 苹果风格 */
 .input-area {
   position: fixed;
-  bottom: 0;
+  bottom: calc(48px + env(safe-area-inset-bottom)); /* 确保在TabBar上方 */
   left: 0;
   right: 0;
   display: flex;
-  align-items: flex-end;
-  padding: 16rpx 20rpx;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-top: 1rpx solid rgba(0, 0, 0, 0.05);
-  backdrop-filter: blur(10px);
-  z-index: 100;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.03);
+  align-items: center;
+  padding: 8rpx 16rpx; /* 减小上下内边距 */
+  background-color: rgba(249, 249, 249, 0.94); /* 苹果浅灰色背景 */
+  border-top: 0.5rpx solid rgba(0, 0, 0, 0.1); /* 极细的分隔线 */
+  z-index: 9999; /* 确保在最上层 */
+  box-shadow: 0 -1rpx 0 rgba(0, 0, 0, 0.05); /* 极轻微的阴影 */
+  min-height: 70rpx; /* 减小最小高度 */
+  backdrop-filter: blur(20px); /* 苹果风格的背景模糊 */
 }
 
-/* textarea容器 */
+/* textarea容器 - 苹果风格 */
 .textarea-container {
   flex: 1;
-  background-color: #ffffff;
-  border: 1rpx solid #e0e0e0;
-  border-radius: 20rpx;
-  padding: 15rpx 20rpx;
+  background-color: rgba(242, 242, 247, 0.8); /* 苹果浅灰色背景 */
+  border: none; /* 移除边框 */
+  border-radius: 18rpx; /* 适中的圆角 */
+  padding: 8rpx 16rpx; /* 减小内边距 */
   margin-right: 16rpx;
-  max-height: 200rpx;
+  max-height: 160rpx; /* 减小最大高度 */
+  min-height: 50rpx; /* 减小最小高度 */
   overflow-y: auto;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.05); /* 非常轻微的阴影 */
 }
 
-/* 聚焦状态 */
+/* 聚焦状态 - 苹果风格 */
 .textarea-container.focused {
-  border-color: #1AAD19;
-  box-shadow: 0 0 0 2rpx rgba(26, 173, 25, 0.2);
+  background-color: #ffffff; /* 聚焦时使用纯白背景 */
+  box-shadow: 0 0 0 2rpx rgba(0, 122, 255, 0.15); /* 苹果蓝色轮廓 */
+  transform: none; /* 移除上浮效果 */
 }
 
-/* 文本输入域 */
+/* 文本输入域 - 苹果风格 */
 .input-textarea {
   width: 100%;
-  min-height: 40rpx;
-  max-height: 160rpx;
-  font-size: 28rpx;
-  line-height: 1.5;
+  min-height: 46rpx; /* 减小最小高度 */
+  max-height: 140rpx; /* 减小最大高度 */
+  font-size: 28rpx; /* 更小的字体大小 */
+  line-height: 1.3; /* 减小行高 */
+  display: block;
+  box-sizing: border-box;
+  padding: 4rpx 0; /* 减小上下内边距 */
+  color: #333333;
+  font-weight: 400; /* 正常字重 */
+  caret-color: #007AFF; /* 苹果蓝色光标 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; /* 苹果系统字体 */
 }
 
-/* 发送按钮 - 默认状态（禁用） */
+/* 发送按钮 - 苹果风格 */
 .send-button {
-  width: 100rpx;
-  height: 72rpx;
-  border-radius: 36rpx;
-  background: #e0e0e0;
-  color: #999999;
+  width: 90rpx; /* 减小宽度 */
+  height: 64rpx; /* 减小高度 */
+  border-radius: 32rpx; /* 调整圆角 */
+  background-color: #007AFF; /* 苹果蓝色 */
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,32 +235,37 @@
   margin: 0;
   flex-shrink: 0;
   transition: all 0.2s ease;
+  box-shadow: none; /* 移除阴影 */
+  border: none;
+  font-weight: 500; /* 适中的字重 */
 }
 
-/* 发送按钮 - 启用状态 */
+/* 发送按钮 - 启用状态 - 苹果风格 */
 .send-button:not([disabled]) {
-  background: linear-gradient(135deg, #1aad19, #2eba28);
+  background-color: #007AFF; /* 苹果蓝色 */
   color: white;
-  box-shadow: 0 2rpx 8rpx rgba(26, 173, 25, 0.3);
 }
 
 .send-button-hover:not([disabled]) {
-  opacity: 0.85;
-  transform: scale(0.95);
+  opacity: 0.7; /* 苹果风格的按下效果 */
+  transform: none; /* 移除缩放效果 */
 }
 
 .send-icon {
-  font-size: 28rpx;
+  font-size: 26rpx; /* 更小的字体 */
   font-weight: 500;
-  color: inherit;
+  color: white;
+  letter-spacing: 0; /* 移除字间距 */
+  text-shadow: none; /* 移除文字阴影 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; /* 苹果系统字体 */
 }
 
 .send-button:not([disabled]) .send-icon {
-  color: white; /* Text color for "发送" when active */
+  color: white;
 }
 
 .send-button[disabled] .send-icon {
-  color: #999999; /* Or its original inactive color */
+  color: rgba(255, 255, 255, 0.5); /* 更透明的白色 */
 }
 
 /* 发送中状态 */
@@ -276,111 +297,100 @@
   animation-delay: 0.4s;
 }
 
-/* AI思考状态 */
+/* AI思考状态 - 苹果风格 */
 .loading {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 16rpx;
-  color: #888;
+  padding: 12rpx;
+  color: #8E8E93; /* 苹果次要文本颜色 */
   font-size: 24rpx;
-  margin: 20rpx 0;
+  margin: 16rpx 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
 }
 
 .loading-dots {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .loading text {
-  color: #888;
+  color: #8E8E93; /* 苹果次要文本颜色 */
   font-size: 24rpx;
-  margin-left: 10rpx;
+  margin-left: 8rpx;
+  letter-spacing: -0.2rpx;
 }
 
-.cat-loader {
-  position: relative;
-  width: 50rpx;
-  height: 35rpx;
+/* 苹果风格的加载指示器 */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.cat-face {
-  width: 30rpx;
-  height: 22rpx;
-  background-color: #1AAD19;
-  border-radius: 50% 50% 30% 30%;
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+.loading-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background-color: #8E8E93; /* 苹果次要文本颜色 */
+  margin: 0 4rpx;
+  opacity: 0.7;
+  animation: loadingDot 1.4s infinite ease-in-out;
 }
 
-.cat-ear {
-  width: 12rpx;
-  height: 20rpx;
-  background-color: #1AAD19;
-  position: absolute;
-  top: 0;
-  border-radius: 10rpx 10rpx 0 0;
+.loading-dot:nth-child(1) {
+  animation-delay: 0s;
 }
 
-.cat-ear.left {
-  left: 6rpx;
-  transform: rotate(-30deg);
-  animation: twitch-left 1.8s infinite ease-in-out;
+.loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
 }
 
-.cat-ear.right {
-  right: 6rpx;
-  transform: rotate(30deg);
-  animation: twitch-right 1.8s infinite ease-in-out;
-  animation-delay: 0.15s;
+.loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
-/* 日期分隔线 */
+@keyframes loadingDot {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+  }
+  40% {
+    transform: scale(1.0);
+  }
+}
+
+/* 日期分隔线 - 苹果风格 */
 .date-divider {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 30rpx 0;
-  color: #999;
+  margin: 24rpx 0;
+  color: #8E8E93; /* 苹果次要文本颜色 */
   font-size: 24rpx;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  letter-spacing: -0.2rpx;
 }
 
 .date-divider::before,
 .date-divider::after {
   content: '';
   flex: 1;
-  height: 1px;
+  height: 0.5px; /* 更细的分隔线 */
   background: rgba(0, 0, 0, 0.1);
-  margin: 0 20rpx;
+  margin: 0 16rpx;
 }
 
-/* 动画效果 */
+/* 动画效果 - 苹果风格 */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10rpx);
+    transform: translateY(6rpx);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-@keyframes twitch-left {
-  0%, 100% { transform: rotate(-30deg) translateY(0); }
-  20% { transform: rotate(-35deg) translateY(-2rpx); }
-  40% { transform: rotate(-28deg) translateY(0); }
-  60% { transform: rotate(-33deg) translateY(-1rpx); }
-  80% { transform: rotate(-30deg) translateY(0); }
-}
-
-@keyframes twitch-right {
-  0%, 100% { transform: rotate(30deg) translateY(0); }
-  20% { transform: rotate(35deg) translateY(-2rpx); }
-  40% { transform: rotate(28deg) translateY(0); }
-  60% { transform: rotate(33deg) translateY(-1rpx); }
-  80% { transform: rotate(30deg) translateY(0); }
 }
 
 @keyframes sendingDot {
@@ -391,3 +401,4 @@
     transform: scale(1.0);
   }
 }
+

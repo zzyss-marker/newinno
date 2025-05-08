@@ -2,11 +2,12 @@ from flask_login import UserMixin
 from . import db, login_manager
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import json
 
 # User model now inherits from UserMixin to support Flask-Login
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
-    
+
     user_id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, index=True)
     name = db.Column(db.String(255))
@@ -17,15 +18,15 @@ class User(UserMixin, db.Model):
     venue_reservations = db.relationship('VenueReservation', back_populates='user')
     device_reservations = db.relationship('DeviceReservation', back_populates='user')
     printer_reservations = db.relationship('PrinterReservation', back_populates='user')
-    
+
     # Required for Flask-Login
     def get_id(self):
         return str(self.user_id)
-        
+
     # Check if the user has admin role
     def is_admin(self):
         return self.role == 'admin'
-        
+
     # Verify password for login
     def verify_password(self, password):
         # Simple password check - can be replaced with more secure method
@@ -43,7 +44,7 @@ class VenueReservation(db.Model):
     devices_needed = db.Column(db.JSON)
     status = db.Column(db.String, default="pending")
     created_at = db.Column(db.DateTime, default=datetime.now)
-    
+
     user = db.relationship('User', back_populates='venue_reservations')
 
 class DeviceReservation(db.Model):
@@ -64,7 +65,7 @@ class DeviceReservation(db.Model):
     device_condition = db.Column(db.String(50), nullable=True)  # 归还时设备状态: normal(正常), damaged(故障)
     return_note = db.Column(db.Text, nullable=True)  # 归还备注信息
     return_approver = db.Column(db.String(100), nullable=True)  # 归还审批人
-    
+
     user = db.relationship('User', back_populates='device_reservations')
 
 class PrinterReservation(db.Model):
@@ -101,4 +102,52 @@ class Management(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __repr__(self):
-        return f'<Management {self.device_or_venue_name}>' 
+        return f'<Management {self.device_or_venue_name}>'
+
+class SystemSetting(db.Model):
+    """系统设置模型，用于存储系统级别的配置项"""
+    __tablename__ = 'system_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=False)
+    description = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<SystemSetting {self.key}>'
+
+    @classmethod
+    def get_value(cls, key, default=None):
+        """获取指定键的设置值"""
+        setting = cls.query.filter_by(key=key).first()
+        if setting:
+            try:
+                # 尝试解析为JSON
+                return json.loads(setting.value)
+            except json.JSONDecodeError:
+                # 如果不是JSON，则直接返回字符串值
+                return setting.value
+        return default
+
+    @classmethod
+    def set_value(cls, key, value, description=None):
+        """设置指定键的值"""
+        # 如果值是字典或列表，则转换为JSON字符串
+        if isinstance(value, (dict, list)):
+            value = json.dumps(value)
+        elif not isinstance(value, str):
+            value = str(value)
+
+        setting = cls.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+            if description:
+                setting.description = description
+        else:
+            setting = cls(key=key, value=value, description=description)
+            db.session.add(setting)
+
+        db.session.commit()
+        return setting

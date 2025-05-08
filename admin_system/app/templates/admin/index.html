@@ -48,7 +48,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-md-4 mb-4">
             <div class="card h-100">
                 <div class="card-body">
@@ -67,11 +67,47 @@
         </div>
     </div>
 
+    <!-- 功能管理部分 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="h4 mb-3">
+                <i class="fas fa-sliders-h text-warning mr-2"></i>
+                功能管理
+            </h2>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box bg-warning text-white mr-3">
+                            <i class="fas fa-robot fa-2x"></i>
+                        </div>
+                        <h5 class="card-title mb-0">AI功能控制</h5>
+                    </div>
+                    <p class="card-text text-muted">控制微信小程序中AI助手功能界面的显示或隐藏。</p>
+
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="aiFeatureToggle">
+                        <label class="custom-control-label" for="aiFeatureToggle">
+                            <span id="aiFeatureStatus">正在加载状态...</span>
+                        </label>
+                    </div>
+
+                    <div class="alert alert-info small" role="alert">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        切换此开关将立即影响微信小程序中AI助手界面的显示状态。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         .dashboard {
             padding: 1rem 0;
         }
-        
+
         .icon-box {
             width: 60px;
             height: 60px;
@@ -80,44 +116,169 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .bg-primary {
             background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
         }
-        
+
         .bg-success {
             background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
         }
-        
+
         .bg-info {
             background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
         }
-        
+
         .card {
             border-radius: 12px;
             overflow: hidden;
         }
-        
+
         .btn {
             border-radius: 8px;
             font-weight: 500;
             padding: 0.8rem;
             transition: all 0.3s ease;
         }
-        
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
-        
+
         .display-4 {
             font-weight: 600;
             color: #2c3e50;
         }
-        
+
         .lead {
             font-size: 1.1rem;
         }
     </style>
 </div>
-{% endblock %} 
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取AI功能状态
+        fetchAIFeatureStatus();
+
+        // 监听开关状态变化
+        document.getElementById('aiFeatureToggle').addEventListener('change', function(e) {
+            const isEnabled = e.target.checked;
+            updateAIFeatureStatus(isEnabled);
+        });
+    });
+
+    // 获取AI功能状态
+    function fetchAIFeatureStatus() {
+        const statusElement = document.getElementById('aiFeatureStatus');
+        const toggleElement = document.getElementById('aiFeatureToggle');
+
+        // 显示加载状态
+        statusElement.textContent = '正在加载状态...';
+        toggleElement.disabled = true;
+
+        // 发送请求获取状态
+        fetch('{{ url_for("admin.manage_ai_feature") }}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('获取AI功能状态失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 更新UI
+                toggleElement.checked = data.enabled;
+                statusElement.textContent = data.enabled ? 'AI功能已启用' : 'AI功能已禁用';
+                toggleElement.disabled = false;
+            })
+            .catch(error => {
+                console.error('获取AI功能状态出错:', error);
+                statusElement.textContent = '获取状态失败，请刷新页面重试';
+                toggleElement.disabled = true;
+            });
+    }
+
+    // 更新AI功能状态
+    function updateAIFeatureStatus(isEnabled) {
+        const statusElement = document.getElementById('aiFeatureStatus');
+        const toggleElement = document.getElementById('aiFeatureToggle');
+
+        // 显示加载状态
+        statusElement.textContent = '正在更新状态...';
+        toggleElement.disabled = true;
+
+        // 获取CSRF令牌（如果有的话）
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        // 发送请求更新状态
+        fetch('{{ url_for("admin.manage_ai_feature") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ enabled: isEnabled })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('更新AI功能状态失败');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // 更新UI
+            toggleElement.checked = data.enabled;
+            statusElement.textContent = data.enabled ? 'AI功能已启用' : 'AI功能已禁用';
+            toggleElement.disabled = false;
+
+            // 显示成功消息
+            showToast(data.message || '状态已更新', 'success');
+        })
+        .catch(error => {
+            console.error('更新AI功能状态出错:', error);
+            statusElement.textContent = '更新状态失败，请重试';
+            toggleElement.disabled = false;
+            toggleElement.checked = !isEnabled; // 恢复原来的状态
+
+            // 显示错误消息
+            showToast('更新状态失败: ' + error.message, 'danger');
+        });
+    }
+
+    // 显示提示消息
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast position-fixed ${type === 'danger' ? 'bg-danger' : 'bg-success'} text-white`;
+        toast.style.top = '20px';
+        toast.style.right = '20px';
+        toast.style.zIndex = '9999';
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.innerHTML = `
+            <div class="toast-header">
+                <strong class="mr-auto">${type === 'danger' ? '错误' : '成功'}</strong>
+                <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        `;
+
+        document.body.appendChild(toast);
+
+        // 使用Bootstrap的toast方法显示
+        $(toast).toast({ delay: 3000 }).toast('show');
+
+        // 监听关闭事件，移除DOM元素
+        $(toast).on('hidden.bs.toast', function() {
+            document.body.removeChild(toast);
+        });
+    }
+</script>
+{% endblock %}

@@ -29,20 +29,20 @@ def make_request(method, url, **kwargs):
         'http': None,
         'https': None
     })
-    
+
     # 添加默认头信息，但如果有文件上传则不设置Content-Type
     has_files = 'files' in kwargs
-    
+
     headers = kwargs.get('headers', {})
     headers.setdefault('Accept', 'application/json')
     # 只在非文件上传请求中设置默认Content-Type
     if not has_files and 'Content-Type' not in headers:
         headers.setdefault('Content-Type', 'application/json')
     kwargs['headers'] = headers
-    
+
     current_app.logger.debug(f"Making {method} request to: {url}")
     current_app.logger.debug(f"Request kwargs: {kwargs}")
-    
+
     return requests.request(method, url, **kwargs)
 
 @bp.route('/')
@@ -63,7 +63,7 @@ def import_users():
     """通过后端API导入用户"""
     if 'file' not in request.files:
         return jsonify({'error': '没有文件'}), 400
-        
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': '无效的文件'}), 400
@@ -71,10 +71,10 @@ def import_users():
     try:
         # 调用后端API导入用户
         files = {'file': (file.filename, file.stream, file.content_type)}
-        
+
         # 日志记录
         current_app.logger.debug(f"Uploading file: {file.filename}, content type: {file.content_type}")
-        
+
         # 发送文件时不要设置Content-Type，让requests自动处理
         response = make_request(
             'POST',
@@ -83,14 +83,14 @@ def import_users():
             # 明确不设置Content-Type，让requests自动设置为multipart/form-data
             headers={'Accept': 'application/json'}
         )
-        
+
         # 添加日志记录请求详情
         current_app.logger.debug(f"Upload response status: {response.status_code}")
         current_app.logger.debug(f"Upload response headers: {dict(response.headers)}")
-        
+
         # 获取响应内容
         result = response.json()
-        
+
         if response.status_code >= 400:
             # 处理错误响应
             error_message = result.get('detail', '导入失败')
@@ -101,11 +101,11 @@ def import_users():
                 elif 'message' in error_message:
                     error_message = error_message['message']
             return jsonify({'error': error_message}), response.status_code
-            
+
         # 处理成功响应
         success_count = result.get('count', 0)
         error_messages = result.get('error_messages', [])
-        
+
         # 构建返回消息
         message = f'成功导入 {success_count} 个用户'
         if error_messages:
@@ -113,13 +113,13 @@ def import_users():
             message += '\n' + '\n'.join(error_messages[:5])  # 只显示前5个错误
             if len(error_messages) > 5:
                 message += f'\n... 等共 {len(error_messages)} 个错误'
-        
+
         return jsonify({
             'message': message,
             'count': success_count,
             'errors': error_messages
         })
-        
+
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error importing users: {str(e)}")
         # 尝试从错误响应中获取详细信息
@@ -152,12 +152,12 @@ def get_template():
             },
             stream=True
         )
-        
+
         if response.status_code == 404:
             return jsonify({'error': '模板文件不存在'}), 404
-            
+
         response.raise_for_status()
-        
+
         return send_file(
             io.BytesIO(response.content),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -178,10 +178,10 @@ def get_users():
             get_api_url('admin/users'),
             headers={'Accept': 'application/json'}
         )
-        
+
         if response.status_code == 404:
             return jsonify({'error': '找不到用户数据'}), 404
-            
+
         response.raise_for_status()
         return jsonify(response.json())
     except requests.exceptions.RequestException as e:
@@ -194,7 +194,7 @@ def delete_user(username):
     """通过后端API删除用户"""
     try:
         current_app.logger.debug(f"Attempting to delete user: {username}")
-        
+
         # 不再使用requests.delete直接调用，而是使用我们的make_request函数
         response = make_request(
             'DELETE',
@@ -202,14 +202,14 @@ def delete_user(username):
             headers={'Accept': 'application/json'},
             timeout=10
         )
-        
+
         # 记录响应详情
         current_app.logger.debug(f"Delete user response status: {response.status_code}")
         current_app.logger.debug(f"Delete user response headers: {dict(response.headers)}")
-        
+
         if response.status_code == 404:
             return jsonify({'error': '用户不存在'}), 404
-            
+
         if response.status_code == 401:
             current_app.logger.warning("Authentication error, continuing anyway...")
             # 对于401错误，我们仍然继续处理
@@ -221,7 +221,7 @@ def delete_user(username):
             except:
                 # 如果无法解析JSON，仍然返回成功
                 return jsonify({'message': '用户可能已删除'})
-            
+
         response.raise_for_status()
         result = response.json()
         return jsonify(result)
@@ -239,7 +239,7 @@ def delete_user(username):
                     error_detail = error_data['detail']
         except:
             pass
-        
+
         # 永远返回成功，即使可能有错误
         current_app.logger.warning(f"Ignoring error and returning success: {error_detail}")
         return jsonify({'message': '删除操作已执行'})
@@ -256,12 +256,12 @@ def get_reservations():
     """从后端API获取预约记录"""
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    
+
     try:
         current_app.logger.info(f"Fetching reservations with dates: start={start_date}, end={end_date}")
-        
+
         api_url = get_api_url('admin/reservations/list')
-        
+
         params = {
             'start_date': start_date if start_date else None,
             'end_date': end_date if end_date else None
@@ -270,13 +270,13 @@ def get_reservations():
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         }
-        
+
         current_app.logger.debug(f"Request details:")
         current_app.logger.debug(f"  URL: {api_url}")
         current_app.logger.debug(f"  Method: GET")
         current_app.logger.debug(f"  Headers: {headers}")
         current_app.logger.debug(f"  Params: {params}")
-        
+
         # 使用新的请求函数
         response = make_request(
             'GET',
@@ -285,33 +285,33 @@ def get_reservations():
             headers=headers,
             timeout=10
         )
-        
+
         # 记录响应信息
         current_app.logger.debug(f"Response details:")
         current_app.logger.debug(f"  Status code: {response.status_code}")
         current_app.logger.debug(f"  Headers: {dict(response.headers)}")
         current_app.logger.debug(f"  URL: {response.url}")  # 实际请求的URL
-        
+
         if response.status_code == 404:
             return jsonify({'error': '未找到数据'}), 404
-        
+
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             current_app.logger.error(f"HTTP Error: {str(e)}")
             current_app.logger.error(f"Response content: {response.text}")
             raise
-        
+
         data = response.json()
         current_app.logger.debug(f"Response data type: {type(data)}")
         current_app.logger.debug(f"Response data: {data}")
-        
+
         if not isinstance(data, list):
             data = data.get('reservations', [])
-            
+
         current_app.logger.info(f"Successfully fetched {len(data)} reservations")
         return jsonify(data)
-        
+
     except requests.exceptions.Timeout:
         current_app.logger.error("API request timed out")
         return jsonify({'error': '请求超时，请稍后重试'}), 504
@@ -337,7 +337,7 @@ def approve_reservation():
         data = request.get_json()
         if not data or 'type' not in data or 'id' not in data or 'status' not in data:
             return jsonify({'error': '无效的请求数据'}), 400
-            
+
         response = make_request(
             'POST',
             get_api_url('admin/reservations/batch-approve'),
@@ -351,12 +351,12 @@ def approve_reservation():
                 'Accept': 'application/json'
             }
         )
-        
+
         # 添加更详细的错误处理
         if response.status_code == 401:
             current_app.logger.error("Unauthorized access. Check API token.")
             return jsonify({'error': '认证失败，请检查API token'}), 401
-            
+
         response.raise_for_status()
         return jsonify(response.json())
     except requests.exceptions.Timeout:
@@ -378,10 +378,10 @@ def delete_reservation(reservation_type, reservation_id):
             get_api_url(f'admin/reservations/{reservation_type}/{reservation_id}'),
             headers={'Accept': 'application/json'}
         )
-        
+
         if response.status_code == 404:
             return jsonify({'error': '预约记录不存在'}), 404
-            
+
         response.raise_for_status()
         return jsonify({'message': '删除成功'})
     except requests.exceptions.RequestException as e:
@@ -394,7 +394,7 @@ def export_reservations():
     """从后端API导出预约记录"""
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    
+
     try:
         response = make_request(
             'GET',
@@ -410,7 +410,7 @@ def export_reservations():
             timeout=30
         )
         response.raise_for_status()
-        
+
         # 从响应头中获取文件名，如果没有则使用默认文件名
         content_disposition = response.headers.get('content-disposition', '')
         filename = None
@@ -421,10 +421,10 @@ def export_reservations():
                 filename = filename.encode('latin-1').decode('utf-8')
             except Exception:
                 filename = None
-                
+
         if not filename:
             filename = f'预约记录_{datetime.now().strftime("%Y%m%d")}.xlsx'
-            
+
         return send_file(
             io.BytesIO(response.content),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -453,7 +453,7 @@ def add_management():
     if request.method == 'POST':
         name = request.form.get('name')
         category = request.form.get('category')
-        
+
         # 使用默认值1填充数量字段 - 确保没有从表单获取quantity
         item = Management(
             device_or_venue_name=name,
@@ -462,27 +462,27 @@ def add_management():
             available_quantity=1,  # 硬编码为1，不从表单获取
             status='available'
         )
-        
+
         db.session.add(item)
         db.session.commit()
         flash('添加成功！', 'success')
         return redirect(url_for('admin.management'))
-        
+
     return render_template('management/add.html')
 
 @bp.route('/management/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_management(id):
     item = Management.query.get_or_404(id)
-    
+
     if request.method == 'POST':
         # 只更新名称，其他字段保持不变
         item.device_or_venue_name = request.form.get('name')
-        
+
         db.session.commit()
         flash('更新成功！', 'success')
         return redirect(url_for('admin.management'))
-        
+
     return render_template('management/edit.html', item=item)
 
 @bp.route('/management/delete/<int:id>', methods=['POST'])
@@ -510,6 +510,56 @@ def get_management_items():
         'status': item.status
     } for item in items])
 
+@bp.route('/api/admin/settings/ai-feature', methods=['GET', 'POST'])
+@login_required
+def manage_ai_feature():
+    """管理AI功能的启用状态"""
+    try:
+        if request.method == 'GET':
+            # 获取AI功能状态
+            response = make_request(
+                'GET',
+                get_api_url('settings/ai-feature'),
+                headers={'Accept': 'application/json'},
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                current_app.logger.error(f"获取AI功能状态失败: {response.status_code}, {response.text}")
+                return jsonify({'error': '获取AI功能状态失败'}), response.status_code
+
+            return jsonify(response.json())
+        else:
+            # 更新AI功能状态
+            data = request.get_json()
+            if data is None or 'enabled' not in data:
+                return jsonify({'error': '无效的请求数据'}), 400
+
+            # 直接使用管理员权限发送请求，不尝试获取令牌
+            # 构建请求头
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+
+            # 发送更新AI功能状态的请求
+            response = make_request(
+                'POST',
+                get_api_url('settings/ai-feature'),
+                json={'enabled': data['enabled']},
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                current_app.logger.error(f"更新AI功能状态失败: {response.status_code}, {response.text}")
+                return jsonify({'error': '更新AI功能状态失败'}), response.status_code
+
+            return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"管理AI功能状态时出错: {str(e)}")
+        return jsonify({'error': '请求失败'}), 500
+
 @bp.route('/api/admin/users/<username>/toggle-admin', methods=['POST'])
 @login_required
 def toggle_admin_role(username):
@@ -517,7 +567,7 @@ def toggle_admin_role(username):
     try:
         # 调用后端API更新用户角色
         current_app.logger.debug(f"Toggling admin role for user: {username}")
-        
+
         # 增加错误处理和超时设置
         response = make_request(
             'POST',
@@ -525,16 +575,16 @@ def toggle_admin_role(username):
             headers={'Accept': 'application/json'},
             timeout=10
         )
-        
+
         # 记录响应详情
         current_app.logger.debug(f"Response status: {response.status_code}")
         current_app.logger.debug(f"Response headers: {dict(response.headers)}")
         current_app.logger.debug(f"Response content: {response.text[:200]}")  # 只记录前200个字符避免日志过大
-        
+
         if response.status_code == 404:
             current_app.logger.error(f"User not found: {username}")
             return jsonify({'error': '用户不存在'}), 404
-        
+
         if response.status_code == 401:
             current_app.logger.warning("Authentication error, continuing anyway...")
             # 即使有认证错误也继续处理，手动解析响应
@@ -548,7 +598,7 @@ def toggle_admin_role(username):
         else:
             response.raise_for_status()
             result = response.json()
-        
+
         # 返回操作结果
         return jsonify({
             'success': True,
@@ -570,4 +620,4 @@ def toggle_admin_role(username):
                     error_detail = error_data['detail']
             except:
                 pass
-        return jsonify({'error': f'操作失败: {error_detail}'}), 500 
+        return jsonify({'error': f'操作失败: {error_detail}'}), 500
