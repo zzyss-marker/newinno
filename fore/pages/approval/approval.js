@@ -55,9 +55,9 @@ Page({
 
   async loadData() {
     const { currentTab, reservationType } = this.data
-    
+
     this.setData({ isLoading: true })
-    
+
     try {
       let response
       if (currentTab === 'pending') {
@@ -78,7 +78,10 @@ Page({
           device_name: deviceNameMap[item.device_name] || item.device_name,
           created_at: this.formatDateTime(item.created_at),
           borrow_time: item.borrow_time,
-          return_time: item.return_time
+          return_time: item.return_time,
+          actual_return_time: item.actual_return_time ? this.formatDateTime(item.actual_return_time) : null,
+          device_condition: item.device_condition,
+          return_note: item.return_note
         })),
         ...response.printer_reservations.map(item => ({
           ...item,
@@ -89,12 +92,12 @@ Page({
       ]
 
       // 根据当前标签筛选数据
-      let filteredList = currentTab === 'pending' 
+      let filteredList = currentTab === 'pending'
         ? formattedList.filter(item => item.status === 'pending')
         : currentTab === 'approved'
-          ? formattedList.filter(item => item.status === 'approved')
+          ? formattedList.filter(item => item.status === 'approved' || item.status === 'returned' || item.status === 'completed')
           : formattedList.filter(item => item.status === 'rejected')
-      
+
       // 根据预约类型进一步筛选
       if (reservationType !== 'all') {
         filteredList = filteredList.filter(item => item.type === reservationType)
@@ -122,25 +125,25 @@ Page({
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab
     if (tab === this.data.currentTab) return
-    
-    this.setData({ 
+
+    this.setData({
       currentTab: tab,
       pendingList: [] // 清空列表，等待新数据加载
     })
-    
+
     this.loadData()
   },
-  
+
   // 新增：切换预约类型
   switchType(e) {
     const type = e.currentTarget.dataset.type
     if (type === this.data.reservationType) return
-    
-    this.setData({ 
+
+    this.setData({
       reservationType: type,
       pendingList: [] // 清空列表，等待新数据加载
     })
-    
+
     this.loadData()
   },
 
@@ -180,18 +183,18 @@ Page({
   async handleApprove(id, type) {
     try {
       this.setData({ isLoading: true })
-      
+
       await post('/admin/reservations/approve', {
         id: parseInt(id),
         type: type,
         status: 'approved'
       })
-      
+
       wx.showToast({
         title: '审批成功',
         icon: 'success'
       })
-      
+
       // 重新加载当前页面数据
       this.loadData()
     } catch (error) {
@@ -208,18 +211,18 @@ Page({
   async handleReject(id, type) {
     try {
       this.setData({ isLoading: true })
-      
+
       await post('/admin/reservations/approve', {
         id: parseInt(id),
         type: type,
         status: 'rejected'
       })
-      
+
       wx.showToast({
         title: '已拒绝申请',
         icon: 'success'
       })
-      
+
       // 重新加载当前页面数据
       this.loadData()
     } catch (error) {
@@ -232,4 +235,4 @@ Page({
       this.setData({ isLoading: false })
     }
   }
-}) 
+})

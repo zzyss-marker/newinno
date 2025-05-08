@@ -1,8 +1,8 @@
 <view class="container">
   <!-- 顶部标签栏 -->
   <view class="tabs">
-    <view 
-      wx:for="{{tabs}}" 
+    <view
+      wx:for="{{tabs}}"
       wx:key="key"
       class="tab-item {{currentTab === item.key ? 'active' : ''}} {{isLoading ? 'disabled' : ''}}"
       bindtap="switchTab"
@@ -12,11 +12,11 @@
       <view class="tab-line" wx:if="{{currentTab === item.key}}"></view>
     </view>
   </view>
-  
+
   <!-- 预约类型标签栏 -->
   <view class="type-tabs">
-    <view 
-      wx:for="{{typeTabs}}" 
+    <view
+      wx:for="{{typeTabs}}"
       wx:key="key"
       class="type-tab-item {{reservationType === item.key ? 'active' : ''}} {{isLoading ? 'disabled' : ''}}"
       bindtap="switchType"
@@ -33,16 +33,22 @@
       <view class="loading-icon"></view>
       <text>加载中...</text>
     </view>
-    
+
     <view wx:elif="{{pendingList.length === 0}}" class="empty-tip">
       暂无记录
     </view>
-    
+
     <view wx:for="{{pendingList}}" wx:key="id" class="record-item {{item.type}} {{item.status}}">
       <view class="record-header">
         <view class="header-left">
           <text class="type-tag {{item.type}}">{{item.type === 'venue' ? '场地预约' : (item.type === 'device' ? '设备预约' : '打印机预约')}}</text>
-          <text class="status-tag {{item.status}}">{{currentTab === 'approved' ? '已通过' : (currentTab === 'rejected' ? '已拒绝' : '待审批')}}</text>
+          <text class="status-tag {{item.status}}">{{
+            item.status === 'pending' ? '待审批' :
+            item.status === 'approved' ? '已通过' :
+            item.status === 'rejected' ? '已拒绝' :
+            item.status === 'returned' ? '已归还' :
+            item.status === 'completed' ? '已完成' : '未知状态'
+          }}</text>
         </view>
         <text class="time">{{item.created_at}}</text>
       </view>
@@ -52,10 +58,10 @@
         <block wx:if="{{item.type === 'venue'}}">
           <view class="info-row">
             <text class="label">场地类型：</text>
-            <text>{{item.venue_type === 'lecture_hall' ? '讲座厅' : 
-                   item.venue_type === 'seminar_room' ? '研讨室' : 
-                   item.venue_type === 'meeting_room' ? '会议室' : 
-                   item.venue_type === 'innovation_space' ? '创新工坊' : 
+            <text>{{item.venue_type === 'lecture_hall' ? '讲座厅' :
+                   item.venue_type === 'seminar_room' ? '研讨室' :
+                   item.venue_type === 'meeting_room' ? '会议室' :
+                   item.venue_type === 'innovation_space' ? '创新工坊' :
                    item.venue_type}}</text>
           </view>
           <view class="info-row">
@@ -99,13 +105,24 @@
             <text class="label">借用原因：</text>
             <text>{{item.reason}}</text>
           </view>
+          <!-- 已归还设备的额外信息 -->
+          <block wx:if="{{item.status === 'returned'}}">
+            <view class="info-row">
+              <text class="label">设备状态：</text>
+              <text>{{item.device_condition === 'normal' ? '正常' : item.device_condition === 'damaged' ? '故障' : '未知'}}</text>
+            </view>
+            <view class="info-row" wx:if="{{item.return_note}}">
+              <text class="label">归还备注：</text>
+              <text>{{item.return_note}}</text>
+            </view>
+          </block>
         </block>
 
         <!-- 打印机预约信息 -->
         <block wx:else>
           <view class="info-row">
             <text class="label">打印机：</text>
-            <text>{{item.printer_name === 'printer_1' ? '3D打印机1号' : 
+            <text>{{item.printer_name === 'printer_1' ? '3D打印机1号' :
                    item.printer_name === 'printer_2' ? '3D打印机2号' : '3D打印机3号'}}</text>
           </view>
           <view class="info-row">
@@ -123,18 +140,18 @@
       <view class="record-footer">
         <!-- 只在待审批状态显示按钮 -->
         <block wx:if="{{currentTab === 'pending'}}">
-          <button 
-            class="btn approve" 
-            size="mini" 
-            bindtap="showApproveConfirm" 
+          <button
+            class="btn approve"
+            size="mini"
+            bindtap="showApproveConfirm"
             data-id="{{item.id}}"
             data-type="{{item.type}}"
             disabled="{{isLoading}}"
           >通过</button>
-          <button 
-            class="btn reject" 
-            size="mini" 
-            bindtap="showRejectConfirm" 
+          <button
+            class="btn reject"
+            size="mini"
+            bindtap="showRejectConfirm"
             data-id="{{item.id}}"
             data-type="{{item.type}}"
             disabled="{{isLoading}}"
@@ -143,4 +160,4 @@
       </view>
     </view>
   </view>
-</view> 
+</view>

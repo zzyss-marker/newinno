@@ -114,17 +114,17 @@ async def get_approved_reservations(
 ):
     """获取已审批的预约记录"""
     try:
-        # 获取已审批的预约
+        # 获取已审批的预约，包括已归还的设备记录
         venue_reservations = db.query(models.VenueReservation).filter(
             models.VenueReservation.status.in_(['approved', 'rejected'])
         ).join(models.User).all()
 
         device_reservations = db.query(models.DeviceReservation).filter(
-            models.DeviceReservation.status.in_(['approved', 'rejected'])
+            models.DeviceReservation.status.in_(['approved', 'rejected', 'returned'])
         ).join(models.User).all()
 
         printer_reservations = db.query(models.PrinterReservation).filter(
-            models.PrinterReservation.status.in_(['approved', 'rejected'])
+            models.PrinterReservation.status.in_(['approved', 'rejected', 'completed'])
         ).join(models.User).all()
 
         return {

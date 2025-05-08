@@ -153,6 +153,16 @@
   background: rgba(250, 173, 20, 0.1);
 }
 
+.status-tag.returned {
+  color: #1890FF;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+.status-tag.completed {
+  color: #13C2C2;
+  background: rgba(19, 194, 194, 0.1);
+}
+
 .time {
   font-size: 24rpx;
   color: #999;
