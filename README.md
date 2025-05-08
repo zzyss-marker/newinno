@@ -1,4 +1,3 @@
-
 <div align="center">
   <img src="image/README/1746457657772.jpg" alt="创新工坊预约系统" >
 </div>
@@ -179,6 +178,7 @@ python create_admin.py --username admin --password your_password
 
 ```bash
 python runme.py
+nohup python3 runme.py > /dev/null 2>&1 &     #不输出到日志且在后台持续运行
 ```
 
 6. 编译前端
