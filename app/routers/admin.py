@@ -870,30 +870,32 @@ async def delete_user(
 async def list_reservations(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    reservation_type: Optional[str] = None,
+    status: Optional[str] = None,
+    user_search: Optional[str] = None,
+    department_search: Optional[str] = None,
+    keyword_search: Optional[str] = None,
+    device_condition: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """获取预约记录列表"""
+    """获取预约记录列表，支持分页和高级筛选"""
     try:
-        # 先检查数据库中是否有数据
-        total_venues = db.query(models.VenueReservation).count()
-        total_devices = db.query(models.DeviceReservation).count()
-        total_printers = db.query(models.PrinterReservation).count()
-        print(f"Database counts - Venues: {total_venues}, Devices: {total_devices}, Printers: {total_printers}")
-
-        # 查询所有类型的预约
-        venue_reservations = db.query(models.VenueReservation).join(
+        # 构建基础查询
+        venue_query = db.query(models.VenueReservation).join(
             models.User
         ).options(
             joinedload(models.VenueReservation.user)
         )
 
-        device_reservations = db.query(models.DeviceReservation).join(
+        device_query = db.query(models.DeviceReservation).join(
             models.User
         ).options(
             joinedload(models.DeviceReservation.user)
         )
 
-        printer_reservations = db.query(models.PrinterReservation).join(
+        printer_query = db.query(models.PrinterReservation).join(
             models.User
         ).options(
             joinedload(models.PrinterReservation.user)
@@ -901,19 +903,102 @@ async def list_reservations(
 
         # 添加日期过滤
         if start_date:
-            venue_reservations = venue_reservations.filter(models.VenueReservation.reservation_date >= start_date)
-            device_reservations = device_reservations.filter(models.DeviceReservation.borrow_time >= start_date)
-            printer_reservations = printer_reservations.filter(models.PrinterReservation.reservation_date >= start_date)
+            venue_query = venue_query.filter(models.VenueReservation.reservation_date >= start_date)
+            device_query = device_query.filter(models.DeviceReservation.borrow_time >= start_date)
+            printer_query = printer_query.filter(models.PrinterReservation.reservation_date >= start_date)
 
         if end_date:
-            venue_reservations = venue_reservations.filter(models.VenueReservation.reservation_date <= end_date)
-            device_reservations = device_reservations.filter(models.DeviceReservation.borrow_time <= end_date)
-            printer_reservations = printer_reservations.filter(models.PrinterReservation.reservation_date <= end_date)
+            venue_query = venue_query.filter(models.VenueReservation.reservation_date <= end_date)
+            device_query = device_query.filter(models.DeviceReservation.borrow_time <= end_date)
+            printer_query = printer_query.filter(models.PrinterReservation.reservation_date <= end_date)
 
-        # 执行查询
-        venue_reservations = venue_reservations.all()
-        device_reservations = device_reservations.all()
-        printer_reservations = printer_reservations.all()
+        # 添加状态筛选
+        if status:
+            venue_query = venue_query.filter(models.VenueReservation.status == status)
+            device_query = device_query.filter(models.DeviceReservation.status == status)
+            printer_query = printer_query.filter(models.PrinterReservation.status == status)
+
+        # 添加用户名搜索
+        if user_search:
+            venue_query = venue_query.filter(models.User.name.ilike(f"%{user_search}%"))
+            device_query = device_query.filter(models.User.name.ilike(f"%{user_search}%"))
+            printer_query = printer_query.filter(models.User.name.ilike(f"%{user_search}%"))
+
+        # 添加部门搜索
+        if department_search:
+            venue_query = venue_query.filter(models.User.department.ilike(f"%{department_search}%"))
+            device_query = device_query.filter(models.User.department.ilike(f"%{department_search}%"))
+            printer_query = printer_query.filter(models.User.department.ilike(f"%{department_search}%"))
+
+        # 添加设备状态筛选
+        if device_condition:
+            device_query = device_query.filter(models.DeviceReservation.device_condition == device_condition)
+            printer_query = printer_query.filter(models.PrinterReservation.printer_condition == device_condition)
+
+        # 添加关键词搜索
+        if keyword_search:
+            # 场地预约关键词搜索（场地类型和用途）
+            venue_query = venue_query.filter(
+                (models.VenueReservation.venue_type.ilike(f"%{keyword_search}%")) |
+                (models.VenueReservation.purpose.ilike(f"%{keyword_search}%"))
+            )
+
+            # 设备预约关键词搜索（设备名称、借用原因和归还备注）
+            device_query = device_query.filter(
+                (models.DeviceReservation.device_name.ilike(f"%{keyword_search}%")) |
+                (models.DeviceReservation.reason.ilike(f"%{keyword_search}%")) |
+                (models.DeviceReservation.return_note.ilike(f"%{keyword_search}%"))
+            )
+
+            # 打印机预约关键词搜索（打印机名称、模型名称和完成备注）
+            printer_query = printer_query.filter(
+                (models.PrinterReservation.printer_name.ilike(f"%{keyword_search}%")) |
+                (models.PrinterReservation.model_name.ilike(f"%{keyword_search}%")) |
+                (models.PrinterReservation.completion_note.ilike(f"%{keyword_search}%"))
+            )
+
+        # 添加预约类型筛选
+        if reservation_type:
+            if reservation_type == 'venue':
+                device_query = device_query.filter(False)  # 不查询设备预约
+                printer_query = printer_query.filter(False)  # 不查询打印机预约
+            elif reservation_type == 'device':
+                venue_query = venue_query.filter(False)  # 不查询场地预约
+                printer_query = printer_query.filter(False)  # 不查询打印机预约
+            elif reservation_type == 'printer':
+                venue_query = venue_query.filter(False)  # 不查询场地预约
+                device_query = device_query.filter(False)  # 不查询设备预约
+
+        # 计算总记录数（应用筛选条件后）
+        total_venues = venue_query.count()
+        total_devices = device_query.count()
+        total_printers = printer_query.count()
+        total_count = total_venues + total_devices + total_printers
+
+        # 添加排序 - 按创建时间倒序排列
+        venue_query = venue_query.order_by(models.VenueReservation.created_at.desc())
+        device_query = device_query.order_by(models.DeviceReservation.created_at.desc())
+        printer_query = printer_query.order_by(models.PrinterReservation.created_at.desc())
+
+        # 计算分页偏移量
+        offset = (page - 1) * page_size
+
+        # 执行查询并应用分页
+        venue_reservations = venue_query.offset(offset).limit(page_size).all()
+
+        # 如果场地预约不足page_size，则查询设备预约
+        remaining = page_size - len(venue_reservations)
+        if remaining > 0:
+            device_reservations = device_query.offset(max(0, offset - total_venues)).limit(remaining).all()
+        else:
+            device_reservations = []
+
+        # 如果场地+设备预约不足page_size，则查询打印机预约
+        remaining = page_size - len(venue_reservations) - len(device_reservations)
+        if remaining > 0:
+            printer_reservations = printer_query.offset(max(0, offset - total_venues - total_devices)).limit(remaining).all()
+        else:
+            printer_reservations = []
 
         # 转换为响应格式
         result = []
@@ -921,6 +1006,7 @@ async def list_reservations(
         # 添加场地预约
         for res in venue_reservations:
             result.append({
+                "id": res.reservation_id,  # 统一使用id字段
                 "type": "venue",
                 "reservation_id": res.reservation_id,
                 "venue_type": res.venue_type,
@@ -939,58 +1025,66 @@ async def list_reservations(
                     "name": res.user.name,
                     "department": res.user.department
                 },
-                "approver_name": res.approver_name,  # 添加审批人信息
-                "created_at": res.created_at.strftime('%Y-%m-%d %H:%M:%S') if res.created_at else None  # 添加申请时间
+                "approver_name": res.approver_name,
+                "created_at": res.created_at.strftime('%Y-%m-%d %H:%M:%S') if res.created_at else None
             })
 
         # 添加设备预约
         for res in device_reservations:
             result.append({
+                "id": res.reservation_id,  # 统一使用id字段
                 "type": "device",
                 "reservation_id": res.reservation_id,
                 "device_name": res.device_name,
                 "borrow_time": res.borrow_time.strftime('%Y-%m-%d %H:%M'),
                 "return_time": res.return_time.strftime('%Y-%m-%d %H:%M') if res.return_time else None,
                 "status": res.status,
-                "usage_type": res.usage_type,  # 显示使用类型
-                "usage_type_text": "现场使用" if res.usage_type == "onsite" else "带走使用",  # 添加使用类型文本
-                "teacher_name": res.teacher_name,  # 添加指导老师信息
-                "reason": res.reason,  # 添加借用原因
+                "usage_type": res.usage_type,
+                "usage_type_text": "现场使用" if res.usage_type == "onsite" else "带走使用",
+                "teacher_name": res.teacher_name,
+                "reason": res.reason,
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
                 },
-                "approver_name": res.approver_name,  # 添加审批人信息
-                "device_condition": res.device_condition,  # 添加设备状态信息
-                "return_note": res.return_note,  # 添加归还备注信息
-                "created_at": res.created_at.strftime('%Y-%m-%d %H:%M:%S') if res.created_at else None  # 添加申请时间
+                "approver_name": res.approver_name,
+                "device_condition": res.device_condition,
+                "return_note": res.return_note,
+                "created_at": res.created_at.strftime('%Y-%m-%d %H:%M:%S') if res.created_at else None
             })
 
         # 添加打印机预约
         for res in printer_reservations:
             result.append({
+                "id": res.reservation_id,  # 统一使用id字段
                 "type": "printer",
                 "reservation_id": res.reservation_id,
                 "printer_name": res.printer_name,
                 "reservation_date": res.reservation_date.strftime('%Y-%m-%d') if res.reservation_date else None,
                 "print_time": res.print_time.strftime('%Y-%m-%d %H:%M') if res.print_time else None,
                 "status": res.status,
-                "teacher_name": res.teacher_name,  # 添加指导老师信息
+                "teacher_name": res.teacher_name,
                 "user": {
                     "name": res.user.name,
                     "department": res.user.department
                 },
-                "approver_name": res.approver_name,  # 添加审批人信息
-                "printer_condition": res.printer_condition,  # 添加打印机状态信息
-                "completion_note": res.completion_note,  # 添加完成备注信息
-                "created_at": res.created_at.strftime('%Y-%m-%d %H:%M:%S') if res.created_at else None  # 添加申请时间
+                "approver_name": res.approver_name,
+                "printer_condition": res.printer_condition,
+                "completion_note": res.completion_note,
+                "created_at": res.created_at.strftime('%Y-%m-%d %H:%M:%S') if res.created_at else None
             })
 
-        # 按日期排序
-        result.sort(key=lambda x: x.get('reservation_date') or x.get('borrow_time'), reverse=True)
+        # 按创建时间排序
+        result.sort(key=lambda x: x.get('created_at') or '', reverse=True)
 
-        print(f"Found {len(result)} total reservations")
-        return result
+        # 返回分页信息和数据
+        return {
+            "total": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total_count + page_size - 1) // page_size,
+            "data": result
+        }
 
     except Exception as e:
         print(f"Error in list_reservations: {str(e)}")

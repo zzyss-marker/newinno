@@ -262,29 +262,50 @@ def reservations():
 @bp.route('/api/reservations')
 @login_required
 def get_reservations():
-    """从后端API获取预约记录"""
+    """从后端API获取预约记录，支持分页和高级筛选"""
+    # 获取查询参数
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 50, type=int)
+    reservation_type = request.args.get('reservation_type')
+    status = request.args.get('status')
+    user_search = request.args.get('user_search')
+    department_search = request.args.get('department_search')
+    keyword_search = request.args.get('keyword_search')
+    device_condition = request.args.get('device_condition')
 
     try:
-        current_app.logger.info(f"Fetching reservations with dates: start={start_date}, end={end_date}")
+        current_app.logger.info(f"Fetching reservations with advanced filters: page={page}, page_size={page_size}")
 
         api_url = get_api_url('admin/reservations/list')
 
-        params = {
-            'start_date': start_date if start_date else None,
-            'end_date': end_date if end_date else None
-        }
+        # 构建查询参数
+        params = {}
+        if start_date:
+            params['start_date'] = start_date
+        if end_date:
+            params['end_date'] = end_date
+        if page:
+            params['page'] = page
+        if page_size:
+            params['page_size'] = page_size
+        if reservation_type:
+            params['reservation_type'] = reservation_type
+        if status:
+            params['status'] = status
+        if user_search:
+            params['user_search'] = user_search
+        if department_search:
+            params['department_search'] = department_search
+        if keyword_search:
+            params['keyword_search'] = keyword_search
+        if device_condition:
+            params['device_condition'] = device_condition
+
         headers = {
-            'Content-Type': 'application/json',
             'Accept': 'application/json'
         }
-
-        current_app.logger.debug(f"Request details:")
-        current_app.logger.debug(f"  URL: {api_url}")
-        current_app.logger.debug(f"  Method: GET")
-        current_app.logger.debug(f"  Headers: {headers}")
-        current_app.logger.debug(f"  Params: {params}")
 
         # 使用新的请求函数
         response = make_request(
@@ -292,14 +313,11 @@ def get_reservations():
             api_url,
             params=params,
             headers=headers,
-            timeout=10
+            timeout=20  # 增加超时时间，因为后端需要处理更多筛选条件
         )
 
         # 记录响应信息
-        current_app.logger.debug(f"Response details:")
-        current_app.logger.debug(f"  Status code: {response.status_code}")
-        current_app.logger.debug(f"  Headers: {dict(response.headers)}")
-        current_app.logger.debug(f"  URL: {response.url}")  # 实际请求的URL
+        current_app.logger.debug(f"Response status code: {response.status_code}")
 
         if response.status_code == 404:
             return jsonify({'error': '未找到数据'}), 404
@@ -311,15 +329,24 @@ def get_reservations():
             current_app.logger.error(f"Response content: {response.text}")
             raise
 
-        data = response.json()
-        current_app.logger.debug(f"Response data type: {type(data)}")
-        current_app.logger.debug(f"Response data: {data}")
+        # 解析响应数据
+        result = response.json()
 
-        if not isinstance(data, list):
-            data = data.get('reservations', [])
+        # 确保返回的是预期的格式
+        if not isinstance(result, dict):
+            current_app.logger.warning(f"Unexpected response format: {type(result)}")
+            # 尝试兼容旧格式
+            if isinstance(result, list):
+                result = {
+                    "total": len(result),
+                    "page": 1,
+                    "page_size": len(result),
+                    "total_pages": 1,
+                    "data": result
+                }
 
-        current_app.logger.info(f"Successfully fetched {len(data)} reservations")
-        return jsonify(data)
+        current_app.logger.info(f"Successfully fetched page {result.get('page')} of {result.get('total_pages')}, total records: {result.get('total')}")
+        return jsonify(result)
 
     except requests.exceptions.Timeout:
         current_app.logger.error("API request timed out")
@@ -329,13 +356,7 @@ def get_reservations():
         error_details = str(e)
         if hasattr(e, 'response') and e.response is not None:
             error_details += f"\nResponse: {e.response.text}"
-        if hasattr(e, 'request') and e.request is not None:
-            current_app.logger.error(f"Request URL: {e.request.url}")
-            current_app.logger.error(f"Request method: {e.request.method}")
-            current_app.logger.error(f"Request headers: {e.request.headers}")
         current_app.logger.error(f"Detailed error: {error_details}")
-        current_app.logger.error(f"Exception type: {type(e)}")
-        current_app.logger.error(f"Exception args: {e.args}")
         return jsonify({'error': '获取预约记录失败'}), 500
 
 @bp.route('/api/reservations/approve', methods=['POST'])

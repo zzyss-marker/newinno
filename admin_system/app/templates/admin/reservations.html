@@ -102,7 +102,10 @@
     <div class="card">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">预约列表</h5>
-            <div id="reservation-count" class="badge bg-info text-white">加载中...</div>
+            <div class="d-flex align-items-center">
+                <div id="reservation-count" class="badge bg-info text-white me-3">加载中...</div>
+                <div id="pagination-info" class="text-muted small me-2">页码: <span id="current-page">1</span>/<span id="total-pages">1</span></div>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -134,6 +137,29 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- 分页控件 -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex align-items-center">
+                    <label for="page-size-select" class="me-2">每页显示:</label>
+                    <select id="page-size-select" class="form-select form-select-sm" style="width: 80px;">
+                        <option value="20">20</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+                <nav aria-label="预约记录分页">
+                    <ul class="pagination pagination-sm mb-0" id="pagination-controls">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" id="prev-page">上一页</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" id="next-page">下一页</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
         </div>
     </div>
 </div>
@@ -141,23 +167,176 @@
 
 {% block scripts %}
 <script>
+// 全局变量，用于存储分页状态和缓存
+let currentPage = 1;
+let pageSize = 50;
+let totalPages = 1;
+let totalRecords = 0;
+
+// 数据缓存 - 优化版本
+const dataCache = {
+    // 缓存结构: { "key": { data: [...], timestamp: Date.now(), total: 0, totalPages: 0 } }
+    cache: {},
+
+    // 最大缓存条目数
+    maxEntries: 20,
+
+    // 缓存有效期（毫秒）
+    cacheLifetime: 3 * 60 * 1000, // 3分钟
+
+    // 缓存键列表（按时间顺序）
+    keyList: [],
+
+    // 生成缓存键
+    generateKey: function(params) {
+        // 使用JSON.stringify生成唯一键，确保所有参数都被考虑
+        return JSON.stringify(params);
+    },
+
+    // 设置缓存
+    set: function(params, data) {
+        const key = this.generateKey(params);
+
+        // 如果键已存在，先从列表中移除
+        const existingIndex = this.keyList.indexOf(key);
+        if (existingIndex !== -1) {
+            this.keyList.splice(existingIndex, 1);
+        }
+
+        // 添加到列表末尾（最新）
+        this.keyList.push(key);
+
+        // 存储数据
+        this.cache[key] = {
+            data: data.data || data,
+            timestamp: Date.now(),
+            total: data.total || data.length,
+            totalPages: data.total_pages || 1
+        };
+
+        // 如果缓存条目超过最大数量，删除最旧的条目
+        if (this.keyList.length > this.maxEntries) {
+            const oldestKey = this.keyList.shift();
+            delete this.cache[oldestKey];
+        }
+
+        // 清理过期缓存
+        this.cleanExpired();
+    },
+
+    // 获取缓存
+    get: function(params) {
+        const key = this.generateKey(params);
+        const cached = this.cache[key];
+
+        // 如果缓存存在且未过期
+        if (cached && (Date.now() - cached.timestamp < this.cacheLifetime)) {
+            // 更新访问时间（将键移到列表末尾）
+            const index = this.keyList.indexOf(key);
+            if (index !== -1) {
+                this.keyList.splice(index, 1);
+                this.keyList.push(key);
+            }
+            return cached;
+        }
+
+        // 如果缓存已过期，删除它
+        if (cached) {
+            const index = this.keyList.indexOf(key);
+            if (index !== -1) {
+                this.keyList.splice(index, 1);
+            }
+            delete this.cache[key];
+        }
+
+        return null;
+    },
+
+    // 清理过期缓存
+    cleanExpired: function() {
+        const now = Date.now();
+        const expiredKeys = [];
+
+        // 找出所有过期的键
+        this.keyList.forEach(key => {
+            if (this.cache[key] && (now - this.cache[key].timestamp > this.cacheLifetime)) {
+                expiredKeys.push(key);
+            }
+        });
+
+        // 删除过期的缓存
+        expiredKeys.forEach(key => {
+            const index = this.keyList.indexOf(key);
+            if (index !== -1) {
+                this.keyList.splice(index, 1);
+            }
+            delete this.cache[key];
+        });
+    },
+
+    // 清除所有缓存
+    clear: function() {
+        this.cache = {};
+        this.keyList = [];
+    }
+};
+
+// 表单提交事件
 document.getElementById('filterForm').onsubmit = async function(e) {
     e.preventDefault();
+    // 重置分页状态
+    currentPage = 1;
+    // 清除缓存，确保获取最新数据
+    dataCache.clear();
     await loadReservations();
 };
 
+// 页面大小选择事件
+document.getElementById('page-size-select').addEventListener('change', function() {
+    pageSize = parseInt(this.value);
+    currentPage = 1; // 重置到第一页
+    loadReservations();
+});
+
+// 重置按钮事件
+document.getElementById('filterForm').querySelector('button[type="button"].btn-secondary').addEventListener('click', function() {
+    // 清除缓存
+    dataCache.clear();
+});
+
+// 上一页按钮事件
+document.getElementById('prev-page').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (currentPage > 1) {
+        currentPage--;
+        loadReservations();
+    }
+});
+
+// 下一页按钮事件
+document.getElementById('next-page').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (currentPage < totalPages) {
+        currentPage++;
+        loadReservations();
+    }
+});
+
+// 加载预约记录函数 - 优化版本，将所有筛选条件传递给后端
 async function loadReservations() {
+    // 获取筛选条件
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
     const reservationType = document.getElementById('reservationType').value;
     const reservationStatus = document.getElementById('reservationStatus').value;
-    const userSearch = document.getElementById('userSearch').value.trim().toLowerCase();
-    const departmentSearch = document.getElementById('departmentSearch').value.trim().toLowerCase();
+    const userSearch = document.getElementById('userSearch').value.trim();
+    const departmentSearch = document.getElementById('departmentSearch').value.trim();
     const deviceCondition = document.getElementById('deviceCondition').value;
-    const keywordSearch = document.getElementById('keywordSearch').value.trim().toLowerCase();
+    const keywordSearch = document.getElementById('keywordSearch').value.trim();
 
-    // 更新记录数量显示
+    // 更新UI状态
     document.getElementById('reservation-count').textContent = '加载中...';
+    updatePaginationInfo();
 
     // 显示加载中状态
     const tbody = document.getElementById('reservationList');
@@ -173,182 +352,195 @@ async function loadReservations() {
     `;
 
     try {
-        const params = new URLSearchParams();
-        if (startDate) params.append('start_date', startDate);
-        if (endDate) params.append('end_date', endDate);
+        // 构建请求参数对象（包含所有筛选条件）
+        const requestParams = {
+            page: currentPage,
+            page_size: pageSize,
+            start_date: startDate,
+            end_date: endDate,
+            reservation_type: reservationType,
+            status: reservationStatus,
+            user_search: userSearch,
+            department_search: departmentSearch,
+            keyword_search: keywordSearch,
+            device_condition: deviceCondition
+        };
 
-        const response = await fetch(`/api/reservations?${params.toString()}`);
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || '获取数据失败');
-        }
+        // 生成缓存键
+        const cacheKey = JSON.stringify(requestParams);
 
-        const data = await response.json();
-        if (!Array.isArray(data)) {
-            throw new Error('返回数据格式错误');
-        }
+        // 检查缓存中是否有数据
+        const cachedData = dataCache.get(requestParams);
+        let result;
 
-        // 调试信息：查看API返回的数据结构
-        console.log('API返回的预约记录数据:', data);
-        if (data.length > 0) {
-            console.log('第一条记录示例:', data[0]);
+        if (cachedData) {
+            // 使用缓存数据
+            console.log('使用缓存数据');
+            result = {
+                data: cachedData.data,
+                total: cachedData.total,
+                total_pages: cachedData.totalPages,
+                page: currentPage,
+                page_size: pageSize
+            };
+        } else {
+            // 构建API请求参数
+            const params = new URLSearchParams();
 
-            // 检查不同类型预约的日期字段
-            const venueRecord = data.find(r => r.type === 'venue');
-            const deviceRecord = data.find(r => r.type === 'device');
-            const printerRecord = data.find(r => r.type === 'printer');
-
-            if (venueRecord) {
-                console.log('场地预约日期字段:', {
-                    type: venueRecord.type,
-                    reservation_date: venueRecord.reservation_date,
-                    created_at: venueRecord.created_at
-                });
-            }
-
-            if (deviceRecord) {
-                console.log('设备预约完整数据:', deviceRecord);
-                console.log('设备预约字段:', {
-                    type: deviceRecord.type,
-                    borrow_time: deviceRecord.borrow_time,
-                    created_at: deviceRecord.created_at,
-                    reason: deviceRecord.reason,
-                    device_name: deviceRecord.device_name,
-                    usage_type: deviceRecord.usage_type,
-                    teacher_name: deviceRecord.teacher_name,
-                    return_time: deviceRecord.return_time,
-                    status: deviceRecord.status
-                });
-
-                // 检查所有设备预约记录的reason字段
-                const deviceRecords = data.filter(r => r.type === 'device');
-                console.log('所有设备预约记录的reason字段:');
-                deviceRecords.forEach((record, index) => {
-                    console.log(`设备预约${index+1}:`, {
-                        device_name: record.device_name,
-                        reason: record.reason
-                    });
-                });
-            }
-
-            if (printerRecord) {
-                console.log('打印机预约日期字段:', {
-                    type: printerRecord.type,
-                    reservation_date: printerRecord.reservation_date,
-                    print_time: printerRecord.print_time,
-                    created_at: printerRecord.created_at
-                });
-            }
-        }
-
-        // 客户端筛选 - 基本筛选
-        let filteredData = data;
-        if (reservationType) {
-            filteredData = filteredData.filter(record => record.type === reservationType);
-        }
-        if (reservationStatus) {
-            filteredData = filteredData.filter(record => record.status === reservationStatus);
-        }
-
-        // 高级筛选
-        if (userSearch) {
-            filteredData = filteredData.filter(record =>
-                (record.user?.name || '').toLowerCase().includes(userSearch)
-            );
-        }
-
-        if (departmentSearch) {
-            filteredData = filteredData.filter(record =>
-                (record.user?.department || '').toLowerCase().includes(departmentSearch)
-            );
-        }
-
-        if (deviceCondition) {
-            filteredData = filteredData.filter(record =>
-                // 只针对设备类型的记录
-                (record.type === 'device' || record.type === 'printer') &&
-                // 匹配设备状态
-                ((record.type === 'device' && record.device_condition === deviceCondition) ||
-                (record.type === 'printer' && record.printer_condition === deviceCondition))
-            );
-        }
-
-        if (keywordSearch) {
-            filteredData = filteredData.filter(record => {
-                // 搜索对应的字段
-                const searchFields = [];
-                if (record.type === 'device') {
-                    searchFields.push(
-                        record.device_name || '',
-                        record.return_note || ''
-                    );
-                } else if (record.type === 'venue') {
-                    searchFields.push(
-                        record.venue_type || '',
-                        record.purpose || ''
-                    );
-                } else if (record.type === 'printer') {
-                    searchFields.push(
-                        record.printer_name || '',
-                        record.model_name || '',
-                        record.completion_note || ''
-                    );
+            // 添加所有筛选参数
+            Object.entries(requestParams).forEach(([key, value]) => {
+                if (value) {
+                    params.append(key, value);
                 }
-                // 检查是否有任何字段包含搜索关键词
-                return searchFields.some(field =>
-                    field.toLowerCase().includes(keywordSearch)
-                );
             });
+
+            // 发送API请求
+            console.log(`发送API请求: ${params.toString()}`);
+            const response = await fetch(`/api/reservations?${params.toString()}`);
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '获取数据失败');
+            }
+
+            // 解析响应数据
+            result = await response.json();
+
+            // 缓存数据
+            dataCache.set(requestParams, result);
         }
 
-        // 更新记录数量显示
-        document.getElementById('reservation-count').textContent = `共 ${filteredData.length} 条记录`;
+        // 处理分页信息
+        if (result.total !== undefined) {
+            // 新API格式
+            totalRecords = result.total;
+            totalPages = result.total_pages || Math.ceil(totalRecords / pageSize);
+            currentPage = result.page || currentPage;
 
-        if (filteredData.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="11" class="text-center p-4">
-                        <div class="alert alert-info mb-0">
-                            <i class="fas fa-info-circle me-2"></i>
-                            没有找到匹配的预约记录
-                        </div>
-                    </td>
-                </tr>
-            `;
+            // 更新分页UI
+            updatePaginationInfo();
+            updatePaginationControls();
+
+            // 获取实际数据
+            const data = result.data || [];
+
+            // 更新记录数量显示
+            document.getElementById('reservation-count').textContent = `共 ${totalRecords} 条记录`;
+
+            // 渲染数据 - 不需要再进行客户端筛选，因为所有筛选条件已经传递给后端
+            renderReservations(data);
+
+        } else {
+            // 兼容旧API格式
+            const data = Array.isArray(result) ? result : [];
+            totalRecords = data.length;
+            totalPages = 1;
+            currentPage = 1;
+
+            // 更新分页UI
+            updatePaginationInfo();
+            updatePaginationControls();
+
+            // 更新记录数量显示
+            document.getElementById('reservation-count').textContent = `共 ${data.length} 条记录`;
+
+            // 渲染数据
+            renderReservations(data);
+        }
+
+    } catch (error) {
+        console.error('加载预约记录失败:', error);
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="11" class="text-center p-4">
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        加载失败: ${error.message || '未知错误'}
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        // 更新记录数量显示为错误状态
+        document.getElementById('reservation-count').textContent = '加载失败';
+    }
+}
+
+// 更新分页信息显示
+function updatePaginationInfo() {
+    document.getElementById('current-page').textContent = currentPage;
+    document.getElementById('total-pages').textContent = totalPages;
+}
+
+// 更新分页控件状态
+function updatePaginationControls() {
+    const prevPageBtn = document.getElementById('prev-page');
+    const nextPageBtn = document.getElementById('next-page');
+
+    // 更新上一页按钮状态
+    if (currentPage <= 1) {
+        prevPageBtn.parentElement.classList.add('disabled');
+    } else {
+        prevPageBtn.parentElement.classList.remove('disabled');
+    }
+
+    // 更新下一页按钮状态
+    if (currentPage >= totalPages) {
+        nextPageBtn.parentElement.classList.add('disabled');
+    } else {
+        nextPageBtn.parentElement.classList.remove('disabled');
+    }
+}
+
+// 渲染预约记录列表 - 优化版本，减少DOM操作
+function renderReservations(data) {
+    const tbody = document.getElementById('reservationList');
+
+    if (data.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="11" class="text-center p-4">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        没有找到匹配的预约记录
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // 使用DocumentFragment减少DOM重绘次数
+    const fragment = document.createDocumentFragment();
+
+    // 清空表格
+    tbody.innerHTML = '';
+
+    // 批量处理数据，每次处理20条
+    const batchSize = 20;
+    let currentIndex = 0;
+
+    function processBatch() {
+        // 如果已处理完所有数据，则停止
+        if (currentIndex >= data.length) {
             return;
         }
 
-        tbody.innerHTML = filteredData.map(record => {
+        // 计算当前批次的结束索引
+        const endIndex = Math.min(currentIndex + batchSize, data.length);
+
+        // 处理当前批次的数据
+        for (let i = currentIndex; i < endIndex; i++) {
+            const record = data[i];
+            const row = document.createElement('tr');
+
             // 获取申请人信息
             const userName = record.user?.name || `用户(ID:${record.user_id})`;
             const userDept = record.user?.department || '未知学院';
 
             // 获取申请时间（记录创建时间）
             const reservationDate = formatDate(record.created_at);
-
-            // 获取详细信息
-            let details = getDetailsHtml(record);
-
-            // 对于设备预约，确保显示借用原因
-            if (record.type === 'device') {
-                console.log('设备预约借用原因:', record.reason);
-            }
-
-            // 获取状态徽章
-            const statusBadge = `
-                <span class="badge badge-${getStatusBadgeClass(record.status)}">
-                    ${getStatusText(record.status)}
-                </span>
-            `;
-
-            // 获取操作按钮
-            const actions = `
-                <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-danger" onclick="deleteReservation('${record.type}', ${record.id || record.reservation_id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
 
             // 获取预约日期/借用时间
             let bookingDate = '';
@@ -387,39 +579,46 @@ async function loadReservations() {
             // 获取指导老师
             const teacherName = record.teacher_name || '未指定';
 
-            return `
-                <tr>
-                    <td><span class="badge badge-${getReservationTypeClass(record.type)}">${getReservationType(record.type)}</span></td>
-                    <td>${userName}</td>
-                    <td>${userDept}</td>
-                    <td>${reservationDate}</td>
-                    <td>${bookingDate}</td>
-                    <td>${returnTime}</td>
-                    <td>${usageType}</td>
-                    <td>${teacherName}</td>
-                    <td>${details}</td>
-                    <td>${statusBadge}</td>
-                    <td>${actions}</td>
-                </tr>
-            `;
-        }).join('');
-    } catch (error) {
-        console.error('加载预约记录失败:', error);
-
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="11" class="text-center p-4">
-                    <div class="alert alert-danger mb-0">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        加载失败: ${error.message || '未知错误'}
+            // 设置行内容
+            row.innerHTML = `
+                <td><span class="badge badge-${getReservationTypeClass(record.type)}">${getReservationType(record.type)}</span></td>
+                <td>${userName}</td>
+                <td>${userDept}</td>
+                <td>${reservationDate}</td>
+                <td>${bookingDate}</td>
+                <td>${returnTime}</td>
+                <td>${usageType}</td>
+                <td>${teacherName}</td>
+                <td>${getDetailsHtml(record)}</td>
+                <td><span class="badge badge-${getStatusBadgeClass(record.status)}">${getStatusText(record.status)}</span></td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-danger" onclick="deleteReservation('${record.type}', ${record.id || record.reservation_id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </td>
-            </tr>
-        `;
+            `;
 
-        // 更新记录数量显示为错误状态
-        document.getElementById('reservation-count').textContent = '加载失败';
+            // 添加行到文档片段
+            fragment.appendChild(row);
+        }
+
+        // 更新当前索引
+        currentIndex = endIndex;
+
+        // 将当前批次添加到DOM
+        tbody.appendChild(fragment);
+
+        // 如果还有数据未处理，则安排下一批次
+        if (currentIndex < data.length) {
+            // 使用requestAnimationFrame确保浏览器有时间渲染当前批次
+            window.requestAnimationFrame(processBatch);
+        }
     }
+
+    // 开始处理第一批数据
+    processBatch();
 }
 
 function getDetailsHtml(record) {
