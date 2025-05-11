@@ -102,22 +102,11 @@ def import_users():
                     error_message = error_message['message']
             return jsonify({'error': error_message}), response.status_code
 
-        # 处理成功响应
-        success_count = result.get('count', 0)
-        error_messages = result.get('error_messages', [])
-
-        # 构建返回消息
-        message = f'成功导入 {success_count} 个用户'
-        if error_messages:
-            message += f'\n失败: {len(error_messages)} 个'
-            message += '\n' + '\n'.join(error_messages[:5])  # 只显示前5个错误
-            if len(error_messages) > 5:
-                message += f'\n... 等共 {len(error_messages)} 个错误'
-
+        # 返回任务ID和状态
         return jsonify({
-            'message': message,
-            'count': success_count,
-            'errors': error_messages
+            'task_id': result.get('task_id'),
+            'status': result.get('status'),
+            'message': result.get('message', '用户导入任务已创建，正在后台处理')
         })
 
     except requests.exceptions.RequestException as e:
@@ -137,6 +126,26 @@ def import_users():
             except:
                 pass
         return jsonify({'error': error_message}), 500
+
+@bp.route('/api/admin/tasks/<task_id>')
+@login_required
+def get_task_status(task_id):
+    """获取任务状态"""
+    try:
+        response = make_request(
+            'GET',
+            get_api_url(f'admin/tasks/{task_id}'),
+            headers={'Accept': 'application/json'}
+        )
+
+        if response.status_code == 404:
+            return jsonify({'error': '任务不存在'}), 404
+
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error getting task status: {str(e)}")
+        return jsonify({'error': '获取任务状态失败'}), 500
 
 @bp.route('/api/admin/templates/user-import')
 @login_required
@@ -509,6 +518,27 @@ def get_management_items():
         'available_quantity': item.available_quantity,
         'status': item.status
     } for item in items])
+
+@bp.route('/api/admin/stats/summary')
+@login_required
+def get_summary_stats():
+    """获取用户总数和预约记录总数的统计信息"""
+    try:
+        response = make_request(
+            'GET',
+            get_api_url('admin/stats/summary'),
+            headers={'Accept': 'application/json'},
+            timeout=10
+        )
+
+        if response.status_code != 200:
+            current_app.logger.error(f"获取统计数据失败: {response.status_code}, {response.text}")
+            return jsonify({'error': '获取统计数据失败'}), response.status_code
+
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"获取统计数据时出错: {str(e)}")
+        return jsonify({'error': '请求失败'}), 500
 
 @bp.route('/api/admin/settings/ai-feature', methods=['GET', 'POST'])
 @login_required

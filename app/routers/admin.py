@@ -757,87 +757,86 @@ async def import_users(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """导入用户"""
+    """导入用户 - 创建后台任务"""
+    from ..utils.task_manager import TaskManager
+    from ..utils.import_tasks import process_user_import
+
     try:
-        # 读取Excel文件
+        # 读取文件内容
         contents = await file.read()
-        df = pd.read_excel(contents, dtype={'password': str})  # 将password列作为字符串读取
-        print(f"Read Excel file with {len(df)} rows")  # 调试信息
 
-        # 验证数据格式
-        required_columns = ['username', 'name', 'department', 'role', 'password']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            raise HTTPException(
-                status_code=400,
-                detail=f"文件格式不正确，缺少以下列：{', '.join(missing_columns)}"
-            )
+        # 创建任务
+        task_manager = TaskManager.get_instance()
+        task = task_manager.create_task(
+            task_type="user_import",
+            description=f"导入用户 - {file.filename}"
+        )
 
-        # 处理导入的用户数据
-        success_count = 0
-        error_messages = []
-        users_data = []  # 存储成功导入的用户数据
+        # 启动后台任务
+        task_manager.run_task_in_background(
+            task=task,
+            func=process_user_import,
+            db=db,
+            file_content=contents,
+            batch_size=50
+        )
 
-        for _, row in df.iterrows():
-            try:
-                # 检查用户是否已存在
-                existing_user = db.query(models.User).filter(
-                    models.User.username == str(row['username'])
-                ).first()
-
-                if existing_user:
-                    error_messages.append(f"用户 {row['username']} 已存在")
-                    continue
-
-                # 确保密码是字符串类型
-                password = str(row['password']).strip()
-                # 创建新用户
-                hashed_password = get_password_hash(password)
-                user = models.User(
-                    username=str(row['username']),
-                    name=str(row['name']),
-                    department=str(row['department']),
-                    role=str(row['role']),
-                    password=hashed_password
-                )
-                db.add(user)
-                success_count += 1
-                users_data.append({
-                    'username': str(row['username']),
-                    'name': str(row['name']),
-                    'department': str(row['department']),
-                    'role': str(row['role'])
-                })
-                print(f"Added user: {row['username']}")  # 调试信息
-            except Exception as e:
-                error_msg = f"添加用户 {row['username']} 失败: {str(e)}"
-                print(error_msg)  # 调试信息
-                error_messages.append(error_msg)
-
-        if success_count > 0:
-            db.commit()
-
-        result = {
-            "message": "用户导入完成",
-            "count": success_count,
-            "users": users_data,  # 返回成功导入的用户数据
-            "error_messages": error_messages
+        # 返回任务ID和状态
+        return {
+            "task_id": task.task_id,
+            "status": task.status,
+            "message": "用户导入任务已创建，正在后台处理"
         }
 
-        if not success_count and error_messages:
-            raise HTTPException(status_code=400, detail=result)
-
-        return result
-
-    except HTTPException:
-        db.rollback()
-        raise
     except Exception as e:
-        db.rollback()
-        print(f"Error importing users: {str(e)}")  # 调试信息
+        print(f"Error creating import task: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导入用户失败: {str(e)}"
+            detail=f"创建导入任务失败: {str(e)}"
+        )
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    """获取任务状态"""
+    from ..utils.task_manager import TaskManager
+
+    try:
+        task_manager = TaskManager.get_instance()
+        task = task_manager.get_task(task_id)
+
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="任务不存在"
+            )
+
+        return task.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting task status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取任务状态失败: {str(e)}"
+        )
+
+@router.get("/tasks")
+async def get_all_tasks():
+    """获取所有任务"""
+    from ..utils.task_manager import TaskManager
+
+    try:
+        task_manager = TaskManager.get_instance()
+        tasks = task_manager.get_all_tasks()
+
+        return [task.to_dict() for task in tasks]
+
+    except Exception as e:
+        print(f"Error getting all tasks: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取任务列表失败: {str(e)}"
         )
 
 @router.delete("/users/{username}")
@@ -1171,6 +1170,41 @@ async def get_statistics(
         print(f"Error in get_statistics: {str(e)}")  # 添加错误日志
         raise HTTPException(
             status_code=500,
+            detail=f"获取统计数据失败: {str(e)}"
+        )
+
+@router.get("/stats/summary")
+async def get_summary_stats(
+    db: Session = Depends(get_db)
+):
+    """获取用户总数和预约记录总数的统计信息"""
+    try:
+        # 获取用户总数（排除系统管理员）
+        user_count = db.query(models.User).filter(
+            models.User.is_system_admin == False
+        ).count()
+
+        # 获取各类预约记录总数
+        venue_count = db.query(models.VenueReservation).count()
+        device_count = db.query(models.DeviceReservation).count()
+        printer_count = db.query(models.PrinterReservation).count()
+
+        # 计算总预约数
+        total_reservations = venue_count + device_count + printer_count
+
+        return {
+            "user_count": user_count,
+            "reservation_count": total_reservations,
+            "details": {
+                "venue_count": venue_count,
+                "device_count": device_count,
+                "printer_count": printer_count
+            }
+        }
+    except Exception as e:
+        print(f"Error getting summary stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取统计数据失败: {str(e)}"
         )
 

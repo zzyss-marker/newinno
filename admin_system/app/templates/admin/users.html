@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container">
     <h2 class="mb-4">用户管理</h2>
-    
+
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="mb-0">批量导入用户</h5>
@@ -48,7 +48,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="table-responsive">
                 <table class="table">
                     <thead>
@@ -108,56 +108,566 @@ window.setButtonLoading = function(button, loading) {
     }
 };
 
+// 全局任务状态管理器
+const TaskManager = {
+    // 保存任务状态到localStorage
+    saveTask: function(taskId, taskType, description) {
+        const tasks = this.getAllTasks();
+        tasks[taskId] = {
+            id: taskId,
+            type: taskType,
+            description: description,
+            status: 'running',
+            progress: 0,
+            startTime: new Date().getTime(),
+            lastUpdated: new Date().getTime()
+        };
+        localStorage.setItem('importTasks', JSON.stringify(tasks));
+        return tasks[taskId];
+    },
+
+    // 更新任务状态
+    updateTask: function(taskId, status, progress, result) {
+        const tasks = this.getAllTasks();
+        if (tasks[taskId]) {
+            tasks[taskId].status = status || tasks[taskId].status;
+            tasks[taskId].progress = progress !== undefined ? progress : tasks[taskId].progress;
+            tasks[taskId].result = result || tasks[taskId].result;
+            tasks[taskId].lastUpdated = new Date().getTime();
+            localStorage.setItem('importTasks', JSON.stringify(tasks));
+        }
+        return tasks[taskId];
+    },
+
+    // 获取所有任务
+    getAllTasks: function() {
+        const tasksJson = localStorage.getItem('importTasks');
+        return tasksJson ? JSON.parse(tasksJson) : {};
+    },
+
+    // 获取单个任务
+    getTask: function(taskId) {
+        const tasks = this.getAllTasks();
+        return tasks[taskId];
+    },
+
+    // 获取正在运行的任务
+    getRunningTasks: function() {
+        const tasks = this.getAllTasks();
+        const runningTasks = {};
+        for (const taskId in tasks) {
+            if (tasks[taskId].status === 'running' || tasks[taskId].status === 'pending') {
+                // 检查任务是否超过30分钟没有更新，如果是则认为已失败
+                const now = new Date().getTime();
+                const lastUpdated = tasks[taskId].lastUpdated;
+                if (now - lastUpdated > 30 * 60 * 1000) {
+                    tasks[taskId].status = 'failed';
+                    tasks[taskId].result = '任务超时，可能已失败';
+                    localStorage.setItem('importTasks', JSON.stringify(tasks));
+                } else {
+                    runningTasks[taskId] = tasks[taskId];
+                }
+            }
+        }
+        return runningTasks;
+    },
+
+    // 清理已完成的任务（保留最近24小时的）
+    cleanupTasks: function() {
+        const tasks = this.getAllTasks();
+        const now = new Date().getTime();
+        const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
+        for (const taskId in tasks) {
+            const task = tasks[taskId];
+            // 如果任务已完成或失败，且超过24小时，则删除
+            if ((task.status === 'completed' || task.status === 'failed') &&
+                task.lastUpdated < oneDayAgo) {
+                delete tasks[taskId];
+            }
+        }
+
+        localStorage.setItem('importTasks', JSON.stringify(tasks));
+    }
+};
+
 // 存储所有用户数据
 let allUsers = [];
 // 当前筛选条件
 let currentFilter = 'all';
 let currentSearchTerm = '';
 
+// 创建固定在页面底部的任务状态面板
+function createTaskStatusPanel() {
+    // 检查是否已存在
+    if (document.getElementById('taskStatusPanel')) {
+        return;
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'taskStatusPanel';
+    panel.className = 'task-status-panel';
+    panel.innerHTML = `
+        <div class="task-status-header">
+            <h6 class="mb-0">任务状态</h6>
+            <div class="task-status-controls">
+                <button type="button" class="btn btn-sm btn-outline-secondary task-minimize-btn" onclick="toggleTaskPanel()">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary ml-2" onclick="hideTaskPanel()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="task-status-body">
+            <div id="taskList" class="task-list">
+                <!-- 任务列表将在这里动态添加 -->
+                <div class="text-center text-muted py-3">没有正在进行的任务</div>
+            </div>
+        </div>
+    `;
+
+    // 添加到body
+    document.body.appendChild(panel);
+
+    // 添加样式
+    const style = document.createElement('style');
+    style.textContent = `
+        .task-status-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1050;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            max-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        .task-status-panel.minimized {
+            max-height: 40px;
+        }
+        .task-status-header {
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-status-body {
+            padding: 15px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .task-item {
+            margin-bottom: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .task-item:last-child {
+            margin-bottom: 0;
+        }
+        .task-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        .task-progress {
+            height: 8px;
+            margin-bottom: 5px;
+        }
+        .task-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .task-status-controls {
+            display: flex;
+        }
+        .task-minimize-btn i {
+            transition: transform 0.3s ease;
+        }
+        .minimized .task-minimize-btn i {
+            transform: rotate(180deg);
+        }
+        .task-hidden {
+            display: none;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// 添加进度条和状态显示区域
+function createImportStatusUI() {
+    // 检查是否已存在
+    if (document.getElementById('importStatus')) {
+        return;
+    }
+
+    const statusDiv = document.createElement('div');
+    statusDiv.id = 'importStatus';
+    statusDiv.className = 'mt-3 d-none';
+    statusDiv.innerHTML = `
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">导入进度</h6>
+                <button type="button" class="btn-close" aria-label="Close" onclick="hideImportStatus()"></button>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3">
+                    <div id="importProgressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div id="importStatusText" class="text-center">准备导入...</div>
+                <div id="importResult" class="mt-3 d-none">
+                    <h6>导入结果</h6>
+                    <div id="importResultContent"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 添加到表单后面
+    const importForm = document.getElementById('importForm');
+    importForm.parentNode.insertBefore(statusDiv, importForm.nextSibling);
+}
+
+// 显示导入状态UI
+function showImportStatus() {
+    const statusDiv = document.getElementById('importStatus');
+    if (statusDiv) {
+        statusDiv.classList.remove('d-none');
+    }
+}
+
+// 隐藏导入状态UI
+function hideImportStatus() {
+    const statusDiv = document.getElementById('importStatus');
+    if (statusDiv) {
+        statusDiv.classList.add('d-none');
+        // 重置进度条和状态
+        document.getElementById('importProgressBar').style.width = '0%';
+        document.getElementById('importProgressBar').setAttribute('aria-valuenow', '0');
+        document.getElementById('importStatusText').textContent = '准备导入...';
+        document.getElementById('importResult').classList.add('d-none');
+    }
+}
+
+// 更新进度条
+function updateImportProgress(progress, statusText) {
+    const progressBar = document.getElementById('importProgressBar');
+    const statusTextElement = document.getElementById('importStatusText');
+
+    if (progressBar && statusTextElement) {
+        progressBar.style.width = `${progress}%`;
+        progressBar.setAttribute('aria-valuenow', progress);
+        statusTextElement.textContent = statusText || `导入中 ${progress}%`;
+    }
+}
+
+// 显示导入结果
+function showImportResult(success, message) {
+    const resultDiv = document.getElementById('importResult');
+    const resultContent = document.getElementById('importResultContent');
+
+    if (resultDiv && resultContent) {
+        resultDiv.classList.remove('d-none');
+        resultContent.innerHTML = message.replace(/\n/g, '<br>');
+
+        // 设置进度条状态
+        const progressBar = document.getElementById('importProgressBar');
+        if (progressBar) {
+            progressBar.classList.remove('progress-bar-animated');
+            if (success) {
+                progressBar.classList.remove('bg-danger');
+                progressBar.classList.add('bg-success');
+            } else {
+                progressBar.classList.remove('bg-success');
+                progressBar.classList.add('bg-danger');
+            }
+        }
+    }
+}
+
+// 更新任务面板中的任务列表
+function updateTaskPanel() {
+    const taskList = document.getElementById('taskList');
+    if (!taskList) return;
+
+    const runningTasks = TaskManager.getRunningTasks();
+    const taskIds = Object.keys(runningTasks);
+
+    if (taskIds.length === 0) {
+        taskList.innerHTML = '<div class="text-center text-muted py-3">没有正在进行的任务</div>';
+        return;
+    }
+
+    let html = '';
+    for (const taskId of taskIds) {
+        const task = runningTasks[taskId];
+        const progress = task.progress || 0;
+        const statusText = getStatusText({status: task.status, progress: progress});
+
+        html += `
+            <div class="task-item" data-task-id="${taskId}">
+                <div class="task-title">${task.description || '用户导入任务'}</div>
+                <div class="progress task-progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar" style="width: ${progress}%"
+                         aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="task-info">
+                    <span>${statusText}</span>
+                    <span>开始于: ${new Date(task.startTime).toLocaleTimeString()}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    taskList.innerHTML = html;
+
+    // 显示任务面板
+    showTaskPanel();
+}
+
+// 显示任务面板
+function showTaskPanel() {
+    createTaskStatusPanel();
+    const panel = document.getElementById('taskStatusPanel');
+    if (panel) {
+        panel.classList.remove('task-hidden');
+    }
+}
+
+// 隐藏任务面板
+function hideTaskPanel() {
+    const panel = document.getElementById('taskStatusPanel');
+    if (panel) {
+        panel.classList.add('task-hidden');
+    }
+}
+
+// 切换任务面板最小化状态
+function toggleTaskPanel() {
+    const panel = document.getElementById('taskStatusPanel');
+    if (panel) {
+        panel.classList.toggle('minimized');
+    }
+}
+
+// 轮询任务状态
+async function pollTaskStatus(taskId) {
+    try {
+        const response = await fetch(`/api/admin/tasks/${taskId}`);
+        if (!response.ok) {
+            throw new Error(`获取任务状态失败: ${response.status}`);
+        }
+
+        const task = await response.json();
+        console.log('Task status:', task);
+
+        // 更新本地任务状态
+        TaskManager.updateTask(
+            taskId,
+            task.status,
+            task.progress,
+            task.result
+        );
+
+        // 更新任务面板
+        updateTaskPanel();
+
+        // 更新当前页面的进度条（如果存在）
+        updateImportProgress(task.progress, getStatusText(task));
+
+        // 检查任务是否完成
+        if (task.status === 'completed') {
+            // 显示成功结果
+            let message = `成功导入 ${task.result.count} 个用户`;
+
+            // 显示跳过的用户数量
+            if (task.result.skipped && task.result.skipped > 0) {
+                message += `\n跳过 ${task.result.skipped} 个已存在的用户`;
+            }
+
+            // 显示错误信息
+            if (task.result.errors && task.result.errors.length > 0) {
+                message += `\n失败/跳过详情 ${task.result.errors.length} 条`;
+                const errorMessages = task.result.errors.slice(0, 5);
+                message += '\n' + errorMessages.join('\n');
+                if (task.result.errors.length > 5) {
+                    message += `\n... 等共 ${task.result.errors.length} 条信息`;
+                }
+            }
+
+            showImportResult(true, message);
+            loadUsers();  // 重新加载用户列表
+            return true;
+        } else if (task.status === 'failed') {
+            // 显示失败结果
+            showImportResult(false, `导入失败: ${task.error || '未知错误'}`);
+            return true;
+        }
+
+        // 任务仍在进行中，继续轮询
+        return false;
+    } catch (error) {
+        console.error('轮询任务状态失败:', error);
+        updateImportProgress(0, '获取任务状态失败');
+        showImportResult(false, `获取任务状态失败: ${error.message}`);
+
+        // 更新本地任务状态为失败
+        TaskManager.updateTask(taskId, 'failed', 0, {
+            error: `获取任务状态失败: ${error.message}`
+        });
+
+        // 更新任务面板
+        updateTaskPanel();
+
+        return true;  // 停止轮询
+    }
+}
+
+// 根据任务状态获取显示文本
+function getStatusText(task) {
+    switch (task.status) {
+        case 'pending':
+            return '等待处理...';
+        case 'running':
+            return `导入中 ${task.progress}%`;
+        case 'completed':
+            return '导入完成';
+        case 'failed':
+            return '导入失败';
+        default:
+            return `未知状态: ${task.status}`;
+    }
+}
+
+// 检查并恢复正在运行的任务
+function checkRunningTasks() {
+    // 清理过期任务
+    TaskManager.cleanupTasks();
+
+    // 获取正在运行的任务
+    const runningTasks = TaskManager.getRunningTasks();
+    const taskIds = Object.keys(runningTasks);
+
+    if (taskIds.length > 0) {
+        console.log(`发现 ${taskIds.length} 个正在运行的任务`);
+
+        // 更新任务面板
+        updateTaskPanel();
+
+        // 为每个任务启动轮询
+        for (const taskId of taskIds) {
+            console.log(`恢复轮询任务: ${taskId}`);
+
+            // 启动轮询
+            const pollInterval = setInterval(async () => {
+                const isDone = await pollTaskStatus(taskId);
+                if (isDone) {
+                    clearInterval(pollInterval);
+                }
+            }, 2000);  // 每2秒轮询一次
+        }
+    }
+}
+
 document.getElementById('importForm').onsubmit = async function(e) {
     e.preventDefault();
-    
+
     const submitButton = this.querySelector('button[type="submit"]');
     setButtonLoading(submitButton, true);
-    
+
     const formData = new FormData();
     const fileInput = document.getElementById('file');
-    
+
     if (!fileInput.files[0]) {
         alert('请选择要导入的文件');
         setButtonLoading(submitButton, false);
         return;
     }
-    
+
     formData.append('file', fileInput.files[0]);
-    
+
+    // 创建并显示进度UI
+    createImportStatusUI();
+    showImportStatus();
+    updateImportProgress(0, '准备导入...');
+
     try {
         const response = await fetch('/api/admin/users/import', {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (response.ok) {
-            let message = `成功导入 ${result.count} 个用户`;
-            if (result.errors && result.errors.length > 0) {
-                message += `\n失败 ${result.errors.length} 个`;
-                const errorMessages = result.errors.slice(0, 5);
-                message += '\n' + errorMessages.join('\n');
-                if (result.errors.length > 5) {
-                    message += `\n... 等共 ${result.errors.length} 个错误`;
+            if (result.task_id) {
+                // 后台任务模式
+                updateImportProgress(5, '文件已上传，开始处理...');
+
+                // 保存任务到本地存储
+                const fileName = fileInput.files[0].name;
+                TaskManager.saveTask(
+                    result.task_id,
+                    'user_import',
+                    `导入用户 - ${fileName}`
+                );
+
+                // 更新任务面板
+                updateTaskPanel();
+
+                // 开始轮询任务状态
+                const pollInterval = setInterval(async () => {
+                    const isDone = await pollTaskStatus(result.task_id);
+                    if (isDone) {
+                        clearInterval(pollInterval);
+                        setButtonLoading(submitButton, false);
+                    }
+                }, 2000);  // 每2秒轮询一次
+            } else {
+                // 兼容旧版API响应
+                let message = `成功导入 ${result.count || 0} 个用户`;
+
+                // 显示跳过的用户数量
+                if (result.skipped && result.skipped > 0) {
+                    message += `\n跳过 ${result.skipped} 个已存在的用户`;
                 }
+
+                // 显示错误信息
+                if (result.errors && result.errors.length > 0) {
+                    message += `\n失败/跳过详情 ${result.errors.length} 条`;
+                    const errorMessages = result.errors.slice(0, 5);
+                    message += '\n' + errorMessages.join('\n');
+                    if (result.errors.length > 5) {
+                        message += `\n... 等共 ${result.errors.length} 条信息`;
+                    }
+                }
+
+                updateImportProgress(100, '导入完成');
+                showImportResult(true, message);
+                loadUsers();  // 重新加载用户列表
+                setButtonLoading(submitButton, false);
             }
-            alert(message);
-            loadUsers();  // 重新加载用户列表
         } else {
-            alert(result.error || '导入失败');
+            updateImportProgress(100, '导入失败');
+            showImportResult(false, result.error || '导入失败');
+            setButtonLoading(submitButton, false);
         }
     } catch (error) {
         console.error('导入失败：', error);
-        alert('导入失败：' + (error.message || '未知错误'));
-    } finally {
+        updateImportProgress(0, '导入失败');
+        showImportResult(false, '导入失败：' + (error.message || '未知错误'));
         setButtonLoading(submitButton, false);
+    } finally {
         fileInput.value = '';
     }
 };
@@ -171,14 +681,14 @@ async function loadUsers() {
                 'Accept': 'application/json',
             }
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         // 保存所有用户数据
         allUsers = await response.json();
-        
+
         // 应用当前筛选和搜索
         filterAndDisplayUsers();
     } catch (error) {
@@ -195,17 +705,17 @@ function filterAndDisplayUsers() {
     if (currentFilter !== 'all') {
         filteredUsers = allUsers.filter(user => user.role === currentFilter);
     }
-    
+
     // 然后应用搜索条件
     if (currentSearchTerm) {
         const searchLower = currentSearchTerm.toLowerCase();
-        filteredUsers = filteredUsers.filter(user => 
+        filteredUsers = filteredUsers.filter(user =>
             (user.username && user.username.toLowerCase().includes(searchLower)) ||
             (user.name && user.name.toLowerCase().includes(searchLower)) ||
             (user.department && user.department.toLowerCase().includes(searchLower))
         );
     }
-    
+
     // 显示筛选后的用户列表
     displayUsers(filteredUsers);
 }
@@ -221,8 +731,8 @@ function displayUsers(users) {
                 <td>${user.department || ''}</td>
                 <td>${getRoleText(user.role) || ''}</td>
                 <td>
-                    <button 
-                        class="btn btn-sm ${isAdmin ? 'btn-success' : 'btn-outline-secondary'}" 
+                    <button
+                        class="btn btn-sm ${isAdmin ? 'btn-success' : 'btn-outline-secondary'}"
                         onclick="toggleAdminRole('${user.username}', ${isAdmin})"
                         data-original-text="${isAdmin ? '取消管理员' : '设为管理员'}"
                     >
@@ -250,26 +760,26 @@ async function toggleAdminRole(username, isCurrentlyAdmin) {
     if (!confirm(`确定要${isCurrentlyAdmin ? '取消' : '设置'}该用户的管理员权限吗？`)) {
         return;
     }
-    
+
     try {
         const button = event.target;
         setButtonLoading(button, true);
-        
+
         const response = await fetch(`/api/admin/users/${username}/toggle-admin`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || '操作失败');
         }
-        
+
         const result = await response.json();
         alert(result.message || '操作成功');
-        
+
         // 重新加载用户列表
         loadUsers();
     } catch (error) {
@@ -280,15 +790,15 @@ async function toggleAdminRole(username, isCurrentlyAdmin) {
 
 async function deleteUser(username) {
     if (!confirm('确定要删除此用户吗？')) return;
-    
+
     const button = event.target;
     setButtonLoading(button, true);
-    
+
     try {
         const response = await fetch(`/api/admin/users/${username}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
             await loadUsers();  // 重新加载用户列表
         } else {
@@ -311,12 +821,12 @@ async function downloadTemplate() {
                 'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             }
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`下载失败: ${errorText}`);
         }
-        
+
         // 获取文件名
         const contentDisposition = response.headers.get('Content-Disposition');
         let filename = '用户导入模板.xlsx';
@@ -326,7 +836,7 @@ async function downloadTemplate() {
                 filename = matches[1].replace(/['"]/g, '');
             }
         }
-        
+
         // 下载文件
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -337,7 +847,7 @@ async function downloadTemplate() {
         a.click();
         window.URL.revokeObjectURL(url);
         a.remove();
-        
+
         console.log('Template downloaded successfully');  // 添加调试信息
     } catch (error) {
         console.error('下载模板失败：', error);
@@ -347,14 +857,18 @@ async function downloadTemplate() {
 
 // 页面加载时获取用户列表
 document.addEventListener('DOMContentLoaded', function() {
+    // 加载用户列表
     loadUsers();
-    
+
+    // 检查是否有正在运行的任务
+    checkRunningTasks();
+
     // 搜索功能
     document.getElementById('searchButton').addEventListener('click', function() {
         currentSearchTerm = document.getElementById('searchInput').value.trim();
         filterAndDisplayUsers();
     });
-    
+
     // 回车键搜索
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
@@ -362,31 +876,40 @@ document.addEventListener('DOMContentLoaded', function() {
             filterAndDisplayUsers();
         }
     });
-    
+
     // 角色筛选功能
     document.getElementById('filterAll').addEventListener('click', function() {
         setActiveFilter(this);
         currentFilter = 'all';
         filterAndDisplayUsers();
     });
-    
+
     document.getElementById('filterStudent').addEventListener('click', function() {
         setActiveFilter(this);
         currentFilter = 'student';
         filterAndDisplayUsers();
     });
-    
+
     document.getElementById('filterTeacher').addEventListener('click', function() {
         setActiveFilter(this);
         currentFilter = 'teacher';
         filterAndDisplayUsers();
     });
-    
+
     document.getElementById('filterAdmin').addEventListener('click', function() {
         setActiveFilter(this);
         currentFilter = 'admin';
         filterAndDisplayUsers();
     });
+
+    // 定期检查任务状态（每30秒）
+    setInterval(function() {
+        // 检查是否有新的任务需要显示
+        const runningTasks = TaskManager.getRunningTasks();
+        if (Object.keys(runningTasks).length > 0) {
+            updateTaskPanel();
+        }
+    }, 30000);
 });
 
 // 设置当前激活的筛选按钮
@@ -396,10 +919,10 @@ function setActiveFilter(button) {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline-primary');
     });
-    
+
     // 给当前按钮添加 active 类
     button.classList.remove('btn-outline-primary');
     button.classList.add('btn-primary');
 }
 </script>
-{% endblock %} 
+{% endblock %}

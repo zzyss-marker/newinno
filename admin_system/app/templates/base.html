@@ -11,71 +11,71 @@
             --primary-color: #1a73e8;
             --sidebar-width: 250px;
         }
-        
+
         body {
             background-color: #f8f9fa;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
-        
+
         .navbar {
             padding: 0.8rem 1rem;
             box-shadow: 0 2px 4px rgba(0,0,0,.08);
             background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
         }
-        
+
         .navbar-brand {
             font-size: 1.4rem;
             font-weight: 500;
             color: white !important;
         }
-        
+
         .nav-item {
             margin: 0 5px;
         }
-        
+
         .nav-link {
             color: rgba(255,255,255,0.9) !important;
             padding: 0.8rem 1rem !important;
             border-radius: 4px;
             transition: all 0.3s ease;
         }
-        
+
         .nav-link:hover {
             background-color: rgba(255,255,255,0.1);
             color: white !important;
         }
-        
+
         .nav-item.active .nav-link {
             background-color: rgba(255,255,255,0.2);
             color: white !important;
         }
-        
+
         .container {
             max-width: 1400px;
             padding: 2rem;
         }
-        
+
         .card {
             border: none;
             border-radius: 8px;
             box-shadow: 0 2px 12px rgba(0,0,0,.08);
             transition: transform 0.3s ease;
         }
-        
+
         .card:hover {
             transform: translateY(-5px);
         }
-        
+
         .card-body {
             padding: 2rem;
         }
-        
+
         .card-title {
             color: #2c3e50;
             font-weight: 600;
             margin-bottom: 1rem;
         }
-        
+
         .btn-primary {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
@@ -84,30 +84,30 @@
             font-weight: 500;
             transition: all 0.3s ease;
         }
-        
+
         .btn-primary:hover {
             background-color: #1557b0;
             border-color: #1557b0;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(26,115,232,0.3);
         }
-        
+
         .alert {
             border-radius: 8px;
             border: none;
             box-shadow: 0 2px 8px rgba(0,0,0,.05);
         }
-        
+
         /* 添加动画效果 */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
+
         .container > * {
             animation: fadeIn 0.5s ease-out forwards;
         }
-        
+
         /* 添加加载遮罩样式 */
         .loading-overlay {
             position: fixed;
@@ -167,6 +167,37 @@
             top: 50%;
             margin-top: -8px;
             animation: spin 1s linear infinite;
+        }
+
+        /* 页脚样式 */
+        .footer {
+            margin-top: 3rem;
+            padding: 1rem 0;
+            border-top: 1px solid rgba(0,0,0,.1);
+        }
+
+        .footer-stats {
+            font-size: 0.95rem;
+        }
+
+        .stat-item {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            background-color: rgba(0,0,0,.03);
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            background-color: rgba(0,0,0,.05);
+            transform: translateY(-2px);
+        }
+
+        #userCount, #reservationCount {
+            font-weight: 600;
+            color: #1a73e8;
+            margin: 0 0.25rem;
         }
     </style>
 </head>
@@ -229,6 +260,29 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- 页脚统计信息 -->
+    <footer class="footer mt-auto py-3 bg-light">
+        <div class="container text-center">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="footer-stats d-flex justify-content-center align-items-center">
+                        <div class="stat-item mx-3">
+                            <i class="fas fa-users text-primary mr-2"></i>
+                            <span id="userCount">--</span> 位用户
+                        </div>
+                        <div class="stat-item mx-3">
+                            <i class="fas fa-calendar-check text-success mr-2"></i>
+                            <span id="reservationCount">--</span> 条预约记录
+                        </div>
+                    </div>
+                    <div class="mt-2 text-muted small">
+                        创新工坊预约系统 &copy; 2025
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -271,7 +325,31 @@
             button.disabled = false;
         }
     };
+
+    // 获取统计数据
+    function fetchSummaryStats() {
+        fetch('/api/admin/stats/summary')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('获取统计数据失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 更新页脚统计数据
+                document.getElementById('userCount').textContent = data.user_count.toLocaleString();
+                document.getElementById('reservationCount').textContent = data.reservation_count.toLocaleString();
+            })
+            .catch(error => {
+                console.error('获取统计数据出错:', error);
+            });
+    }
+
+    // 页面加载完成后获取统计数据
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchSummaryStats();
+    });
     </script>
     {% block scripts %}{% endblock %}
 </body>
-</html> 
+</html>
