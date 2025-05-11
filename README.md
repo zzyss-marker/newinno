@@ -251,6 +251,8 @@ nohup python3 runme.py > /dev/null 2>&1 &     #不输出到日志且在后台持
    - 监控API响应时间和数据库查询性能
    - 适当调整并发连接数和缓存策略
    - 测试命令（test）：locust -f locustfile.py --host=[http://localhost:8001](http://localhost:8001/)
+   - 先在根目录下生成测试账号：python create_test_user.py
+   - 并发预约测试（test）：python bulk_reservation_test.py --count 10000 --threads 20
 
 ## 开发者与贡献说明
 
