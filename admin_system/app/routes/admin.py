@@ -180,11 +180,33 @@ def get_template():
 @bp.route('/api/admin/users')
 @login_required
 def get_users():
-    """从后端API获取用户列表"""
+    """从后端API获取用户列表，支持分页和筛选"""
     try:
+        # 获取查询参数
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 50, type=int)
+        search = request.args.get('search')
+        role = request.args.get('role')
+
+        # 构建查询参数
+        params = {
+            'page': page,
+            'page_size': page_size
+        }
+
+        # 添加可选参数
+        if search:
+            params['search'] = search
+        if role:
+            params['role'] = role
+
+        # 记录请求信息
+        current_app.logger.debug(f"Fetching users with params: {params}")
+
         response = make_request(
             'GET',
             get_api_url('admin/users'),
+            params=params,
             headers={'Accept': 'application/json'}
         )
 
@@ -192,7 +214,12 @@ def get_users():
             return jsonify({'error': '找不到用户数据'}), 404
 
         response.raise_for_status()
-        return jsonify(response.json())
+
+        # 记录响应信息
+        result = response.json()
+        current_app.logger.debug(f"Received users data: page {result.get('page')} of {result.get('total_pages')}, total records: {result.get('total')}")
+
+        return jsonify(result)
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error getting users: {str(e)}")
         return jsonify({'error': '获取用户列表失败'}), 500

@@ -36,25 +36,75 @@ def convert_device_names(devices_needed: dict) -> dict:
 @router.get("/reservations/pending")
 async def get_pending_reservations(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_admin),
+    page: int = 1,
+    page_size: int = 10,
+    reservation_type: Optional[str] = None
 ):
-    """获取待审批的预约记录"""
+    """获取待审批的预约记录，支持分页和筛选"""
     try:
-        # 查询所有待审批的预约
-        venue_reservations = db.query(models.VenueReservation).filter(
+        # 构建基础查询
+        venue_query = db.query(models.VenueReservation).filter(
             models.VenueReservation.status == "pending"
-        ).join(models.User).all()
+        ).join(models.User)
 
-        device_reservations = db.query(models.DeviceReservation).filter(
+        device_query = db.query(models.DeviceReservation).filter(
             models.DeviceReservation.status == "pending"
-        ).join(models.User).all()
+        ).join(models.User)
 
-        printer_reservations = db.query(models.PrinterReservation).filter(
+        printer_query = db.query(models.PrinterReservation).filter(
             models.PrinterReservation.status == "pending"
-        ).join(models.User).all()
+        ).join(models.User)
+
+        # 添加预约类型筛选
+        if reservation_type:
+            if reservation_type == 'venue':
+                device_query = device_query.filter(False)  # 不查询设备预约
+                printer_query = printer_query.filter(False)  # 不查询打印机预约
+            elif reservation_type == 'device':
+                venue_query = venue_query.filter(False)  # 不查询场地预约
+                printer_query = printer_query.filter(False)  # 不查询打印机预约
+            elif reservation_type == 'printer':
+                venue_query = venue_query.filter(False)  # 不查询场地预约
+                device_query = device_query.filter(False)  # 不查询设备预约
+
+        # 计算总记录数
+        total_venues = venue_query.count()
+        total_devices = device_query.count()
+        total_printers = printer_query.count()
+        total_count = total_venues + total_devices + total_printers
+
+        # 添加排序 - 按创建时间倒序排列
+        venue_query = venue_query.order_by(models.VenueReservation.created_at.desc())
+        device_query = device_query.order_by(models.DeviceReservation.created_at.desc())
+        printer_query = printer_query.order_by(models.PrinterReservation.created_at.desc())
+
+        # 计算分页偏移量
+        offset = (page - 1) * page_size
+
+        # 执行查询并应用分页
+        venue_reservations = venue_query.offset(offset).limit(page_size).all()
+
+        # 如果场地预约不足page_size，则查询设备预约
+        remaining = page_size - len(venue_reservations)
+        if remaining > 0:
+            device_reservations = device_query.offset(max(0, offset - total_venues)).limit(remaining).all()
+        else:
+            device_reservations = []
+
+        # 如果场地+设备预约不足page_size，则查询打印机预约
+        remaining = page_size - len(venue_reservations) - len(device_reservations)
+        if remaining > 0:
+            printer_reservations = printer_query.offset(max(0, offset - total_venues - total_devices)).limit(remaining).all()
+        else:
+            printer_reservations = []
 
         # 转换为响应格式
-        return {
+        result = {
+            "total": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total_count + page_size - 1) // page_size,
             "venue_reservations": [{
                 "id": r.reservation_id,
                 "user_id": r.user_id,
@@ -100,6 +150,8 @@ async def get_pending_reservations(
                 "approver_name": r.approver_name
             } for r in printer_reservations]
         }
+
+        return result
     except Exception as e:
         print(f"Error getting pending reservations: {str(e)}")
         raise HTTPException(
@@ -110,24 +162,75 @@ async def get_pending_reservations(
 @router.get("/reservations/approved")
 async def get_approved_reservations(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)
+    current_user: models.User = Depends(get_current_admin),
+    page: int = 1,
+    page_size: int = 10,
+    reservation_type: Optional[str] = None
 ):
-    """获取已审批的预约记录"""
+    """获取已审批的预约记录，支持分页和筛选"""
     try:
-        # 获取已审批的预约，包括已归还的设备记录
-        venue_reservations = db.query(models.VenueReservation).filter(
+        # 构建基础查询
+        venue_query = db.query(models.VenueReservation).filter(
             models.VenueReservation.status.in_(['approved', 'rejected'])
-        ).join(models.User).all()
+        ).join(models.User)
 
-        device_reservations = db.query(models.DeviceReservation).filter(
+        device_query = db.query(models.DeviceReservation).filter(
             models.DeviceReservation.status.in_(['approved', 'rejected', 'returned'])
-        ).join(models.User).all()
+        ).join(models.User)
 
-        printer_reservations = db.query(models.PrinterReservation).filter(
+        printer_query = db.query(models.PrinterReservation).filter(
             models.PrinterReservation.status.in_(['approved', 'rejected', 'completed'])
-        ).join(models.User).all()
+        ).join(models.User)
 
-        return {
+        # 添加预约类型筛选
+        if reservation_type:
+            if reservation_type == 'venue':
+                device_query = device_query.filter(False)  # 不查询设备预约
+                printer_query = printer_query.filter(False)  # 不查询打印机预约
+            elif reservation_type == 'device':
+                venue_query = venue_query.filter(False)  # 不查询场地预约
+                printer_query = printer_query.filter(False)  # 不查询打印机预约
+            elif reservation_type == 'printer':
+                venue_query = venue_query.filter(False)  # 不查询场地预约
+                device_query = device_query.filter(False)  # 不查询设备预约
+
+        # 计算总记录数
+        total_venues = venue_query.count()
+        total_devices = device_query.count()
+        total_printers = printer_query.count()
+        total_count = total_venues + total_devices + total_printers
+
+        # 添加排序 - 按创建时间倒序排列
+        venue_query = venue_query.order_by(models.VenueReservation.created_at.desc())
+        device_query = device_query.order_by(models.DeviceReservation.created_at.desc())
+        printer_query = printer_query.order_by(models.PrinterReservation.created_at.desc())
+
+        # 计算分页偏移量
+        offset = (page - 1) * page_size
+
+        # 执行查询并应用分页
+        venue_reservations = venue_query.offset(offset).limit(page_size).all()
+
+        # 如果场地预约不足page_size，则查询设备预约
+        remaining = page_size - len(venue_reservations)
+        if remaining > 0:
+            device_reservations = device_query.offset(max(0, offset - total_venues)).limit(remaining).all()
+        else:
+            device_reservations = []
+
+        # 如果场地+设备预约不足page_size，则查询打印机预约
+        remaining = page_size - len(venue_reservations) - len(device_reservations)
+        if remaining > 0:
+            printer_reservations = printer_query.offset(max(0, offset - total_venues - total_devices)).limit(remaining).all()
+        else:
+            printer_reservations = []
+
+        # 转换为响应格式
+        result = {
+            "total": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total_count + page_size - 1) // page_size,
             "venue_reservations": [{
                 "id": r.reservation_id,
                 "user_id": r.user_id,
@@ -174,6 +277,8 @@ async def get_approved_reservations(
                 "approver_name": r.approver_name
             } for r in printer_reservations]
         }
+
+        return result
     except Exception as e:
         print(f"Error getting approved reservations: {str(e)}")
         raise HTTPException(
@@ -731,20 +836,55 @@ async def get_user_import_template():
         )
 
 @router.get("/users")
-async def get_users(db: Session = Depends(get_db)):
-    """获取用户列表（排除系统管理员）"""
+async def get_users(
+    page: int = 1,
+    page_size: int = 50,
+    search: Optional[str] = None,
+    role: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """获取用户列表（排除系统管理员），支持分页和筛选"""
     try:
-        users = db.query(models.User).filter(
+        # 基础查询 - 排除系统管理员
+        query = db.query(models.User).filter(
             models.User.is_system_admin == False  # 排除系统管理员
-        ).all()
+        )
 
-        return [{
-            "user_id": user.user_id,
-            "username": user.username,
-            "name": user.name,
-            "role": user.role,
-            "department": user.department
-        } for user in users]
+        # 添加搜索条件
+        if search:
+            query = query.filter(
+                (models.User.username.ilike(f"%{search}%")) |
+                (models.User.name.ilike(f"%{search}%")) |
+                (models.User.department.ilike(f"%{search}%"))
+            )
+
+        # 添加角色筛选
+        if role and role != 'all':
+            query = query.filter(models.User.role == role)
+
+        # 计算总记录数
+        total_count = query.count()
+
+        # 添加分页
+        query = query.order_by(models.User.user_id).offset((page - 1) * page_size).limit(page_size)
+
+        # 执行查询
+        users = query.all()
+
+        # 返回分页信息和数据
+        return {
+            "total": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total_count + page_size - 1) // page_size,
+            "data": [{
+                "user_id": user.user_id,
+                "username": user.username,
+                "name": user.name,
+                "role": user.role,
+                "department": user.department
+            } for user in users]
+        }
     except Exception as e:
         print(f"Error getting users: {str(e)}")
         raise HTTPException(

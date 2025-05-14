@@ -25,7 +25,13 @@ Page({
       { key: 'device', name: '设备预约' },
       { key: 'printer', name: '打印预约' }
     ],
-    deviceNameMap: deviceNameMap
+    deviceNameMap: deviceNameMap,
+    // 分页相关
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+    totalRecords: 0,
+    hasMoreData: true
   },
 
   onLoad() {
@@ -53,18 +59,42 @@ Page({
     }
   },
 
-  async loadData() {
-    const { currentTab, reservationType } = this.data
+  async loadData(loadMore = false) {
+    const { currentTab, reservationType, page, pageSize } = this.data
 
+    if (this.data.isLoading) return;
     this.setData({ isLoading: true })
 
     try {
-      let response
+      // 如果是加载更多，增加页码，否则重置为第一页
+      const currentPage = loadMore ? page + 1 : 1;
+
+      // 构建请求参数
+      const params = {
+        page: currentPage,
+        page_size: pageSize,
+        reservation_type: reservationType !== 'all' ? reservationType : undefined
+      };
+
+      let response;
       if (currentTab === 'pending') {
-        response = await get('/admin/reservations/pending')
+        response = await get('/admin/reservations/pending', { data: params });
       } else {
-        response = await get('/admin/reservations/approved')
+        response = await get('/admin/reservations/approved', { data: params });
       }
+
+      // 检查响应格式
+      if (!response) {
+        throw new Error('无效的响应数据');
+      }
+
+      // 更新分页信息
+      this.setData({
+        page: currentPage,
+        totalPages: response.total_pages || 1,
+        totalRecords: response.total || 0,
+        hasMoreData: response.total_pages ? currentPage < response.total_pages : false
+      });
 
       const formattedList = [
         ...response.venue_reservations.map(item => ({
@@ -103,9 +133,16 @@ Page({
         filteredList = filteredList.filter(item => item.type === reservationType)
       }
 
-      this.setData({
-        pendingList: filteredList
-      })
+      // 如果是加载更多，追加记录，否则替换记录
+      if (loadMore) {
+        this.setData({
+          pendingList: [...this.data.pendingList, ...filteredList]
+        });
+      } else {
+        this.setData({
+          pendingList: filteredList
+        });
+      }
     } catch (error) {
       console.error('加载数据失败:', error)
       wx.showToast({
@@ -128,7 +165,9 @@ Page({
 
     this.setData({
       currentTab: tab,
-      pendingList: [] // 清空列表，等待新数据加载
+      pendingList: [], // 清空列表，等待新数据加载
+      page: 1, // 重置页码
+      hasMoreData: true // 重置加载状态
     })
 
     this.loadData()
@@ -141,10 +180,19 @@ Page({
 
     this.setData({
       reservationType: type,
-      pendingList: [] // 清空列表，等待新数据加载
+      pendingList: [], // 清空列表，等待新数据加载
+      page: 1, // 重置页码
+      hasMoreData: true // 重置加载状态
     })
 
     this.loadData()
+  },
+
+  // 添加上拉加载更多
+  onReachBottom() {
+    if (this.data.hasMoreData && !this.data.isLoading) {
+      this.loadData(true);
+    }
   },
 
   // 显示通过确认对话框
@@ -182,7 +230,10 @@ Page({
   // 修改原有的处理函数
   async handleApprove(id, type) {
     try {
-      this.setData({ isLoading: true })
+      this.setData({
+        isLoading: true
+        // 不要在这里清空列表，避免界面闪烁或崩溃
+      })
 
       await post('/admin/reservations/approve', {
         id: parseInt(id),
@@ -195,8 +246,18 @@ Page({
         icon: 'success'
       })
 
-      // 重新加载当前页面数据
-      this.loadData()
+      // 重置页码
+      this.setData({
+        page: 1,
+        hasMoreData: true
+      })
+
+      // 在这里清空列表并重新加载数据
+      setTimeout(() => {
+        this.setData({ pendingList: [] });
+        this.loadData();
+      }, 300); // 延迟执行，确保UI更新完成
+
     } catch (error) {
       console.error('审批失败:', error)
       wx.showToast({
@@ -210,7 +271,10 @@ Page({
 
   async handleReject(id, type) {
     try {
-      this.setData({ isLoading: true })
+      this.setData({
+        isLoading: true
+        // 不要在这里清空列表，避免界面闪烁或崩溃
+      })
 
       await post('/admin/reservations/approve', {
         id: parseInt(id),
@@ -223,8 +287,18 @@ Page({
         icon: 'success'
       })
 
-      // 重新加载当前页面数据
-      this.loadData()
+      // 重置页码
+      this.setData({
+        page: 1,
+        hasMoreData: true
+      })
+
+      // 在这里清空列表并重新加载数据
+      setTimeout(() => {
+        this.setData({ pendingList: [] });
+        this.loadData();
+      }, 300); // 延迟执行，确保UI更新完成
+
     } catch (error) {
       console.error('操作失败:', error)
       wx.showToast({

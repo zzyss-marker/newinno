@@ -248,6 +248,38 @@
   100% { transform: rotate(360deg); }
 }
 
+.load-more-tip {
+  text-align: center;
+  color: #999;
+  font-size: 24rpx;
+  padding: 20rpx 0;
+}
+
+.loading-more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20rpx 0;
+}
+
+.loading-more .loading-icon {
+  width: 30rpx;
+  height: 30rpx;
+  margin: 0 10rpx 0 0;
+}
+
+.loading-more .loading-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.no-more-data {
+  text-align: center;
+  color: #999;
+  font-size: 24rpx;
+  padding: 20rpx 0;
+}
+
 .devices-list {
   display: inline;
   word-break: keep-all;

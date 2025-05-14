@@ -21,7 +21,14 @@ Page({
     deviceCondition: 'normal',
     returnNote: '',
     printerCondition: 'normal',
-    completionNote: ''
+    completionNote: '',
+    // 分页相关
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+    totalRecords: 0,
+    loading: false,
+    hasMoreData: true
   },
 
   /**
@@ -42,7 +49,8 @@ Page({
    * 生命周期函数--监听页面显示
    */
   onShow() {
-
+    // 每次显示页面时重新加载记录，确保数据最新
+    this.loadRecords();
   },
 
   /**
@@ -70,7 +78,11 @@ Page({
    * 页面上拉触底事件的处理函数
    */
   onReachBottom() {
-
+    // 如果不是未归还标签页，且有更多数据，加载下一页
+    if (this.data.currentTab !== 'unreturned' && this.data.hasMoreData && !this.data.loading) {
+      console.log('触发上拉加载更多');
+      this.loadRecords(true);
+    }
   },
 
   /**
@@ -80,18 +92,56 @@ Page({
 
   },
 
-  async loadRecords() {
+  async loadRecords(loadMore = false) {
     try {
-      const response = await get('/reservations/my-reservations')
-      console.log('API Response:', response)
-      
-      // 检查响应是否是数组
-      const reservations = Array.isArray(response) ? response : []
-      
-      // 直接处理返回的预约记录数组
+      if (this.data.loading) return;
+
+      this.setData({ loading: true });
+
+      // 如果是加载更多，增加页码，否则重置为第一页
+      const page = loadMore ? this.data.page + 1 : 1;
+
+      // 构建请求参数
+      const params = {
+        page: page,
+        page_size: this.data.pageSize
+      };
+
+      // 根据当前标签页设置不同的请求参数
+      if (this.data.currentTab === 'unreturned') {
+        // 对于未归还标签页，请求所有已通过的记录，不使用分页
+        params.status = 'approved';
+        // 设置一个较大的页面大小，一次性获取所有未归还记录
+        params.page_size = 100; // 设置一个足够大的值，确保能获取所有未归还记录
+        console.log('未归还标签页 - 请求参数:', params);
+      } else {
+        // 对于其他标签页，直接使用标签页的key作为status参数
+        params.status = this.data.currentTab;
+        console.log('普通标签页 - 请求参数:', params);
+      }
+
+      console.log('发送请求参数:', params);
+      const response = await get('/reservations/my-reservations', { data: params });
+      console.log('API Response:', response);
+
+      // 检查响应格式
+      if (!response || !response.data) {
+        throw new Error('无效的响应数据');
+      }
+
+      // 更新分页信息
+      this.setData({
+        page: response.page,
+        totalPages: response.total_pages,
+        totalRecords: response.total,
+        hasMoreData: response.page < response.total_pages
+      });
+
+      // 处理返回的预约记录数组
+      const reservations = response.data || [];
       const allRecords = reservations.map(item => {
         let typeText, resourceName, timeText, devicesText = ''
-        
+
         switch(item.type) {
           case 'venue':
             typeText = '场地预约'
@@ -102,8 +152,8 @@ Page({
             if (item.devices_needed) {
               try {
                 // 如果 devices_needed 是字符串，尝试解析它
-                const devicesObj = typeof item.devices_needed === 'string' 
-                  ? JSON.parse(item.devices_needed) 
+                const devicesObj = typeof item.devices_needed === 'string'
+                  ? JSON.parse(item.devices_needed)
                   : item.devices_needed
 
                 const devices = []
@@ -139,13 +189,13 @@ Page({
 
         // 确保创建时间存在
         const createdAt = item.created_at || new Date().toISOString();
-        
+
         // 添加状态信息
         let statusInfo = {}
         if (item.type === 'device') {
           // 读取设备状态 - 无论处于什么状态
           const deviceCondition = item.device_condition || 'normal'
-          
+
           // 仅当设备已归还时显示状态信息
           if (item.status === 'returned') {
             statusInfo = {
@@ -161,16 +211,16 @@ Page({
               usage_type: item.usage_type === 'takeaway' ? '带走使用' : '现场使用',
               teacher_name: item.teacher_name || ''
             }
-            
+
             // 为未归还设备增加额外的提示信息
             if (item.return_time) {
               const returnDate = new Date(item.return_time);
               const now = new Date();
-              
+
               // 检查是否已超过预计归还时间
               if (returnDate < now) {
                 statusInfo.isOverdue = true;
-                
+
                 // 计算超期天数
                 const diffTime = Math.abs(now - returnDate);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -181,7 +231,7 @@ Page({
         } else if (item.type === 'printer') {
           // 读取打印机状态 - 无论处于什么状态
           const printerCondition = item.printer_condition || 'normal'
-          
+
           // 仅当打印机使用已完成时显示状态信息
           if (item.status === 'completed') {
             statusInfo = {
@@ -198,16 +248,16 @@ Page({
               model_name: item.model_name || '未指定',
               teacher_name: item.teacher_name || ''
             }
-            
+
             // 为未完成打印添加过期检测
             if (item.end_time) {
               const endDate = new Date(item.end_time);
               const now = new Date();
-              
+
               // 检查是否已超过预计结束时间
               if (endDate < now) {
                 statusInfo.isOverdue = true;
-                
+
                 // 计算超期天数
                 const diffTime = Math.abs(now - endDate);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -232,7 +282,7 @@ Page({
           _device_condition: item.type === 'device' ? item.device_condition : undefined,
           _printer_condition: item.type === 'printer' ? item.printer_condition : undefined
         }
-        
+
         return record
       })
 
@@ -244,35 +294,62 @@ Page({
       // 修改筛选逻辑，处理状态值的映射
       const records = allRecords.filter(record => {
         // 获取记录状态
-        let recordStatus = String(record.status).toLowerCase()
-        
-        // 对于未归还标签页，只显示已通过但未归还的设备
+        let recordStatus = String(record.status).toLowerCase();
+
+        // 记录详细信息用于调试
+        console.log(`记录ID: ${record.id}, 类型: ${record.type}, 状态: ${recordStatus}, 当前标签页: ${this.data.currentTab}`);
+
+        // 对于未归还标签页，只显示已通过但未归还的设备或未完成的打印机
         if (this.data.currentTab === 'unreturned') {
-          return (record.type === 'device' && 
-                   recordStatus === 'approved' && 
-                   record.status !== 'returned') ||
-                 (record.type === 'printer' &&
-                   recordStatus === 'approved' &&
-                   record.status !== 'completed');
+          // 设备类型且状态为已通过但未归还
+          if (record.type === 'device' && recordStatus === 'approved' && record.status !== 'returned') {
+            console.log(`未归还设备记录: ID=${record.id}, 名称=${record.resourceName}`);
+            return true;
+          }
+
+          // 打印机类型且状态为已通过但未完成
+          if (record.type === 'printer' && recordStatus === 'approved' && record.status !== 'completed') {
+            console.log(`未完成打印机记录: ID=${record.id}, 名称=${record.resourceName}`);
+            return true;
+          }
+
+          return false;
         }
-        
+
         // 处理状态映射
         switch(recordStatus) {
           case 'pending':
           case 'approved':
           case 'rejected':
-            return recordStatus === this.data.currentTab
+            return recordStatus === this.data.currentTab;
           case 'completed':
           case 'returned':
             // 将completed和returned状态的记录显示在已通过的标签页中
-            return this.data.currentTab === 'approved'
+            return this.data.currentTab === 'approved';
           default:
-            console.warn('Unknown status:', record.status)
-            return false
+            console.warn('Unknown status:', record.status);
+            return false;
         }
       })
-      
-      this.setData({ records })
+
+      // 记录筛选后的结果数量
+      console.log(`筛选后记录数量: ${records.length}, 当前标签页: ${this.data.currentTab}`);
+
+      // 如果是未归还标签页，显示筛选后的未归还记录总数
+      if (this.data.currentTab === 'unreturned' && records.length > 0) {
+        console.log(`未归还记录总数: ${records.length}`);
+      }
+
+      // 如果是加载更多，追加记录，否则替换记录
+      if (loadMore && this.data.currentTab !== 'unreturned') {
+        // 仅在非未归还标签页使用加载更多功能
+        this.setData({
+          records: [...this.data.records, ...records]
+        });
+      } else {
+        // 替换记录
+        this.setData({ records });
+      }
     } catch (error) {
       console.error('加载预约记录失败:', error)
       wx.showToast({
@@ -280,15 +357,25 @@ Page({
         icon: 'none'
       })
     } finally {
-      wx.stopPullDownRefresh()
+      this.setData({ loading: false });
+      wx.stopPullDownRefresh();
     }
   },
 
   switchTab(e) {
     const { tab } = e.currentTarget.dataset
-    this.setData({ currentTab: tab }, () => {
-      this.loadRecords()
-    })
+    console.log(`切换到标签页: ${tab}`);
+
+    // 重置分页信息
+    this.setData({
+      currentTab: tab,
+      page: 1,
+      hasMoreData: true,
+      records: [] // 清空当前记录，避免显示旧数据
+    }, () => {
+      // 设置完成后加载新数据
+      this.loadRecords();
+    });
   },
 
   // 辅助函数：获取场地类型名称
@@ -431,28 +518,28 @@ Page({
       // 添加更详细的日志
       console.log('====== 设备归还开始 ======')
       console.log(`提交设备归还 - ID: ${currentId}, 状态: ${deviceCondition}, 备注: ${returnNote}`)
-      
+
       // 创建请求数据
       const requestData = {
         id: currentId,
         device_condition: deviceCondition,
         return_note: returnNote.trim() || null
       }
-      
+
       console.log('发送归还请求数据:', JSON.stringify(requestData))
-      
+
       // 直接归还，无需审批
       const response = await post('/reservations/device/return-direct', requestData)
 
       console.log('设备归还API响应:', JSON.stringify(response))
-      
+
       wx.hideLoading()
       this.hideReturnDialog()
 
       // 检查响应中是否包含设备状态信息
       const responseCondition = response?.device_condition || deviceCondition
       console.log(`服务器返回的设备状态: ${responseCondition}`)
-      
+
       wx.showToast({
         title: '归还成功',
         icon: 'success'
@@ -482,7 +569,7 @@ Page({
         }
         return record
       })
-      
+
       this.setData({ records: updatedRecords })
       console.log('====== 设备归还完成 ======')
 
@@ -530,21 +617,21 @@ Page({
       // 添加更详细的日志
       console.log('====== 打印机使用完成开始 ======')
       console.log(`提交打印机使用完成 - ID: ${currentId}, 状态: ${printerCondition}, 备注: ${completionNote}`)
-      
+
       // 创建请求数据
       const requestData = {
         id: currentId,
         printer_condition: printerCondition,
         completion_note: completionNote.trim() || null
       }
-      
+
       console.log('发送完成请求数据:', JSON.stringify(requestData))
-      
+
       // 直接完成，无需审批
       const response = await post('/reservations/printer/complete-direct', requestData)
 
       console.log('打印机使用完成API响应:', JSON.stringify(response))
-      
+
       wx.hideLoading()
       this.hideCompletionDialog()
 
@@ -556,7 +643,7 @@ Page({
         title: '提交成功',
         icon: 'success'
       })
-      
+
       // 立即更新本地数据，确保状态正确展示
       const updatedRecords = this.data.records.map(record => {
         if (record.id === currentId) {
@@ -581,7 +668,7 @@ Page({
         }
         return record
       })
-      
+
       this.setData({ records: updatedRecords })
       console.log('====== 打印机使用完成完成 ======')
 
@@ -598,7 +685,7 @@ Page({
       })
     }
   },
-  
+
   // 获取状态文本
   getStatusText(status, type) {
     const statusMap = {
@@ -608,7 +695,7 @@ Page({
       'returned': '已归还',
       'completed': '已完成'
     }
-    
+
     return statusMap[status] || status
   }
 })

@@ -2,8 +2,8 @@
 <view class="container">
   <!-- 顶部标签栏 -->
   <view class="tabs">
-    <view 
-      wx:for="{{tabs}}" 
+    <view
+      wx:for="{{tabs}}"
       wx:key="key"
       class="tab {{currentTab === item.key ? 'active' : ''}} {{item.key === 'unreturned' ? 'unreturned-tab' : ''}}"
       bindtap="switchTab"
@@ -15,19 +15,24 @@
 
   <!-- 记录列表 -->
   <view class="records-list">
-    <view wx:if="{{records.length === 0}}" class="empty-tip">
+    <view wx:if="{{records.length === 0 && !loading}}" class="empty-tip">
       暂无记录
     </view>
-    
+
+    <view wx:if="{{loading && records.length === 0}}" class="loading-tip">
+      <view class="loading-icon"></view>
+      <view class="loading-text">加载中...</view>
+    </view>
+
     <!-- 未归还设备提示条 -->
     <view wx:if="{{currentTab === 'unreturned' && records.length > 0}}" class="unreturned-reminder">
       <view class="reminder-icon">⚠️</view>
       <view class="reminder-text">您有 {{records.length}} 个项目未完成，请及时处理</view>
     </view>
-    
-    <view 
-      wx:for="{{records}}" 
-      wx:key="id" 
+
+    <view
+      wx:for="{{records}}"
+      wx:key="id"
       class="record-item {{currentTab === 'unreturned' && item.statusInfo.isOverdue ? 'overdue-item' : ''}}"
     >
       <view class="record-header">
@@ -58,20 +63,20 @@
           <text class="label">指导老师：</text>
           <text>{{item.teacher_name || item.statusInfo.teacher_name}}</text>
         </view>
-        
+
         <!-- 设备使用类型 -->
         <view class="info-row" wx:if="{{item.type === 'device' && (item.usage_type || (item.statusInfo && item.statusInfo.usage_type))}}">
           <text class="label">使用类型：</text>
           <text>{{item.usage_type === 'takeaway' ? '带走使用' : item.usage_type === 'onsite' ? '现场使用' : item.statusInfo.usage_type || '未知'}}</text>
         </view>
-        
+
         <!-- 过期提示 -->
         <view class="info-row overdue-info" wx:if="{{item.statusInfo && item.statusInfo.isOverdue}}">
           <text class="label">过期提醒：</text>
           <text class="overdue-text" wx:if="{{item.type === 'device'}}">已超过预计归还时间 {{item.statusInfo.overdueDays}} 天，请尽快归还</text>
           <text class="overdue-text" wx:if="{{item.type === 'printer'}}">已超过预计完成时间 {{item.statusInfo.overdueDays}} 天，请尽快处理</text>
         </view>
-        
+
         <!-- 打印机模型名称和预计耗时 -->
         <view class="info-row" wx:if="{{item.type === 'printer' && (item.model_name || (item.statusInfo && item.statusInfo.model_name))}}">
           <text class="label">模型名称：</text>
@@ -81,13 +86,13 @@
           <text class="label">预计耗时：</text>
           <text>{{item.estimated_duration ? item.estimated_duration + '分钟' : item.statusInfo.estimated_duration || '未知'}}</text>
         </view>
-        
+
         <!-- 设备或打印机状态信息 -->
         <view class="info-row status-info" wx:if="{{(item.status === 'returned' && item.type === 'device') || (item.status === 'completed' && item.type === 'printer')}}">
           <text class="status-label">{{item.type === 'device' ? '设备状态' : '打印机状态'}}：</text>
           <text class="status-value {{(item._device_condition === 'damaged' || item._printer_condition === 'damaged' || item.device_condition === 'damaged' || item.printer_condition === 'damaged' || (item.statusInfo && item.statusInfo.condition === 'damaged')) ? 'damaged-status' : 'normal-status'}}">{{(item._device_condition === 'damaged' || item._printer_condition === 'damaged' || item.device_condition === 'damaged' || item.printer_condition === 'damaged' || (item.statusInfo && item.statusInfo.condition === 'damaged')) ? '故障' : '正常'}}</text>
         </view>
-        
+
         <!-- 备注信息 -->
         <view class="info-row note-info" wx:if="{{item.statusInfo && item.statusInfo.note}}">
           <text class="status-label">备注信息：</text>
@@ -97,25 +102,25 @@
 
       <view class="record-footer">
         <text class="time">申请时间：{{item.created_at}}</text>
-        
+
         <!-- 操作按钮区 -->
         <view class="action-buttons" wx:if="{{item.status === 'approved'}}">
           <!-- 设备归还按钮 - 当设备已审批但未归还时显示 -->
-          <button 
-            wx:if="{{item.type === 'device' && item.status !== 'returned'}}" 
-            class="action-btn return-btn {{currentTab === 'unreturned' ? 'highlight-return-btn' : ''}}" 
-            size="mini" 
+          <button
+            wx:if="{{item.type === 'device' && item.status !== 'returned'}}"
+            class="action-btn return-btn {{currentTab === 'unreturned' ? 'highlight-return-btn' : ''}}"
+            size="mini"
             type="primary"
             bindtap="showReturnDialog"
             data-id="{{item.id}}"
             data-type="device"
           >归还设备</button>
-          
+
           <!-- 打印机使用完成按钮 - 当打印机已审批但未完成时显示 -->
-          <button 
-            wx:if="{{item.type === 'printer' && item.status !== 'completed'}}" 
-            class="action-btn complete-btn" 
-            size="mini" 
+          <button
+            wx:if="{{item.type === 'printer' && item.status !== 'completed'}}"
+            class="action-btn complete-btn"
+            size="mini"
             type="primary"
             bindtap="showCompletionDialog"
             data-id="{{item.id}}"
@@ -124,8 +129,24 @@
         </view>
       </view>
     </view>
+
+    <!-- 加载更多提示 - 仅在非未归还标签页显示 -->
+    <view wx:if="{{currentTab !== 'unreturned' && hasMoreData && !loading && records.length > 0}}" class="load-more-tip">
+      上拉加载更多
+    </view>
+
+    <!-- 加载中提示 -->
+    <view wx:if="{{loading && records.length > 0}}" class="loading-more">
+      <view class="loading-icon"></view>
+      <view class="loading-text">加载中...</view>
+    </view>
+
+    <!-- 没有更多数据提示 - 仅在非未归还标签页显示 -->
+    <view wx:if="{{currentTab !== 'unreturned' && !hasMoreData && records.length > 0}}" class="no-more-data">
+      没有更多数据了
+    </view>
   </view>
-  
+
   <!-- 设备归还对话框 -->
   <view class="dialog-mask" wx:if="{{showReturnForm}}" bindtap="hideReturnDialog"></view>
   <view class="dialog-container" wx:if="{{showReturnForm}}">
@@ -146,19 +167,19 @@
           </radio-group>
         </view>
       </view>
-      
+
       <view class="form-item">
         <text class="form-label">
           备注
           <text class="required-mark" wx:if="{{deviceCondition === 'damaged'}}">*</text>
           <text class="small-tip" wx:if="{{deviceCondition === 'damaged'}}">（故障状态必填）</text>
         </text>
-        <textarea class="form-textarea {{deviceCondition === 'damaged' ? 'damaged-textarea' : ''}}" 
-                  bindinput="onReturnNoteChange" 
-                  placeholder="{{deviceCondition === 'damaged' ? '请详细描述设备故障情况' : '请描述设备归还情况（选填）'}}" 
+        <textarea class="form-textarea {{deviceCondition === 'damaged' ? 'damaged-textarea' : ''}}"
+                  bindinput="onReturnNoteChange"
+                  placeholder="{{deviceCondition === 'damaged' ? '请详细描述设备故障情况' : '请描述设备归还情况（选填）'}}"
                   value="{{returnNote}}"></textarea>
       </view>
-      
+
       <view class="condition-tips" wx:if="{{deviceCondition === 'damaged'}}">
         <view class="tip-title">
           <text class="tip-icon">⚠️</text> 故障提示
@@ -167,14 +188,14 @@
           设备标记为故障后，系统将通知管理员进行维修处理。请务必详细描述故障情况，以便维修人员及时了解问题。
         </view>
       </view>
-      
+
       <view class="dialog-buttons">
         <button class="cancel-btn" bindtap="hideReturnDialog">取消</button>
         <button class="confirm-btn {{deviceCondition === 'damaged' ? 'damaged-btn' : ''}}" bindtap="submitDeviceReturn">提交归还</button>
       </view>
     </view>
   </view>
-  
+
   <!-- 打印机使用完成对话框 -->
   <view class="dialog-mask" wx:if="{{showCompletionForm}}" bindtap="hideCompletionDialog"></view>
   <view class="dialog-container" wx:if="{{showCompletionForm}}">
@@ -195,19 +216,19 @@
           </radio-group>
         </view>
       </view>
-      
+
       <view class="form-item">
         <text class="form-label">
           备注
           <text class="required-mark" wx:if="{{printerCondition === 'damaged'}}">*</text>
           <text class="small-tip" wx:if="{{printerCondition === 'damaged'}}">（故障状态必填）</text>
         </text>
-        <textarea class="form-textarea {{printerCondition === 'damaged' ? 'damaged-textarea' : ''}}" 
-                  bindinput="onCompletionNoteChange" 
-                  placeholder="{{printerCondition === 'damaged' ? '请详细描述打印机故障情况' : '请描述使用完成情况（选填）'}}" 
+        <textarea class="form-textarea {{printerCondition === 'damaged' ? 'damaged-textarea' : ''}}"
+                  bindinput="onCompletionNoteChange"
+                  placeholder="{{printerCondition === 'damaged' ? '请详细描述打印机故障情况' : '请描述使用完成情况（选填）'}}"
                   value="{{completionNote}}"></textarea>
       </view>
-      
+
       <view class="condition-tips" wx:if="{{printerCondition === 'damaged'}}">
         <view class="tip-title">
           <text class="tip-icon">⚠️</text> 故障提示
@@ -216,7 +237,7 @@
           打印机标记为故障后，系统将通知管理员进行维修处理。请务必详细描述故障情况，以便维修人员及时了解问题。
         </view>
       </view>
-      
+
       <view class="dialog-buttons">
         <button class="cancel-btn" bindtap="hideCompletionDialog">取消</button>
         <button class="confirm-btn {{printerCondition === 'damaged' ? 'damaged-btn' : ''}}" bindtap="submitPrinterCompletion">提交完成</button>

@@ -29,7 +29,7 @@
 
   <!-- 预约列表 -->
   <view class="records-list">
-    <view wx:if="{{isLoading}}" class="loading">
+    <view wx:if="{{isLoading && pendingList.length === 0}}" class="loading">
       <view class="loading-icon"></view>
       <text>加载中...</text>
     </view>
@@ -158,6 +158,22 @@
           >拒绝</button>
         </block>
       </view>
+    </view>
+
+    <!-- 加载更多提示 -->
+    <view wx:if="{{hasMoreData && !isLoading && pendingList.length > 0}}" class="load-more-tip">
+      上拉加载更多
+    </view>
+
+    <!-- 加载中提示 -->
+    <view wx:if="{{isLoading && pendingList.length > 0}}" class="loading-more">
+      <view class="loading-icon"></view>
+      <view class="loading-text">加载中...</view>
+    </view>
+
+    <!-- 没有更多数据提示 -->
+    <view wx:if="{{!hasMoreData && pendingList.length > 0}}" class="no-more-data">
+      没有更多数据了
     </view>
   </view>
 </view>

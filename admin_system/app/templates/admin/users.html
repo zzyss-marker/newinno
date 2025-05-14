@@ -66,6 +66,35 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- 分页控件 -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex align-items-center">
+                    <span id="user-count" class="text-muted">共 0 条记录</span>
+                </div>
+                <div class="d-flex align-items-center">
+                    <label for="page-size-select" class="me-2">每页显示:</label>
+                    <select id="page-size-select" class="form-select form-select-sm" style="width: 80px;">
+                        <option value="20">20</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+                <nav aria-label="用户列表分页">
+                    <ul class="pagination pagination-sm mb-0" id="pagination-controls">
+                        <li class="page-item disabled">
+                            <button class="page-link" id="prev-page">上一页</button>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link" id="pagination-info">第 1 页 / 共 1 页</span>
+                        </li>
+                        <li class="page-item disabled">
+                            <button class="page-link" id="next-page">下一页</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
         </div>
     </div>
 </div>
@@ -196,6 +225,11 @@ let allUsers = [];
 // 当前筛选条件
 let currentFilter = 'all';
 let currentSearchTerm = '';
+// 分页相关
+let currentPage = 1;
+let pageSize = 50;
+let totalPages = 1;
+let totalRecords = 0;
 
 // 创建固定在页面底部的任务状态面板
 function createTaskStatusPanel() {
@@ -233,6 +267,12 @@ function createTaskStatusPanel() {
     // 添加样式
     const style = document.createElement('style');
     style.textContent = `
+        .disabled-link {
+            pointer-events: none;
+            color: #6c757d;
+            text-decoration: none;
+            cursor: not-allowed;
+        }
         .task-status-panel {
             position: fixed;
             bottom: 20px;
@@ -673,24 +713,68 @@ document.getElementById('importForm').onsubmit = async function(e) {
 };
 
 async function loadUsers() {
+    console.log(`开始加载用户列表，当前页: ${currentPage}, 每页数量: ${pageSize}`);
     setTableLoading('userList', true);
     try {
-        const response = await fetch('/api/admin/users', {
+        // 构建查询参数
+        const params = new URLSearchParams({
+            page: currentPage,
+            page_size: pageSize
+        });
+
+        // 添加搜索条件
+        if (currentSearchTerm) {
+            params.append('search', currentSearchTerm);
+        }
+
+        // 添加角色筛选
+        if (currentFilter !== 'all') {
+            params.append('role', currentFilter);
+        }
+
+        const url = `/api/admin/users?${params.toString()}`;
+        console.log(`请求URL: ${url}`);
+
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
             }
         });
 
+        console.log(`响应状态: ${response.status}`);
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        // 保存所有用户数据
-        allUsers = await response.json();
+        // 解析响应数据
+        const result = await response.json();
+        console.log('响应数据:', result);
 
-        // 应用当前筛选和搜索
-        filterAndDisplayUsers();
+        // 更新分页信息
+        if (result.data) {
+            // 新API格式
+            allUsers = result.data;
+            totalRecords = result.total || 0;
+            totalPages = result.total_pages || 1;
+            currentPage = result.page || 1;
+            console.log(`分页信息更新: 总记录数=${totalRecords}, 总页数=${totalPages}, 当前页=${currentPage}`);
+        } else {
+            // 兼容旧API格式
+            allUsers = result;
+            totalRecords = result.length;
+            totalPages = 1;
+            currentPage = 1;
+            console.log(`使用旧API格式: 总记录数=${totalRecords}`);
+        }
+
+        // 更新分页控件
+        updatePaginationControls();
+
+        // 显示用户数据
+        displayUsers(allUsers);
+        console.log(`用户列表加载完成，显示了${allUsers.length}条记录`);
     } catch (error) {
         console.error('加载用户列表失败：', error);
         alert('加载用户列表失败：' + error.message);
@@ -699,25 +783,74 @@ async function loadUsers() {
     }
 }
 
+// 分页函数
+function prevPage() {
+    console.log(`尝试切换到上一页，当前页: ${currentPage}, 总页数: ${totalPages}`);
+    if (currentPage > 1) {
+        currentPage--;
+        console.log(`切换到上一页成功，新页码: ${currentPage}`);
+        loadUsers();
+    } else {
+        console.log('已经是第一页，无法切换到上一页');
+    }
+}
+
+function nextPage() {
+    console.log(`尝试切换到下一页，当前页: ${currentPage}, 总页数: ${totalPages}`);
+    if (currentPage < totalPages) {
+        currentPage++;
+        console.log(`切换到下一页成功，新页码: ${currentPage}`);
+        loadUsers();
+    } else {
+        console.log('已经是最后一页，无法切换到下一页');
+    }
+}
+
+// 更新分页控件
+function updatePaginationControls() {
+    console.log(`更新分页控件: 当前页=${currentPage}, 总页数=${totalPages}, 总记录数=${totalRecords}`);
+
+    // 更新记录总数
+    document.getElementById('user-count').textContent = `共 ${totalRecords} 条记录`;
+
+    // 更新分页信息
+    document.getElementById('pagination-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+
+    // 更新上一页按钮状态
+    const prevPageBtn = document.getElementById('prev-page');
+    const prevPageItem = prevPageBtn.parentElement;
+
+    if (currentPage <= 1) {
+        prevPageBtn.disabled = true;
+        prevPageItem.classList.add('disabled');
+        console.log('禁用上一页按钮');
+    } else {
+        prevPageBtn.disabled = false;
+        prevPageItem.classList.remove('disabled');
+        console.log('启用上一页按钮');
+    }
+
+    // 更新下一页按钮状态
+    const nextPageBtn = document.getElementById('next-page');
+    const nextPageItem = nextPageBtn.parentElement;
+
+    if (currentPage >= totalPages) {
+        nextPageBtn.disabled = true;
+        nextPageItem.classList.add('disabled');
+        console.log('禁用下一页按钮');
+    } else {
+        nextPageBtn.disabled = false;
+        nextPageItem.classList.remove('disabled');
+        console.log('启用下一页按钮');
+    }
+}
+
 function filterAndDisplayUsers() {
-    // 首先按角色筛选
-    let filteredUsers = allUsers;
-    if (currentFilter !== 'all') {
-        filteredUsers = allUsers.filter(user => user.role === currentFilter);
-    }
+    // 重置到第一页
+    currentPage = 1;
 
-    // 然后应用搜索条件
-    if (currentSearchTerm) {
-        const searchLower = currentSearchTerm.toLowerCase();
-        filteredUsers = filteredUsers.filter(user =>
-            (user.username && user.username.toLowerCase().includes(searchLower)) ||
-            (user.name && user.name.toLowerCase().includes(searchLower)) ||
-            (user.department && user.department.toLowerCase().includes(searchLower))
-        );
-    }
-
-    // 显示筛选后的用户列表
-    displayUsers(filteredUsers);
+    // 重新加载用户数据
+    loadUsers();
 }
 
 function displayUsers(users) {
@@ -900,6 +1033,24 @@ document.addEventListener('DOMContentLoaded', function() {
         setActiveFilter(this);
         currentFilter = 'admin';
         filterAndDisplayUsers();
+    });
+
+    // 每页显示数量变更
+    document.getElementById('page-size-select').addEventListener('change', function() {
+        pageSize = parseInt(this.value);
+        currentPage = 1; // 重置到第一页
+        loadUsers();
+    });
+
+    // 分页按钮事件监听
+    document.getElementById('prev-page').addEventListener('click', function(e) {
+        e.preventDefault();
+        prevPage();
+    });
+
+    document.getElementById('next-page').addEventListener('click', function(e) {
+        e.preventDefault();
+        nextPage();
     });
 
     // 定期检查任务状态（每30秒）
