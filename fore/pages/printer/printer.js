@@ -17,7 +17,8 @@ Page({
     modelName: '',
     teacherName: '',
     minDate: '',
-    showForm: false
+    showForm: false,
+    isSubmitting: false // 添加提交状态标记，防止重复提交
   },
 
   /**
@@ -94,13 +95,13 @@ Page({
       const response = await get('/management/devices/status', {
         params: { category: 'printer' }
       })
-      
+
       // 所有打印机默认可用，管理员审核时才会改变状态
       const printers = config.printers.map(printer => ({
         ...printer,
         status: 'available'  // 默认都是可用的
       }))
-      
+
       this.setData({ printers })
     } catch (error) {
       console.error('获取打印机状态失败:', error)
@@ -150,19 +151,19 @@ Page({
     this.setData({
       endTime: e.detail.value
     })
-    
+
     // 如果开始时间和结束时间都已设置，自动计算持续时间
     if (this.data.startTime && this.data.endTime) {
       const start = new Date(`2000-01-01T${this.data.startTime}:00`)
       const end = new Date(`2000-01-01T${this.data.endTime}:00`)
-      
+
       // 如果结束时间早于开始时间，假设跨越了一天
       if (end < start) {
         end.setDate(end.getDate() + 1)
       }
-      
+
       const durationMinutes = Math.round((end - start) / 60000)
-      
+
       this.setData({
         duration: durationMinutes.toString()
       })
@@ -188,8 +189,14 @@ Page({
   },
 
   async handleSubmit() {
+    // 防止重复提交
+    if (this.data.isSubmitting) {
+      console.log('阻止重复提交');
+      return;
+    }
+
     const { selectedPrinter, date, startTime, endTime, duration, modelName, teacherName } = this.data
-    
+
     if (!selectedPrinter || !date || !startTime || !endTime) {
       wx.showToast({
         title: '请填写必要信息（日期、开始和结束时间）',
@@ -199,11 +206,14 @@ Page({
     }
 
     try {
+      // 设置提交状态为true，防止重复提交
+      this.setData({ isSubmitting: true });
+
       wx.showLoading({
         title: '提交中...',
         mask: true
       })
-      
+
       // 格式化日期和时间
       const formattedStartTime = `${date}T${startTime}:00`
       const formattedEndTime = `${date}T${endTime}:00`
@@ -238,6 +248,8 @@ Page({
         title: error.message || '预约失败',
         icon: 'none'
       })
+      // 重置提交状态，允许用户再次尝试提交
+      this.setData({ isSubmitting: false });
     }
   }
 })

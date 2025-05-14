@@ -20,8 +20,46 @@ from ..schemas import (
 from ..utils.auth import get_current_user
 from ..utils.validation import check_reservation_conflict
 from ..models.models import DeviceNames
+import hashlib
+import json
 
 router = APIRouter(prefix="/api/reservations", tags=["reservations"])
+
+# 存储最近处理的请求哈希值，用于防止重复提交
+recent_requests = {}
+
+def generate_request_hash(user_id: int, data: dict) -> str:
+    """生成请求的哈希值，用于检测重复提交"""
+    # 将用户ID和请求数据组合成一个字符串
+    data_str = f"{user_id}_{json.dumps(data, sort_keys=True)}"
+    # 计算哈希值
+    hash_obj = hashlib.md5(data_str.encode())
+    return hash_obj.hexdigest()
+
+def check_duplicate_request(user_id: int, data: dict, request_type: str) -> bool:
+    """检查是否是重复提交的请求
+
+    Args:
+        user_id: 用户ID
+        data: 请求数据
+        request_type: 请求类型（venue, device, printer）
+
+    Returns:
+        bool: 如果是重复请求返回True，否则返回False
+    """
+    # 生成请求哈希值
+    request_hash = generate_request_hash(user_id, data)
+
+    # 检查是否存在相同的请求哈希值
+    key = f"{user_id}_{request_type}"
+    if key in recent_requests and recent_requests[key] == request_hash:
+        # 如果存在相同的请求哈希值，说明是重复提交
+        print(f"检测到重复提交: user_id={user_id}, request_type={request_type}")
+        return True
+
+    # 存储当前请求的哈希值
+    recent_requests[key] = request_hash
+    return False
 
 def convert_device_names(devices_needed: dict) -> dict:
     """将设备名称转换为中文"""
@@ -40,6 +78,13 @@ async def create_venue_reservation(
 ):
     """创建场地预约"""
     try:
+        # 检查是否是重复提交
+        if check_duplicate_request(current_user.user_id, reservation.model_dump(), "venue"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="检测到重复提交，请勿重复点击提交按钮"
+            )
+
         # 创建预约记录
         db_reservation = models.VenueReservation(
             user_id=current_user.user_id,
@@ -84,6 +129,13 @@ async def create_device_reservation(
 ):
     """创建设备预约"""
     try:
+        # 检查是否是重复提交
+        if check_duplicate_request(current_user.user_id, reservation.model_dump(), "device"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="检测到重复提交，请勿重复点击提交按钮"
+            )
+
         # 打印请求数据进行调试
         print(f"接收到设备预约请求: {reservation}")
         print(f"Usage type: {reservation.usage_type}")
@@ -180,6 +232,13 @@ async def create_printer_reservation(
 ):
     """创建打印机预约"""
     try:
+        # 检查是否是重复提交
+        if check_duplicate_request(current_user.user_id, reservation.model_dump(), "printer"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="检测到重复提交，请勿重复点击提交按钮"
+            )
+
         # 解析日期和时间
         reservation_date = datetime.strptime(reservation.reservation_date, "%Y-%m-%d").date()
         print_start_time = datetime.strptime(reservation.print_time, "%Y-%m-%dT%H:%M:%S")
