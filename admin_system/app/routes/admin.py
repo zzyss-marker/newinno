@@ -567,6 +567,12 @@ def get_management_items():
         'status': item.status
     } for item in items])
 
+@bp.route('/statistics')
+@login_required
+def statistics():
+    """数据统计页面"""
+    return render_template('admin/statistics.html')
+
 @bp.route('/api/admin/stats/summary')
 @login_required
 def get_summary_stats():
@@ -586,6 +592,27 @@ def get_summary_stats():
         return jsonify(response.json())
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"获取统计数据时出错: {str(e)}")
+        return jsonify({'error': '请求失败'}), 500
+
+@bp.route('/api/admin/stats/detailed')
+@login_required
+def get_detailed_stats():
+    """获取详细统计数据"""
+    try:
+        response = make_request(
+            'GET',
+            get_api_url('admin/statistics'),
+            headers={'Accept': 'application/json'},
+            timeout=15  # 增加超时时间，因为这个请求可能需要更多处理时间
+        )
+
+        if response.status_code != 200:
+            current_app.logger.error(f"获取详细统计数据失败: {response.status_code}, {response.text}")
+            return jsonify({'error': '获取详细统计数据失败'}), response.status_code
+
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"获取详细统计数据时出错: {str(e)}")
         return jsonify({'error': '请求失败'}), 500
 
 @bp.route('/api/admin/settings/ai-feature', methods=['GET', 'POST'])

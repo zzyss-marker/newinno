@@ -1355,39 +1355,7 @@ async def get_statistics(
             )
             daily_counts.append(total)
 
-        # 4. 设备使用率
-        device_usage = {
-            "names": ["电动螺丝刀", "万用表"],
-            "total": [5, 8],  # 设备总数
-            "used": [
-                db.query(models.DeviceReservation)
-                .filter(
-                    models.DeviceReservation.device_name == "electric_screwdriver",
-                    models.DeviceReservation.status == "approved"
-                ).count(),
-                db.query(models.DeviceReservation)
-                .filter(
-                    models.DeviceReservation.device_name == "multimeter",
-                    models.DeviceReservation.status == "approved"
-                ).count()
-            ]
-        }
 
-        # 5. 场地使用率
-        venue_types = ["lecture", "seminar", "meeting_room"]
-        venue_names = ["讲座", "研讨室", "会议室"]
-        venue_usage = {
-            "types": venue_names,
-            "total": [3, 5, 4],  # 各类场地总数
-            "reserved": [
-                db.query(models.VenueReservation)
-                .filter(
-                    models.VenueReservation.venue_type == venue_type,
-                    models.VenueReservation.status == "approved"
-                ).count()
-                for venue_type in venue_types
-            ]
-        }
 
         return {
             "status_stats": status_stats,
@@ -1395,9 +1363,7 @@ async def get_statistics(
             "daily_trend": {
                 "dates": dates,
                 "counts": daily_counts
-            },
-            "device_usage": device_usage,
-            "venue_usage": venue_usage
+            }
         }
 
     except Exception as e:

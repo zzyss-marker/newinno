@@ -1,0 +1,591 @@
+{% extends "base.html" %}
+
+{% block title %}数据统计{% endblock %}
+
+{% block content %}
+<div class="statistics-dashboard">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4 mb-4">
+                <i class="fas fa-chart-bar text-primary mr-3"></i>
+                数据统计
+            </h1>
+            <p class="lead text-muted">查看系统使用情况和预约数据统计</p>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 stats-card">
+                <div class="card-body text-center">
+                    <div class="stats-icon bg-primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="stats-number" id="totalUsers">--</h3>
+                    <p class="stats-title">用户总数</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 stats-card">
+                <div class="card-body text-center">
+                    <div class="stats-icon bg-success">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <h3 class="stats-number" id="totalReservations">--</h3>
+                    <p class="stats-title">预约总数</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 stats-card">
+                <div class="card-body text-center">
+                    <div class="stats-icon bg-warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 class="stats-number" id="pendingReservations">--</h3>
+                    <p class="stats-title">待审批预约</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 stats-card">
+                <div class="card-body text-center">
+                    <div class="stats-icon bg-info">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="stats-number" id="approvedReservations">--</h3>
+                    <p class="stats-title">已审批预约</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="row mb-4">
+        <!-- 预约类型分布 -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-pie-chart mr-2"></i>
+                        预约类型分布
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="reservationTypeChartContainer">
+                        <div class="text-center py-3">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">正在加载图表...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 预约状态分布 -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-tasks mr-2"></i>
+                        预约状态分布
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="reservationStatusChartContainer">
+                        <div class="text-center py-3">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">正在加载图表...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- 每日预约趋势 -->
+        <div class="col-md-8 mx-auto mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        每日预约趋势（最近7天）
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="dailyTrendChartContainer">
+                        <div class="text-center py-3">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">正在加载图表...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <style>
+        .statistics-dashboard {
+            padding: 1rem 0;
+        }
+
+        .stats-card {
+            border-radius: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stats-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+
+        .stats-title {
+            color: #7f8c8d;
+            font-size: 1rem;
+            margin-bottom: 0;
+        }
+
+        .card-header {
+            background-color: rgba(0,0,0,.03);
+            border-bottom: 1px solid rgba(0,0,0,.05);
+            padding: 1rem 1.5rem;
+        }
+
+        .card-title {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .bg-primary {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+        }
+
+        .bg-success {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        }
+
+        .bg-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #d39e00 100%);
+        }
+
+        .bg-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+        }
+
+        /* 图表容器样式 */
+        canvas {
+            max-width: 100%;
+        }
+
+        /* 加载状态样式 */
+        .chart-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .card {
+            position: relative;
+            overflow: visible;
+        }
+
+        .card-body {
+            position: relative;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .stats-number {
+                font-size: 2rem;
+            }
+
+            .stats-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- 引入Chart.js库 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+
+<script>
+    // 图表颜色配置
+    const chartColors = {
+        primary: '#1a73e8',
+        success: '#28a745',
+        warning: '#ffc107',
+        danger: '#dc3545',
+        info: '#17a2b8',
+        secondary: '#6c757d',
+        light: '#f8f9fa',
+        dark: '#343a40',
+        purple: '#6f42c1',
+        pink: '#e83e8c',
+        orange: '#fd7e14',
+        teal: '#20c997'
+    };
+
+    // 图表背景色配置
+    const chartBackgroundColors = [
+        'rgba(26, 115, 232, 0.7)',
+        'rgba(40, 167, 69, 0.7)',
+        'rgba(255, 193, 7, 0.7)',
+        'rgba(220, 53, 69, 0.7)',
+        'rgba(23, 162, 184, 0.7)',
+        'rgba(108, 117, 125, 0.7)',
+        'rgba(111, 66, 193, 0.7)',
+        'rgba(232, 62, 140, 0.7)'
+    ];
+
+    // 图表边框色配置
+    const chartBorderColors = [
+        'rgba(26, 115, 232, 1)',
+        'rgba(40, 167, 69, 1)',
+        'rgba(255, 193, 7, 1)',
+        'rgba(220, 53, 69, 1)',
+        'rgba(23, 162, 184, 1)',
+        'rgba(108, 117, 125, 1)',
+        'rgba(111, 66, 193, 1)',
+        'rgba(232, 62, 140, 1)'
+    ];
+
+    // 图表实例
+    let reservationTypeChart;
+    let reservationStatusChart;
+    let dailyTrendChart;
+
+    // 页面加载状态
+    let chartsLoaded = {
+        type: false,
+        status: false,
+        trend: false
+    };
+
+    // 页面加载完成后初始化图表
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取统计数据
+        fetchStatistics();
+    });
+
+    // 获取统计数据
+    function fetchStatistics() {
+        // 显示加载状态
+        window.showLoading();
+
+        // 获取基本统计数据
+        fetch('/api/admin/stats/summary')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('获取基本统计数据失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 更新统计卡片
+                document.getElementById('totalUsers').textContent = data.user_count.toLocaleString();
+                document.getElementById('totalReservations').textContent = data.reservation_count.toLocaleString();
+
+                // 获取详细统计数据
+                return fetch('/api/admin/stats/detailed');
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('获取详细统计数据失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 更新待审批和已审批数量
+                document.getElementById('pendingReservations').textContent = data.status_stats.pending.toLocaleString();
+                document.getElementById('approvedReservations').textContent = data.status_stats.approved.toLocaleString();
+
+                // 初始化图表
+                initCharts(data);
+
+                // 隐藏加载状态
+                window.hideLoading();
+            })
+            .catch(error => {
+                console.error('获取统计数据出错:', error);
+                window.hideLoading();
+                alert('获取统计数据失败: ' + error.message);
+            });
+    }
+
+    // 保存统计数据
+    let statisticsData = null;
+
+    // 初始化所有图表（分块加载）
+    function initCharts(data) {
+        // 保存数据以便后续使用
+        statisticsData = data;
+
+        // 设置加载顺序和延迟
+        setTimeout(() => loadReservationTypeChart(), 300);
+        setTimeout(() => loadReservationStatusChart(), 800);
+        setTimeout(() => loadDailyTrendChart(), 1300);
+    }
+
+    // 加载预约类型分布图表
+    function loadReservationTypeChart() {
+        if (!statisticsData || chartsLoaded.type) return;
+
+        try {
+            // 创建canvas元素
+            const container = document.getElementById('reservationTypeChartContainer');
+            container.innerHTML = '<canvas id="reservationTypeChart" height="250"></canvas>';
+
+            // 初始化图表
+            initReservationTypeChart(statisticsData.type_stats);
+
+            // 标记为已加载
+            chartsLoaded.type = true;
+        } catch (error) {
+            console.error('加载预约类型图表失败:', error);
+            const container = document.getElementById('reservationTypeChartContainer');
+            container.innerHTML = '<div class="alert alert-danger">加载图表失败</div>';
+        }
+    }
+
+    // 加载预约状态分布图表
+    function loadReservationStatusChart() {
+        if (!statisticsData || chartsLoaded.status) return;
+
+        try {
+            // 创建canvas元素
+            const container = document.getElementById('reservationStatusChartContainer');
+            container.innerHTML = '<canvas id="reservationStatusChart" height="250"></canvas>';
+
+            // 初始化图表
+            initReservationStatusChart(statisticsData.status_stats);
+
+            // 标记为已加载
+            chartsLoaded.status = true;
+        } catch (error) {
+            console.error('加载预约状态图表失败:', error);
+            const container = document.getElementById('reservationStatusChartContainer');
+            container.innerHTML = '<div class="alert alert-danger">加载图表失败</div>';
+        }
+    }
+
+    // 加载每日预约趋势图表
+    function loadDailyTrendChart() {
+        if (!statisticsData || chartsLoaded.trend) return;
+
+        try {
+            // 创建canvas元素
+            const container = document.getElementById('dailyTrendChartContainer');
+            container.innerHTML = '<canvas id="dailyTrendChart" height="200"></canvas>';
+
+            // 初始化图表
+            initDailyTrendChart(statisticsData.daily_trend);
+
+            // 标记为已加载
+            chartsLoaded.trend = true;
+        } catch (error) {
+            console.error('加载每日预约趋势图表失败:', error);
+            const container = document.getElementById('dailyTrendChartContainer');
+            container.innerHTML = '<div class="alert alert-danger">加载图表失败</div>';
+        }
+    }
+
+    // 初始化预约类型分布图表
+    function initReservationTypeChart(typeStats) {
+        const ctx = document.getElementById('reservationTypeChart').getContext('2d');
+
+        // 如果图表已存在，销毁它
+        if (reservationTypeChart) {
+            reservationTypeChart.destroy();
+        }
+
+        // 准备数据
+        const labels = {
+            'venue': '场地预约',
+            'device': '设备预约',
+            'printer': '打印机预约'
+        };
+
+        const chartData = {
+            labels: Object.keys(typeStats).map(key => labels[key]),
+            datasets: [{
+                data: Object.values(typeStats),
+                backgroundColor: chartBackgroundColors.slice(0, Object.keys(typeStats).length),
+                borderColor: chartBorderColors.slice(0, Object.keys(typeStats).length),
+                borderWidth: 1
+            }]
+        };
+
+        // 创建图表
+        reservationTypeChart = new Chart(ctx, {
+            type: 'pie',
+            data: chartData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 初始化预约状态分布图表
+    function initReservationStatusChart(statusStats) {
+        const ctx = document.getElementById('reservationStatusChart').getContext('2d');
+
+        // 如果图表已存在，销毁它
+        if (reservationStatusChart) {
+            reservationStatusChart.destroy();
+        }
+
+        // 准备数据
+        const labels = {
+            'pending': '待审批',
+            'approved': '已通过',
+            'rejected': '已拒绝'
+        };
+
+        const chartData = {
+            labels: Object.keys(statusStats).map(key => labels[key]),
+            datasets: [{
+                data: Object.values(statusStats),
+                backgroundColor: [
+                    chartColors.warning,
+                    chartColors.success,
+                    chartColors.danger
+                ],
+                borderColor: [
+                    chartColors.warning,
+                    chartColors.success,
+                    chartColors.danger
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        // 创建图表
+        reservationStatusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: chartData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 初始化每日预约趋势图表
+    function initDailyTrendChart(trendData) {
+        const ctx = document.getElementById('dailyTrendChart').getContext('2d');
+
+        // 如果图表已存在，销毁它
+        if (dailyTrendChart) {
+            dailyTrendChart.destroy();
+        }
+
+        // 准备数据
+        const chartData = {
+            labels: trendData.dates,
+            datasets: [{
+                label: '每日预约数',
+                data: trendData.counts,
+                backgroundColor: 'rgba(26, 115, 232, 0.2)',
+                borderColor: chartColors.primary,
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }]
+        };
+
+        // 创建图表
+        dailyTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+
+</script>
+{% endblock %}
