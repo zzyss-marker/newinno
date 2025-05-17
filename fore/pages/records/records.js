@@ -114,8 +114,14 @@ Page({
         // 设置一个较大的页面大小，一次性获取所有未归还记录
         params.page_size = 100; // 设置一个足够大的值，确保能获取所有未归还记录
         console.log('未归还标签页 - 请求参数:', params);
+      } else if (this.data.currentTab === 'approved') {
+        // 对于已通过标签页，需要同时请求approved、returned和completed状态的记录
+        // 由于API不支持多状态查询，这里不设置status参数，后面在前端进行筛选
+        // 增加页面大小以确保能获取足够的记录
+        params.page_size = 50;
+        console.log('已通过标签页 - 请求所有状态记录:', params);
       } else {
-        // 对于其他标签页，直接使用标签页的key作为status参数
+        // 对于其他标签页（待审批、已拒绝），直接使用标签页的key作为status参数
         params.status = this.data.currentTab;
         console.log('普通标签页 - 请求参数:', params);
       }
@@ -316,20 +322,17 @@ Page({
           return false;
         }
 
-        // 处理状态映射
-        switch(recordStatus) {
-          case 'pending':
-          case 'approved':
-          case 'rejected':
-            return recordStatus === this.data.currentTab;
-          case 'completed':
-          case 'returned':
-            // 将completed和returned状态的记录显示在已通过的标签页中
-            return this.data.currentTab === 'approved';
-          default:
-            console.warn('Unknown status:', record.status);
-            return false;
+        // 对于已通过标签页，显示approved、returned和completed状态的记录
+        if (this.data.currentTab === 'approved') {
+          if (recordStatus === 'approved' || recordStatus === 'returned' || recordStatus === 'completed') {
+            console.log(`已通过/已归还/已完成记录: ID=${record.id}, 类型=${record.type}, 状态=${recordStatus}`);
+            return true;
+          }
+          return false;
         }
+
+        // 处理其他标签页（待审批、已拒绝）
+        return recordStatus === this.data.currentTab;
       })
 
       // 记录筛选后的结果数量
@@ -338,6 +341,14 @@ Page({
       // 如果是未归还标签页，显示筛选后的未归还记录总数
       if (this.data.currentTab === 'unreturned' && records.length > 0) {
         console.log(`未归还记录总数: ${records.length}`);
+      }
+
+      // 如果是已通过标签页，统计不同状态的记录数量
+      if (this.data.currentTab === 'approved') {
+        const approvedCount = records.filter(r => r.status === 'approved').length;
+        const returnedCount = records.filter(r => r.status === 'returned').length;
+        const completedCount = records.filter(r => r.status === 'completed').length;
+        console.log(`已通过标签页状态统计 - 已通过: ${approvedCount}, 已归还: ${returnedCount}, 已完成: ${completedCount}`);
       }
 
       // 如果是加载更多，追加记录，否则替换记录
