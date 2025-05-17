@@ -1,0 +1,57 @@
+# 忽略环境变量文件
+.env
+.env.*
+
+# 忽略Git相关文件
+.git
+.gitignore
+
+# 忽略日志文件
+*.log
+
+# 忽略数据库文件（这些将在容器中生成）
+*.db
+*.sqlite
+*.sqlite3
+
+# 忽略Python缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 忽略Docker相关文件
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 忽略文档和测试文件
+README*
+LICENSE
+*.md
+doc/
+docs/
+test/
+tests/
+
+# 忽略IDE相关文件
+.idea/
+.vscode/
+*.swp
+*.swo

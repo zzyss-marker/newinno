@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  reservation-system:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: reservation-system
+    restart: always
+    ports:
+      - "8001:8001"
+      - "5000:5000"
+    volumes:
+      - app-data:/app
+      - ./.env:/app/.env
+    networks:
+      - reservation-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  reservation-network:
+    driver: bridge
+
+volumes:
+  app-data:
+    driver: local
