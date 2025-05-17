@@ -4,15 +4,9 @@ WORKDIR /app
 
 # 安装依赖（添加重试机制）
 COPY requirements.txt .
-RUN pip install --no-cache-dir --retries 5 -r requirements.txt || \
-    (sleep 5 && pip install --no-cache-dir --retries 5 -r requirements.txt)
-
-# 安装wget用于健康检查（wget通常已经包含在基础镜像中）
-RUN apt-get update || (sleep 5 && apt-get update) && \
-    apt-get install -y --no-install-recommends wget || \
-    (sleep 5 && apt-get install -y --no-install-recommends wget) && \
-    rm -rf /var/lib/apt/lists/*
-
+RUN pip install --no-cache-dir --retries 5 -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple || \
+    (sleep 5 && pip install --no-cache-dir --retries 5 -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple)
+    
 # 复制应用代码
 COPY app/ ./app/
 COPY runme.py .
