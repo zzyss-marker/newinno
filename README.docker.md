@@ -9,6 +9,13 @@
 1. **FastAPI后端服务**：提供API接口，处理预约逻辑
 2. **Flask管理系统**：提供管理界面，用于管理用户、设备、场地等
 
+## 时区配置
+
+系统已配置为使用中国时区（UTC+8），确保时间记录的准确性：
+- 容器内部时区设置为 `Asia/Shanghai`
+- 挂载主机时区文件以保持同步
+- 环境变量 `TZ=Asia/Shanghai` 确保应用程序使用正确时区
+
 ## 前置条件
 
 - 安装Docker和Docker Compose
@@ -127,6 +134,24 @@ docker run --rm -v reservation-system_app-data:/app -v $(pwd)/backup:/backup alp
    # 检查网络
    docker network ls
    docker network inspect reservation-system_reservation-network
+   ```
+
+4. **时区问题**
+
+   ```bash
+   # 检查容器内时区设置
+   docker-compose exec reservation-system date
+   docker-compose exec reservation-system cat /etc/timezone
+
+   # 检查环境变量
+   docker-compose exec reservation-system env | grep TZ
+
+   # 运行时区测试脚本
+   docker-compose exec reservation-system python test_timezone.py
+
+   # 如果时区不正确，重新构建容器
+   docker-compose down
+   docker-compose up -d --build
    ```
 
 ## 更新部署

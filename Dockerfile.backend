@@ -2,11 +2,18 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+# 设置时区为UTC+8（中国时区）
+ENV TZ=Asia/Shanghai
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 创建时区文件（备用方案，不依赖网络）
+RUN echo "Asia/Shanghai" > /etc/timezone
+
 # 安装依赖（添加重试机制）
 COPY requirements.txt .
 RUN pip install --no-cache-dir --retries 5 -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple || \
     (sleep 5 && pip install --no-cache-dir --retries 5 -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple)
-    
+
 # 复制应用代码
 COPY app/ ./app/
 COPY runme.py .

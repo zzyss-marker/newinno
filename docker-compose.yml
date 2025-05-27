@@ -13,6 +13,9 @@ services:
     volumes:
       - app-data:/app
       - ./.env:/app/.env
+    environment:
+      - TZ=Asia/Shanghai
+      - PYTHONPATH=/app
     networks:
       - reservation-network
     healthcheck:
