@@ -16,12 +16,6 @@ services:
       - PYTHONPATH=/app
     networks:
       - reservation-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8001/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
 networks:
   reservation-network:
