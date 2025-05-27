@@ -323,7 +323,7 @@ document.getElementById('next-page').addEventListener('click', function(e) {
 });
 
 // 加载预约记录函数 - 优化版本，将所有筛选条件传递给后端
-async function loadReservations() {
+async function loadReservations(forceRefresh = false) {
     // 获取筛选条件
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
@@ -369,11 +369,11 @@ async function loadReservations() {
         // 生成缓存键
         const cacheKey = JSON.stringify(requestParams);
 
-        // 检查缓存中是否有数据
-        const cachedData = dataCache.get(requestParams);
+        // 检查缓存中是否有数据（如果强制刷新则跳过缓存）
+        const cachedData = forceRefresh ? null : dataCache.get(requestParams);
         let result;
 
-        if (cachedData) {
+        if (cachedData && !forceRefresh) {
             // 使用缓存数据
             console.log('使用缓存数据');
             result = {
@@ -406,8 +406,10 @@ async function loadReservations() {
             // 解析响应数据
             result = await response.json();
 
-            // 缓存数据
-            dataCache.set(requestParams, result);
+            // 缓存数据（如果不是强制刷新）
+            if (!forceRefresh) {
+                dataCache.set(requestParams, result);
+            }
         }
 
         // 处理分页信息
@@ -862,17 +864,56 @@ async function deleteReservation(type, id) {
 
         // 显示成功消息
         const row = button.closest('tr');
-        row.style.backgroundColor = '#ffefef';
+
+        // 显示成功提示
+        const successAlert = document.createElement('div');
+        successAlert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        successAlert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        successAlert.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            删除成功！
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(successAlert);
+
+        // 3秒后自动移除提示
+        setTimeout(() => {
+            if (successAlert.parentNode) {
+                successAlert.remove();
+            }
+        }, 3000);
+
+        // 立即开始删除动画
+        row.style.backgroundColor = '#d4edda';
         row.style.transition = 'all 0.5s ease';
 
         setTimeout(() => {
             row.style.opacity = '0';
-            row.style.height = '0';
+            row.style.transform = 'scale(0.95)';
             setTimeout(() => {
-                // 重新加载数据
-                loadReservations();
-            }, 500);
-        }, 500);
+                // 立即从DOM中移除该行
+                row.remove();
+
+                // 清除缓存，确保获取最新数据
+                dataCache.clear();
+
+                // 检查当前页是否还有数据，如果当前页没有数据了，回到上一页
+                const currentRows = document.querySelectorAll('#reservationList tr').length;
+                if (currentRows === 0 && currentPage > 1) {
+                    currentPage--;
+                }
+
+                // 强制重新加载数据，绕过缓存
+                const timestamp = Date.now();
+                loadReservations(true).then(() => {
+                    console.log(`数据已强制刷新 - ${timestamp}`);
+                }).catch(error => {
+                    console.error('刷新数据失败:', error);
+                    // 如果加载失败，尝试刷新整个页面
+                    location.reload();
+                });
+            }, 300);
+        }, 200);
     } catch (error) {
         console.error('删除失败：', error);
         alert('删除失败：' + error.message);
