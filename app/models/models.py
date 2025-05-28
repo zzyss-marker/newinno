@@ -89,7 +89,7 @@ class DeviceReservation(Base):
     actual_return_time = Column(DateTime, nullable=True)
     reason = Column(Text)
     status = Column(String(50), default="pending")  # pending, approved, rejected, returned, return_pending
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, default=datetime.now)
     usage_type = Column(String(50), default="takeaway")  # 'onsite' or 'takeaway'
     approver_name = Column(String, nullable=True)
     teacher_name = Column(String(100), nullable=True)  # 添加指导老师字段
@@ -111,7 +111,7 @@ class PrinterReservation(Base):
     estimated_duration = Column(Integer, nullable=True)  # 预计打印耗时（分钟）
     model_name = Column(String(100), nullable=True)  # 打印模型名称
     status = Column(String(50), default="pending")  # pending, approved, rejected, completed, completion_pending
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=datetime.now)
     approver_name = Column(String, nullable=True)
     teacher_name = Column(String(100), nullable=True)  # 添加指导老师字段
     printer_condition = Column(String(50), nullable=True)  # 使用完成后打印机状态: normal(正常), damaged(故障)
