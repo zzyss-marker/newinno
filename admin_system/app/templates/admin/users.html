@@ -40,11 +40,14 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="btn-group float-right">
-                        <button class="btn btn-primary" type="button" id="filterAll">全部</button>
-                        <button class="btn btn-outline-primary" type="button" id="filterStudent">学生</button>
-                        <button class="btn btn-outline-primary" type="button" id="filterTeacher">教师</button>
-                        <button class="btn btn-outline-primary" type="button" id="filterAdmin">管理员</button>
+                    <div class="d-flex justify-content-between">
+                        <div class="btn-group">
+                            <button class="btn btn-primary" type="button" id="filterAll">全部</button>
+                            <button class="btn btn-outline-primary" type="button" id="filterStudent">学生</button>
+                            <button class="btn btn-outline-primary" type="button" id="filterTeacher">教师</button>
+                            <button class="btn btn-outline-primary" type="button" id="filterAdmin">管理员</button>
+                        </div>
+                        <button id="batchDeleteBtn" class="btn btn-danger" disabled>批量删除</button>
                     </div>
                 </div>
             </div>
@@ -53,6 +56,12 @@
                 <table class="table">
                     <thead>
                         <tr>
+                            <th>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAllUsers">
+                                    <label class="form-check-label" for="selectAllUsers"></label>
+                                </div>
+                            </th>
                             <th>用户名</th>
                             <th>姓名</th>
                             <th>学院</th>
@@ -859,6 +868,12 @@ function displayUsers(users) {
         const isAdmin = user.role === 'admin';
         return `
             <tr>
+                <td>
+                    <div class="form-check">
+                        <input class="form-check-input user-checkbox" type="checkbox" id="selectUser${user.username}" data-username="${user.username}">
+                        <label class="form-check-label" for="selectUser${user.username}"></label>
+                    </div>
+                </td>
                 <td>${user.username || ''}</td>
                 <td>${user.name || ''}</td>
                 <td>${user.department || ''}</td>
@@ -878,6 +893,11 @@ function displayUsers(users) {
             </tr>
         `;
     }).join('');
+
+    // 添加复选框变化事件监听
+    document.querySelectorAll('#userList .user-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateBatchDeleteButton);
+    });
 }
 
 function getRoleText(role) {
@@ -1010,6 +1030,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // 全选/取消全选功能
+    document.getElementById('selectAllUsers').addEventListener('change', function() {
+        const isChecked = this.checked;
+        const checkboxes = document.querySelectorAll('#userList input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        updateBatchDeleteButton();
+    });
+
+    // 批量删除按钮事件
+    document.getElementById('batchDeleteBtn').addEventListener('click', batchDeleteUsers);
+
     // 角色筛选功能
     document.getElementById('filterAll').addEventListener('click', function() {
         setActiveFilter(this);
@@ -1074,6 +1107,57 @@ function setActiveFilter(button) {
     // 给当前按钮添加 active 类
     button.classList.remove('btn-outline-primary');
     button.classList.add('btn-primary');
+}
+
+// 更新批量删除按钮状态
+function updateBatchDeleteButton() {
+    const checkboxes = document.querySelectorAll('#userList .user-checkbox:checked');
+    const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+    batchDeleteBtn.disabled = checkboxes.length === 0;
+}
+
+// 批量删除用户
+async function batchDeleteUsers() {
+    const checkboxes = document.querySelectorAll('#userList .user-checkbox:checked');
+    const usernames = Array.from(checkboxes).map(cb => cb.dataset.username);
+    
+    if (usernames.length === 0) {
+        alert('请选择要删除的用户');
+        return;
+    }
+    
+    if (!confirm(`确定要删除所选的 ${usernames.length} 个用户吗？此操作不可恢复！`)) {
+        return;
+    }
+    
+    const button = document.getElementById('batchDeleteBtn');
+    setButtonLoading(button, true);
+    
+    try {
+        // 调用批量删除API
+        const response = await fetch('/api/admin/users/batch-delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ usernames })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            alert(result.message || `成功删除 ${result.deleted_count || usernames.length} 个用户`);
+            // 重新加载用户列表
+            await loadUsers();
+        } else {
+            const error = await response.json();
+            alert(error.error || '批量删除失败');
+        }
+    } catch (error) {
+        console.error('批量删除失败:', error);
+        alert('批量删除失败: ' + error.message);
+    } finally {
+        setButtonLoading(button, false);
+    }
 }
 </script>
 {% endblock %}

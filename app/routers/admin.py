@@ -1006,6 +1006,76 @@ async def delete_user(
             detail=f"删除用户失败: {str(e)}"
         )
 
+@router.post("/users/batch-delete")
+async def batch_delete_users(
+    data: dict,
+    db: Session = Depends(get_db)
+):
+    """批量删除用户（不能删除系统管理员）"""
+    try:
+        if 'usernames' not in data or not isinstance(data['usernames'], list):
+            raise HTTPException(status_code=400, detail="无效的请求数据")
+
+        usernames = data['usernames']
+        if not usernames:
+            raise HTTPException(status_code=400, detail="用户名列表为空")
+
+        result = {
+            "deleted_count": 0,
+            "failed_count": 0,
+            "details": {
+                "success": [],
+                "not_found": [],
+                "protected": [],
+                "error": []
+            }
+        }
+
+        # 为了提高效率，使用一次查询获取所有用户
+        users = db.query(models.User).filter(models.User.username.in_(usernames)).all()
+        found_usernames = {user.username: user for user in users}
+
+        for username in usernames:
+            try:
+                if username not in found_usernames:
+                    result["details"]["not_found"].append(username)
+                    result["failed_count"] += 1
+                    continue
+
+                user = found_usernames[username]
+                if user.is_system_admin:
+                    result["details"]["protected"].append(username)
+                    result["failed_count"] += 1
+                    continue
+
+                db.delete(user)
+                result["details"]["success"].append(username)
+                result["deleted_count"] += 1
+            except Exception as e:
+                print(f"Error deleting user {username}: {str(e)}")
+                result["details"]["error"].append(username)
+                result["failed_count"] += 1
+
+        # 提交事务
+        db.commit()
+        
+        return {
+            "message": f"成功删除 {result['deleted_count']} 个用户，失败 {result['failed_count']} 个",
+            "deleted_count": result["deleted_count"],
+            "failed_count": result["failed_count"],
+            "details": result["details"]
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error batch deleting users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"批量删除用户失败: {str(e)}"
+        )
+
 @router.get("/reservations/list")
 async def list_reservations(
     start_date: Optional[str] = None,

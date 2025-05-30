@@ -248,37 +248,97 @@ def delete_user(username):
 
         if response.status_code == 401:
             current_app.logger.warning("Authentication error, continuing anyway...")
-            # 对于401错误，我们仍然继续处理
+            # 尝试从错误响应中获取详细信息
             try:
-                result = response.json()
-                current_app.logger.debug(f"Parsed 401 response: {result}")
-                # 如果无法从响应中获取有用信息，则假设成功
-                return jsonify({'message': '用户可能已删除'})
+                error_data = response.json()
+                error_message = error_data.get('detail', '删除失败')
+                if isinstance(error_message, dict) and 'message' in error_message:
+                    error_message = error_message['message']
+                return jsonify({'error': error_message}), 401
             except:
-                # 如果无法解析JSON，仍然返回成功
-                return jsonify({'message': '用户可能已删除'})
+                return jsonify({'error': '删除失败，认证错误'}), 401
 
         response.raise_for_status()
-        result = response.json()
-        return jsonify(result)
-    except requests.exceptions.Timeout:
-        current_app.logger.error(f"Request timed out for deleting user: {username}")
-        return jsonify({'error': '请求超时，请稍后再试'}), 504
+        
+        # 返回成功响应
+        return jsonify({'message': '用户删除成功'})
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Error deleting user: {str(e)}")
-        # 尝试从后端获取更详细的错误信息
-        error_detail = str(e)
-        try:
-            if hasattr(e, 'response') and e.response:
+        # 尝试从错误响应中获取详细信息
+        error_message = '删除失败'
+        if hasattr(e, 'response') and e.response is not None:
+            try:
                 error_data = e.response.json()
-                if isinstance(error_data, dict) and 'detail' in error_data:
-                    error_detail = error_data['detail']
-        except:
-            pass
+                if isinstance(error_data, dict):
+                    error_message = error_data.get('detail', error_data.get('error', '删除失败'))
+                    if isinstance(error_message, dict) and 'message' in error_message:
+                        error_message = error_message['message']
+            except:
+                pass
+        return jsonify({'error': error_message}), 500
 
-        # 永远返回成功，即使可能有错误
-        current_app.logger.warning(f"Ignoring error and returning success: {error_detail}")
-        return jsonify({'message': '删除操作已执行'})
+@bp.route('/api/admin/users/batch-delete', methods=['POST'])
+@login_required
+def batch_delete_users():
+    """批量删除用户"""
+    try:
+        data = request.get_json()
+        if not data or 'usernames' not in data or not isinstance(data['usernames'], list):
+            return jsonify({'error': '无效的请求数据'}), 400
+
+        usernames = data['usernames']
+        if not usernames:
+            return jsonify({'error': '用户名列表为空'}), 400
+
+        current_app.logger.debug(f"Attempting to batch delete {len(usernames)} users")
+
+        # 调用后端API批量删除用户
+        response = make_request(
+            'POST',
+            get_api_url('admin/users/batch-delete'),
+            json={'usernames': usernames},
+            headers={'Accept': 'application/json'},
+            timeout=30  # 批量操作可能需要更长时间
+        )
+
+        # 记录响应详情
+        current_app.logger.debug(f"Batch delete response status: {response.status_code}")
+        
+        if response.status_code >= 400:
+            error_message = '批量删除失败'
+            try:
+                error_data = response.json()
+                if isinstance(error_data, dict):
+                    error_message = error_data.get('detail', error_data.get('error', '批量删除失败'))
+                    if isinstance(error_message, dict) and 'message' in error_message:
+                        error_message = error_message['message']
+            except:
+                pass
+            return jsonify({'error': error_message}), response.status_code
+
+        response.raise_for_status()
+        
+        # 返回成功响应
+        result = response.json()
+        return jsonify({
+            'message': f'成功删除{result.get("deleted_count", len(usernames))}个用户',
+            'deleted_count': result.get('deleted_count', len(usernames)),
+            'details': result.get('details', {})
+        })
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error in batch deleting users: {str(e)}")
+        # 尝试从错误响应中获取详细信息
+        error_message = '批量删除失败'
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_data = e.response.json()
+                if isinstance(error_data, dict):
+                    error_message = error_data.get('detail', error_data.get('error', '批量删除失败'))
+                    if isinstance(error_message, dict) and 'message' in error_message:
+                        error_message = error_message['message']
+            except:
+                pass
+        return jsonify({'error': error_message}), 500
 
 @bp.route('/reservations')
 @login_required
