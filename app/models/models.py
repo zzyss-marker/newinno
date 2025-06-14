@@ -67,15 +67,15 @@ class VenueReservation(Base):
 
     reservation_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
-    venue_type = Column(String)
+    venue_type = Column(String(100))
     reservation_date = Column(Date)
-    business_time = Column(String)
-    purpose = Column(String)
-    status = Column(String, default="pending")
+    business_time = Column(String(50))
+    purpose = Column(String(500))
+    status = Column(String(50), default="pending")
     created_at = Column(DateTime, default=datetime.now)
     devices_needed = Column(JSON)
-    approver_name = Column(String, nullable=True)
-    
+    approver_name = Column(String(100), nullable=True)
+
     user = relationship("User", back_populates="venue_reservations")
 
 class DeviceReservation(Base):
@@ -91,7 +91,7 @@ class DeviceReservation(Base):
     status = Column(String(50), default="pending")  # pending, approved, rejected, returned, return_pending
     created_at = Column(DateTime, default=datetime.now)
     usage_type = Column(String(50), default="takeaway")  # 'onsite' or 'takeaway'
-    approver_name = Column(String, nullable=True)
+    approver_name = Column(String(100), nullable=True)
     teacher_name = Column(String(100), nullable=True)  # 添加指导老师字段
     device_condition = Column(String(50), nullable=True)  # 归还时设备状态: normal(正常), damaged(故障)
     return_note = Column(Text, nullable=True)  # 归还备注信息
@@ -112,7 +112,7 @@ class PrinterReservation(Base):
     model_name = Column(String(100), nullable=True)  # 打印模型名称
     status = Column(String(50), default="pending")  # pending, approved, rejected, completed, completion_pending
     created_at = Column(DateTime, default=datetime.now)
-    approver_name = Column(String, nullable=True)
+    approver_name = Column(String(100), nullable=True)
     teacher_name = Column(String(100), nullable=True)  # 添加指导老师字段
     printer_condition = Column(String(50), nullable=True)  # 使用完成后打印机状态: normal(正常), damaged(故障)
     completion_note = Column(Text, nullable=True)  # 使用完成备注信息

@@ -181,16 +181,9 @@ async def create_device_reservation(
         # 打印创建的预约记录，但不打印内部状态
         print(f"创建的预约记录: 用户ID={db_reservation.user_id}, 设备名称={db_reservation.device_name}, 借用时间={db_reservation.borrow_time}, 使用类型={db_reservation.usage_type}")
 
-        # 显式开始事务
-        db.begin_nested()
+        # 添加到数据库会话并提交
         db.add(db_reservation)
-        try:
-            db.commit()
-        except Exception as commit_error:
-            db.rollback()
-            print(f"提交事务失败: {str(commit_error)}")
-            raise
-
+        db.commit()
         db.refresh(db_reservation)
 
         # 打印提交后的记录ID

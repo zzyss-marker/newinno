@@ -37,12 +37,12 @@ class VenueReservation(db.Model):
 
     reservation_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
-    venue_type = db.Column(db.String)
+    venue_type = db.Column(db.String(100))
     reservation_date = db.Column(db.Date)
-    business_time = db.Column(db.String)
-    purpose = db.Column(db.String)
+    business_time = db.Column(db.String(50))
+    purpose = db.Column(db.String(500))
     devices_needed = db.Column(db.JSON)
-    status = db.Column(db.String, default="pending")
+    status = db.Column(db.String(50), default="pending")
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     user = db.relationship('User', back_populates='venue_reservations')
