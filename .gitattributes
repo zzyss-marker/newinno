@@ -1,0 +1,27 @@
+# Normalize line endings
+* text=auto
+
+# Ensure Python files are recognized as Python (usually unnecessary, but harmless)
+*.py linguist-language=Python
+
+# Exclude frontend code from language statistics (treat as vendored)
+fore/** linguist-vendored
+fore_uniapp/** linguist-vendored
+
+# Exclude static web assets from language statistics
+admin_system/app/static/** linguist-vendored
+app/static/** linguist-vendored
+
+# Documentation and images shouldn't affect language stats
+docs/** linguist-documentation
+image/** linguist-documentation
+*.md linguist-documentation
+
+# Common generated/minified artifacts shouldn't count
+*.min.js linguist-generated
+*.map linguist-generated
+*.bundle.js linguist-generated
+*.css.map linguist-generated
+package-lock.json linguist-generated
+yarn.lock linguist-generated
+pnpm-lock.yaml linguist-generated
