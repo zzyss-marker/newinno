@@ -1,0 +1,466 @@
+{
+  "info": {
+    "name": "创新工坊预约系统API",
+    "description": "创新工坊预约系统的完整API接口集合",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "认证接口",
+      "item": [
+        {
+          "name": "用户登录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    pm.test('登录成功', function () {",
+                  "        pm.expect(response.access_token).to.not.be.empty;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "testuser"
+                },
+                {
+                  "key": "password",
+                  "value": "testpassword"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "token"]
+            }
+          }
+        },
+        {
+          "name": "获取用户信息",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "预约接口",
+      "item": [
+        {
+          "name": "获取我的预约记录",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reservations/my-reservations?page=1&page_size=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "my-reservations"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "创建场地预约",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"venue_type\": \"会议室\",\n  \"reservation_date\": \"2024-02-01\",\n  \"business_time\": \"morning\",\n  \"purpose\": \"团队会议\",\n  \"devices_needed\": {\n    \"screen\": true,\n    \"laptop\": false,\n    \"mic_handheld\": true,\n    \"mic_gooseneck\": false,\n    \"projector\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reservations/venue",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "venue"]
+            }
+          }
+        },
+        {
+          "name": "创建设备预约",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_name\": \"笔记本电脑\",\n  \"borrow_time\": \"2024-02-01 09:00\",\n  \"return_time\": \"2024-02-01 17:00\",\n  \"reason\": \"项目开发\",\n  \"usage_type\": \"takeaway\",\n  \"teacher_name\": \"张老师\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reservations/device",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "device"]
+            }
+          }
+        },
+        {
+          "name": "创建打印机预约",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"printer_name\": \"3D打印机A\",\n  \"reservation_date\": \"2024-02-01\",\n  \"print_time\": \"2024-02-01 10:00\",\n  \"end_time\": \"2024-02-01 14:00\",\n  \"estimated_duration\": 240,\n  \"model_name\": \"手机壳模型\",\n  \"teacher_name\": \"李老师\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reservations/printer",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "printer"]
+            }
+          }
+        },
+        {
+          "name": "查询场地占用时间",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reservations/venue/occupied-times?venue_type=会议室&date=2024-02-01",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "venue", "occupied-times"],
+              "query": [
+                {
+                  "key": "venue_type",
+                  "value": "会议室"
+                },
+                {
+                  "key": "date",
+                  "value": "2024-02-01"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "管理接口",
+      "item": [
+        {
+          "name": "获取设备列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/management/devices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "management", "devices"]
+            }
+          }
+        },
+        {
+          "name": "获取场地列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/management/venues",
+              "host": ["{{base_url}}"],
+              "path": ["api", "management", "venues"]
+            }
+          }
+        },
+        {
+          "name": "添加设备",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_or_venue_name\": \"新设备\",\n  \"category\": \"device\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/management/devices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "management", "devices"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "管理员接口",
+      "item": [
+        {
+          "name": "获取待审批预约",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/reservations/pending?page=1&page_size=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "reservations", "pending"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "审批预约",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"venue\",\n  \"id\": 1,\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/reservations/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "reservations", "approve"]
+            }
+          }
+        },
+        {
+          "name": "获取用户列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users?page=1&page_size=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI接口",
+      "item": [
+        {
+          "name": "AI健康检查",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ai/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "health"]
+            }
+          }
+        },
+        {
+          "name": "AI聊天",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"你好，我想预约一个会议室\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "chat"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "设置接口",
+      "item": [
+        {
+          "name": "获取AI功能状态",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/settings/ai-feature",
+              "host": ["{{base_url}}"],
+              "path": ["api", "settings", "ai-feature"]
+            }
+          }
+        },
+        {
+          "name": "更新AI功能状态",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/settings/ai-feature",
+              "host": ["{{base_url}}"],
+              "path": ["api", "settings", "ai-feature"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "基础接口",
+      "item": [
+        {
+          "name": "API根端点",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
