@@ -56,6 +56,7 @@ class User(Base):
     role = Column(String(50))  # student, teacher, admin
     department = Column(String(255))
     is_system_admin = Column(Boolean, default=False)  # 系统管理员标记
+    wechat_openid = Column(String(255), nullable=True)  # 微信小程序openid，用于推送订阅消息
 
     # 关联关系
     venue_reservations = relationship("VenueReservation", back_populates="user")

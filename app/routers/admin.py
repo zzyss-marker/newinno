@@ -14,6 +14,7 @@ from ..schemas import (  # 直接从schemas模块导入需要的类
 )
 from ..utils.auth import get_current_admin, get_current_user
 from ..utils.excel import read_users_excel, export_reservations_excel
+from ..utils.wechat import notify_user_approval_result
 import io
 from fastapi.responses import StreamingResponse, FileResponse
 from ..models.models import DeviceNames
@@ -323,6 +324,46 @@ async def approve_reservation(
         reservation.status = new_status
         reservation.approver_name = current_user.name  # 记录审批人姓名
         db.commit()
+        
+        # 如果审核通过或拒绝，通知用户
+        if new_status in ["approved", "rejected"]:
+            try:
+                print(f"开始通知用户审核结果: 预约ID={reservation_id}, 状态={new_status}")
+                # 获取用户信息
+                user = db.query(models.User).filter(
+                    models.User.user_id == reservation.user_id
+                ).first()
+                
+                print(f"用户信息: user_id={user.user_id if user else None}, openid={user.wechat_openid if user else None}")
+                
+                if user and user.wechat_openid:
+                    # 构建服务名称和预约时间
+                    if reservation_type == "venue":
+                        service_name = f"{reservation.venue_type}场地"
+                        reservation_time = f"{reservation.reservation_date} {reservation.business_time}"
+                    elif reservation_type == "device":
+                        service_name = f"{reservation.device_name}设备"
+                        reservation_time = reservation.borrow_time.strftime("%Y-%m-%d %H:%M")
+                    else:  # printer
+                        service_name = f"{reservation.printer_name}打印机"
+                        reservation_time = reservation.print_time.strftime("%Y-%m-%d %H:%M")
+                    
+                    print(f"发送通知: openid={user.wechat_openid}, 服务={service_name}, 结果={new_status}")
+                    # 发送通知
+                    result = notify_user_approval_result(
+                        user_openid=user.wechat_openid,
+                        is_approved=(new_status == "approved"),
+                        service_name=service_name,
+                        reservation_time=reservation_time
+                    )
+                    print(f"通知发送结果: {result}")
+                else:
+                    print(f"用户未保存openid,跳过通知")
+            except Exception as e:
+                print(f"通知用户失败: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                # 通知失败不影响审批
 
         return {"message": "审批成功"}
     except HTTPException:

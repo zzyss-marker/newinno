@@ -25,6 +25,8 @@ import bcrypt
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime
+from pydantic import BaseModel
+import requests
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -232,4 +234,55 @@ async def debug_token(current_user: models.User = Depends(get_current_user)):
     return {
         "message": "认证成功",
         "user_info": user_info
-    } 
+    }
+
+class WxLoginRequest(BaseModel):
+    code: str
+
+@router.post("/auth/wx-login")
+async def wx_login(
+    request: WxLoginRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    微信小程序登录,通过code获取openid
+    """
+    from ..utils.wechat import WECHAT_APPID, WECHAT_SECRET
+    
+    try:
+        # 调用微信接口获取openid
+        url = f"https://api.weixin.qq.com/sns/jscode2session"
+        params = {
+            "appid": WECHAT_APPID,
+            "secret": WECHAT_SECRET,
+            "js_code": request.code,
+            "grant_type": "authorization_code"
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        result = response.json()
+        
+        if "openid" in result:
+            return {
+                "success": True,
+                "openid": result["openid"],
+                "session_key": result.get("session_key")
+            }
+        else:
+            print(f"微信登录失败: {result}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"微信登录失败: {result.get('errmsg', '未知错误')}"
+            )
+    except requests.RequestException as e:
+        print(f"微信接口调用失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"微信接口调用失败: {str(e)}"
+        )
+    except Exception as e:
+        print(f"微信登录异常: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"微信登录异常: {str(e)}"
+        )

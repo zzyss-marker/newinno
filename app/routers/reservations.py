@@ -20,6 +20,7 @@ from ..schemas import (
 from ..utils.auth import get_current_user
 from ..utils.validation import check_reservation_conflict
 from ..models.models import DeviceNames
+from ..utils.wechat import notify_admins_new_reservation
 import hashlib
 import json
 
@@ -99,6 +100,31 @@ async def create_venue_reservation(
         db.add(db_reservation)
         db.commit()
         db.refresh(db_reservation)
+
+        # 通知管理员有新的预约申请
+        try:
+            print(f"开始通知管理员: 用户={current_user.name}, 场地={reservation.venue_type}")
+            reservation_item = f"{reservation.venue_type}场地预约"
+            # 转换business_time为具体时间
+            time_map = {
+                "morning": "08:00",
+                "afternoon": "14:00",
+                "evening": "18:00"
+            }
+            time_str = time_map.get(reservation.business_time, "08:00")
+            reservation_time = f"{reservation.reservation_date} {time_str}"
+            result = notify_admins_new_reservation(
+                db=db,
+                user_name=current_user.name,
+                reservation_item=reservation_item,
+                reservation_time=reservation_time
+            )
+            print(f"通知管理员完成: 成功通知{result}个管理员")
+        except Exception as e:
+            print(f"通知管理员失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            # 通知失败不影响预约创建
 
         return {
             "id": db_reservation.reservation_id,  # 添加id字段
@@ -189,6 +215,20 @@ async def create_device_reservation(
         # 打印提交后的记录ID
         print(f"提交后的预约记录ID: {db_reservation.reservation_id}")
 
+        # 通知管理员有新的预约申请
+        try:
+            reservation_item = f"{reservation.device_name}设备预约"
+            reservation_time = borrow_time.strftime("%Y-%m-%d %H:%M")
+            notify_admins_new_reservation(
+                db=db,
+                user_name=current_user.name,
+                reservation_item=reservation_item,
+                reservation_time=reservation_time
+            )
+        except Exception as e:
+            print(f"通知管理员失败: {str(e)}")
+            # 通知失败不影响预约创建
+
         # 返回响应，使用正确的字段名称
         return {
             "id": db_reservation.reservation_id,  # 添加id字段
@@ -267,6 +307,20 @@ async def create_printer_reservation(
         db.add(db_reservation)
         db.commit()
         db.refresh(db_reservation)
+
+        # 通知管理员有新的预约申请
+        try:
+            reservation_item = f"{reservation.printer_name}打印机预约"
+            reservation_time = print_start_time.strftime("%Y-%m-%d %H:%M")
+            notify_admins_new_reservation(
+                db=db,
+                user_name=current_user.name,
+                reservation_item=reservation_item,
+                reservation_time=reservation_time
+            )
+        except Exception as e:
+            print(f"通知管理员失败: {str(e)}")
+            # 通知失败不影响预约创建
 
         return {
             "id": db_reservation.reservation_id,

@@ -1,5 +1,6 @@
 // 导入请求工具
 import { get } from './utils/request'
+const wechatUtil = require('./utils/wechat.js')
 
 App({
   globalData: {
@@ -44,20 +45,33 @@ App({
   },
 
   onLaunch() {
-    console.log('App onLaunch');
-    // 检查登录状态和用户角色
-    this.checkLoginStatus()
+    console.log('App onLaunch - 小程序冷启动');
+    
+    // 清除登录状态,强制用户重新登录
+    wx.removeStorageSync('token');
+    wx.removeStorageSync('userInfo');
+    this.globalData.userInfo = null;
+    
+    console.log('已清除登录状态,需要重新登录');
+    
     // 检查AI功能状态
     this.checkAIFeatureStatus()
 
     // 初始化TabBar刷新回调
     this.tabBarRefreshCallback = null;
+    
+    // 跳转到登录页面(我的页面)
+    setTimeout(() => {
+      wx.switchTab({
+        url: '/pages/my/my'
+      });
+    }, 100);
   },
 
   // 当小程序从后台切换到前台时触发
   onShow() {
-    console.log('App onShow - 刷新用户状态');
-    // 强制刷新用户状态，确保权限变更能够及时反映
+    console.log('App onShow - 从后台切换到前台');
+    // 从后台切换回来时,只刷新用户状态,不清除登录
     this.checkLoginStatus(true);
   },
 
@@ -71,6 +85,13 @@ App({
           // 保存用户信息到全局数据
           this.globalData.userInfo = userInfo;
           console.log('用户信息已更新:', userInfo);
+          
+          // 如果是管理员，尝试保存openid(不请求授权,授权在登录时处理)
+          if (userInfo && userInfo.role === 'admin') {
+            wechatUtil.saveAdminOpenidOnLogin().catch(err => {
+              console.log('保存管理员openid失败:', err);
+            });
+          }
         }
         return this.globalData.userInfo;
       } catch (error) {

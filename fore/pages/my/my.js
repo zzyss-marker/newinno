@@ -191,6 +191,23 @@ Page({
       // 刷新所有页面的用户权限状态
       await app.refreshUserPermissions();
 
+      // 登录成功后请求订阅消息授权
+      const wechatUtil = require('../../utils/wechat.js');
+      try {
+        if (userInfo.role === 'admin') {
+          // 管理员:请求新预约通知授权
+          await wechatUtil.requestAdminNotification();
+          console.log('管理员订阅授权成功');
+        } else {
+          // 普通用户:请求审批结果通知授权
+          await wechatUtil.requestUserNotification();
+          console.log('用户订阅授权成功');
+        }
+      } catch (err) {
+        console.log('订阅授权失败或用户取消:', err);
+        // 授权失败不影响登录
+      }
+
       wx.showToast({
         title: '登录成功',
         icon: 'success'

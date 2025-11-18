@@ -12,6 +12,9 @@ def init_db():
 
     # 检查并添加teacher_name列到相关表
     ensure_teacher_name_columns()
+    
+    # 检查并添加wechat_openid列到users表
+    ensure_wechat_openid_column()
 
     # 创建数据库会话
     db = Session(engine)
@@ -187,3 +190,24 @@ def init_db():
 def ensure_teacher_name_columns():
     """MySQL数据库会自动处理表结构，此函数保留用于兼容性"""
     print("MySQL数据库表结构由SQLAlchemy自动管理，无需手动添加列")
+
+def ensure_wechat_openid_column():
+    """确保users表有wechat_openid字段"""
+    from sqlalchemy import text, inspect
+    
+    try:
+        inspector = inspect(engine)
+        columns = [col['name'] for col in inspector.get_columns('users')]
+        
+        if 'wechat_openid' not in columns:
+            print("添加wechat_openid字段到users表...")
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN wechat_openid VARCHAR(255) NULL COMMENT '微信小程序openid'"
+                ))
+                conn.commit()
+            print("wechat_openid字段添加成功")
+        else:
+            print("wechat_openid字段已存在")
+    except Exception as e:
+        print(f"检查/添加wechat_openid字段时出错: {str(e)}")
